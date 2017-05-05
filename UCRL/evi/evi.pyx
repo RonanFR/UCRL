@@ -1,16 +1,18 @@
-# cython: cdivision=True
 # cython: boundscheck=False
-# cython: wraparound=False
+
 
 # Authors: Ronan Fruit <ronan.fruit@inria.fr>
 #          Matteo Pirotta <matteo.pirotta@inria.fr>
 #
 # License: BSD 3 clause
 
+from libc.stdlib cimport malloc
 from libc.stdlib cimport free
 from libc.math cimport fabs
 from libc.string cimport memcpy
 from libc.string cimport memset
+
+from cython.parallel import prange
 
 import numpy as np
 cimport numpy as np
@@ -19,15 +21,14 @@ from ._utils cimport sign
 from ._utils cimport isclose_c
 from ._utils cimport get_sorted_indices
 from ._utils cimport check_end
-from ._utils cimport dot_prod
 
 # =============================================================================
 # Max Probabilities give CI [Near-optimal Regret Bounds for RL]
 # =============================================================================
 
-cdef void max_proba_purec(DTYPE_t[:] p, Size_t* asc_sorted_indices,
+cdef void max_proba_purec(DTYPE_t[:] p, SIZE_t* asc_sorted_indices,
                           DTYPE_t beta, DTYPE_t[:] new_p) nogil:
-    cdef Size_t i, n
+    cdef SIZE_t i, n
     cdef DTYPE_t temp
     cdef DTYPE_t sum_p = 0.0
     n = p.shape[0]
@@ -50,6 +51,13 @@ cdef void max_proba_purec(DTYPE_t[:] p, Size_t* asc_sorted_indices,
         for i in range(0, n):
             new_p[i] = 0
         new_p[asc_sorted_indices[n-1]] = temp
+
+cdef inline DTYPE_t dot_prod(DTYPE_t[:] x, DTYPE_t* y, SIZE_t dim) nogil:
+    cdef SIZE_t i
+    cdef DTYPE_t total = 0.
+    for i in range(dim):
+        total += x[i] * y[i]
+    return total
 
 # =============================================================================
 # Extended Value Iteration Class

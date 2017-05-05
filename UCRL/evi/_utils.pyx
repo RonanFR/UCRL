@@ -20,8 +20,8 @@ cdef inline DTYPE_t sign(DTYPE_t a, DTYPE_t tol=1e-09) nogil:
 cdef inline int isclose_c(DTYPE_t a, DTYPE_t b, DTYPE_t rel_tol=1e-09, DTYPE_t abs_tol=0.0) nogil:
     return fabs(a-b) <= max(rel_tol * max(fabs(a), fabs(b)), abs_tol)
 
-cdef void get_sorted_indices(DTYPE_t *x, size_t dim, SIZE_t *sort_idx) nogil:
-    cdef size_t i, j
+cdef void get_sorted_indices(DTYPE_t *x, SIZE_t dim, SIZE_t *sort_idx) nogil:
+    cdef SIZE_t i, j
     cdef DTYPE_t tmp
     for i in range(dim-1):
         for j in range(i+1, dim):
@@ -30,9 +30,9 @@ cdef void get_sorted_indices(DTYPE_t *x, size_t dim, SIZE_t *sort_idx) nogil:
                 x[sort_idx[i]] = x[sort_idx[j]]
                 x[sort_idx[j]] = tmp
 
-cdef DTYPE_t check_end(DTYPE_t* x, DTYPE_t* y, size_t dim,
+cdef DTYPE_t check_end(DTYPE_t* x, DTYPE_t* y, SIZE_t dim,
                       DTYPE_t* min_y, DTYPE_t* max_y) nogil:
-    cdef size_t i, j
+    cdef SIZE_t i, j
     cdef DTYPE_t diff
     cdef DTYPE_t diff_min = x[0]-y[0], diff_max = x[0] - y[0]
     min_y[0] = y[0]
@@ -49,9 +49,3 @@ cdef DTYPE_t check_end(DTYPE_t* x, DTYPE_t* y, size_t dim,
             max_y[0] = y[i]
     return diff_max - diff_min
 
-cdef inline DTYPE_t dot_prod(DTYPE_t[:] x, DTYPE_t* y, size_t dim) nogil:
-    cdef size_t i
-    cdef DTYPE_t total = 0.
-    for i in range(dim):
-        total += x[i] * y[i]
-    return total
