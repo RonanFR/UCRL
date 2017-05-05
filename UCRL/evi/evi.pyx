@@ -1,4 +1,6 @@
+# cython: cdivision=True
 # cython: boundscheck=False
+# cython: wraparound=False
 
 
 # Authors: Ronan Fruit <ronan.fruit@inria.fr>

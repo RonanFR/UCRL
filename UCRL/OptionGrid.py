@@ -1,4 +1,4 @@
-from OptionEnvironment import OptionEnvironment
+from .OptionEnvironment import OptionEnvironment
 
 import numpy as np
 

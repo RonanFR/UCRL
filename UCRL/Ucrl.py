@@ -1,9 +1,11 @@
-from max_proba import maxProba
-from ExtendedValueIteration import extended_value_iteration
+from .cython.max_proba import maxProba
+from .cython.ExtendedValueIteration import extended_value_iteration
+from .evi.evi import EVI
 
 import math as m
 import numpy as np
 from scipy import sparse
+import time
 
 
 class UcrlMdp:
@@ -59,6 +61,9 @@ class UcrlMdp:
             return
         threshold = self.total_time + regret_time_step
         threshold_span = threshold
+
+        extvi = EVI(self.environment.nb_states)
+
         while self.total_time < duration:
             self.episode += 1
             # print(self.total_time)
@@ -69,9 +74,20 @@ class UcrlMdp:
             beta_p = self.range_p * np.sqrt(14 * self.environment.nb_states * m.log(2 * self.environment.max_nb_actions
                     * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))  # confidence bounds on trnasition probabilities
             # span_value = self.extended_value_iteration(beta_r, beta_p, beta_tau, 1 / m.sqrt(self.iteration + 1))  # python implementation: slow
+            t0 = time.perf_counter()
             span_value = extended_value_iteration(self.policy_indices, self.policy, int(self.environment.nb_states), self.environment.get_state_actions(),  # cython implementation: fast
                                      self.estimated_probabilities, self.estimated_rewards, self.estimated_holding_times,
                                      beta_r, beta_p, beta_tau, self.tau_max, self.r_max, self.tau, self.tau_min, self.r_max / m.sqrt(self.iteration + 1))
+            t1 = time.perf_counter()
+            print("OLD EVI: %.3f seconds" % (t1 - t0))
+
+            t0 = time.perf_counter()
+            span_value = extvi.evi(self.policy_indices, self.policy, int(self.environment.nb_states), self.environment.get_state_actions(),  # cython implementation: fast
+                                     self.estimated_probabilities, self.estimated_rewards, self.estimated_holding_times,
+                                     beta_r, beta_p, beta_tau, self.tau_max, self.r_max, self.tau, self.tau_min, self.r_max / m.sqrt(self.iteration + 1))
+            t1 = time.perf_counter()
+            print("NEW EVI: %.3f seconds" % (t1 - t0))
+
             if self.total_time > threshold_span:
                 self.span_values.append(span_value*self.tau/self.r_max)
                 self.span_times.append(self.total_time)

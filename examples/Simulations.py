@@ -1,8 +1,8 @@
-from NavigateGrid import NavigateGrid, NavigateGrid2
-from OptionEnvironment import OptionEnvironment
-import OptionGrid
-import Ucrl
-import RewardDistributions
+from UCRL.NavigateGrid import NavigateGrid, NavigateGrid2
+from UCRL.OptionEnvironment import OptionEnvironment
+import UCRL.OptionGrid as OptionGrid
+import UCRL.Ucrl as Ucrl
+import UCRL.RewardDistributions as RewardDistributions
 
 import cProfile
 import matplotlib.pyplot as plt
