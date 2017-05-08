@@ -35,8 +35,8 @@ class UcrlMdp:
         self.nb_observations = np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
         self.nu_k = np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
         self.delta = 1  # confidence
-        self.policy = [0]*self.environment.nb_states  # initial policy
-        self.policy_indices = [0]*self.environment.nb_states
+        self.policy = np.zeros((self.environment.nb_states,), dtype=np.int_) #[0]*self.environment.nb_states  # initial policy
+        self.policy_indices = np.zeros((self.environment.nb_states,), dtype=np.int_) #[0]*self.environment.nb_states
         self.tau = 0.9
         self.tau_max = 1
         self.tau_min = 1
@@ -62,7 +62,9 @@ class UcrlMdp:
         threshold = self.total_time + regret_time_step
         threshold_span = threshold
 
-        extvi = EVI(self.environment.nb_states)
+        extvi = EVI(self.environment.nb_states, self.environment.get_state_actions())
+
+        self.timing = []
 
         while self.total_time < duration:
             self.episode += 1
@@ -75,18 +77,31 @@ class UcrlMdp:
                     * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))  # confidence bounds on trnasition probabilities
             # span_value = self.extended_value_iteration(beta_r, beta_p, beta_tau, 1 / m.sqrt(self.iteration + 1))  # python implementation: slow
             t0 = time.perf_counter()
-            span_value = extended_value_iteration(self.policy_indices, self.policy, int(self.environment.nb_states), self.environment.get_state_actions(),  # cython implementation: fast
+            span_value, u1, u2 = extended_value_iteration(self.policy_indices, self.policy, int(self.environment.nb_states), self.environment.get_state_actions(),  # cython implementation: fast
                                      self.estimated_probabilities, self.estimated_rewards, self.estimated_holding_times,
                                      beta_r, beta_p, beta_tau, self.tau_max, self.r_max, self.tau, self.tau_min, self.r_max / m.sqrt(self.iteration + 1))
             t1 = time.perf_counter()
-            print("OLD EVI: %.3f seconds" % (t1 - t0))
+            to = t1-t0
+            print("[%d]OLD EVI: %.3f seconds" % (self.episode,to))
 
             t0 = time.perf_counter()
-            span_value = extvi.evi(self.policy_indices, self.policy, int(self.environment.nb_states), self.environment.get_state_actions(),  # cython implementation: fast
+            span_value_new = extvi.evi(self.policy_indices, self.policy,
                                      self.estimated_probabilities, self.estimated_rewards, self.estimated_holding_times,
                                      beta_r, beta_p, beta_tau, self.tau_max, self.r_max, self.tau, self.tau_min, self.r_max / m.sqrt(self.iteration + 1))
             t1 = time.perf_counter()
-            print("NEW EVI: %.3f seconds" % (t1 - t0))
+            tn = t1-t0
+            print("[%d]NEW EVI: %.3f seconds" % (self.episode,tn))
+
+            self.timing.append([to, tn])
+
+            print("{:.2f} / {:.2f}".format(span_value, span_value_new))
+            assert np.abs(span_value-span_value_new) < 1e-8
+
+            new_u1, new_u2 = extvi.get_uvectors()
+
+            assert np.allclose(u1, new_u1, 1e-5)
+            assert np.allclose(u2, new_u2, 1e-5)
+
 
             if self.total_time > threshold_span:
                 self.span_values.append(span_value*self.tau/self.r_max)

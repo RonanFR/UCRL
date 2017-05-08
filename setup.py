@@ -1,4 +1,6 @@
-from setuptools import setup, find_packages
+from setuptools import setup
+from setuptools import find_packages
+# from distutils.core import setup
 # To use a consistent encoding
 from codecs import open
 from os import path
@@ -12,7 +14,8 @@ with open(path.join(here, 'requirements.txt'), encoding='utf-8') as f:
 
 name = "UCRL"
 
-from distutils.extension import Extension
+#from distutils.extension import Extension
+from setuptools.extension import Extension
 from Cython.Build import cythonize
 import os
 
@@ -22,27 +25,30 @@ libraries = []
 if os.name == 'posix':
     libraries.append('m')
 
+extra_compile_args = []
+# extra_compile_args = ["-O3"]
+
 extensions = [
     Extension("UCRL.evi.evi",
               ["UCRL/evi/evi.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
-              extra_compile_args=["-O3"]),
+              extra_compile_args=extra_compile_args),
     Extension("UCRL.evi._utils",
               ["UCRL/evi/_utils.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
-              extra_compile_args=["-O3"]),
+              extra_compile_args=extra_compile_args),
     Extension("UCRL.cython.ExtendedValueIteration",
               ["UCRL/cython/ExtendedValueIteration.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
-              extra_compile_args=["-O3"]),
+              extra_compile_args=extra_compile_args),
     Extension("UCRL.cython.max_proba",
               ["UCRL/cython/max_proba.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
-              extra_compile_args=["-O3"]),
+              extra_compile_args=extra_compile_args),
 ]
 
 setup(
@@ -52,5 +58,5 @@ setup(
               if package.startswith(name)],
     license='BOOOOO',
     install_requires=requires_list,
-    ext_modules=cythonize(extensions),
+    ext_modules=cythonize(extensions, gdb_debug=True),
 )

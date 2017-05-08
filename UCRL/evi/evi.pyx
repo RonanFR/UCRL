@@ -14,6 +14,8 @@ from libc.math cimport fabs
 from libc.string cimport memcpy
 from libc.string cimport memset
 
+from libc.stdio cimport printf
+
 from cython.parallel import prange
 
 import numpy as np
@@ -67,7 +69,8 @@ cdef inline DTYPE_t dot_prod(DTYPE_t[:] x, DTYPE_t* y, SIZE_t dim) nogil:
 
 cdef class EVI:
 
-    def __init__(self, nb_states):
+    def __init__(self, nb_states, list actions_per_state):
+        cdef SIZE_t n, m, i, j
         self.nb_states = nb_states
         self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
         self.u2 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
@@ -83,15 +86,27 @@ cdef class EVI:
         self.mtx_maxprob = <DTYPE_t *>malloc(nb_states * nb_states * sizeof(DTYPE_t))
         self.mtx_maxprob_memview = <DTYPE_t[:nb_states, :nb_states]> self.mtx_maxprob
 
+        n = len(actions_per_state)
+        assert n == nb_states
+        self.actions_per_state = <VectorStruct *> malloc(n * sizeof(VectorStruct))
+        for i in range(n):
+            m = len(actions_per_state[i])
+            self.actions_per_state[i].dim = m
+            self.actions_per_state[i].values = <SIZE_t *> malloc(m * sizeof(SIZE_t))
+            for j in range(m):
+                self.actions_per_state[i].values[j] = actions_per_state[i][j]
+
     def __dealloc__(self):
+        cdef SIZE_t i
         free(self.u1)
         free(self.u2)
         free(self.mtx_maxprob)
         free(self.sorted_indices)
+        for i in range(self.nb_states):
+            free(self.actions_per_state[i].values)
+        free(self.actions_per_state)
 
     cpdef DTYPE_t evi(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
-                     SIZE_t[:, :] state_actions,
-                     SIZE_t[:] num_actions_per_state,
                      DTYPE_t[:,:,:] estimated_probabilities,
                      DTYPE_t[:,:] estimated_rewards,
                      DTYPE_t[:,:] estimated_holding_times,
@@ -104,7 +119,7 @@ cdef class EVI:
                      DTYPE_t tau_min,
                      DTYPE_t epsilon):
 
-        cdef SIZE_t s, i, a_idx
+        cdef SIZE_t s, i, a_idx, counter = 0
         cdef SIZE_t first_action
         cdef DTYPE_t c1
         cdef DTYPE_t min_u1, max_u1, r_optimal, v, tau_optimal
@@ -117,15 +132,15 @@ cdef class EVI:
         cdef DTYPE_t[:,:] mtx_maxprob_memview = self.mtx_maxprob_memview
 
         with nogil:
-            for i in prange(nb_states):
+            for i in range(nb_states):
                 u1[i] = 0.0
                 u2[i] = 0.0
                 sorted_indices[i] = i
 
-            while True:
-                for s in prange(nb_states):
+            while True: #counter < 5:
+                for s in range(nb_states):
                     first_action = 1
-                    for a_idx in range(num_actions_per_state[s]):
+                    for a_idx in range(self.actions_per_state[s].dim):
                         max_proba_purec(estimated_probabilities[s][a_idx],
                                     sorted_indices, beta_p[s][a_idx],
                                     mtx_maxprob_memview[s])
@@ -141,13 +156,37 @@ cdef class EVI:
                         if first_action or c1 > u2[s] or isclose_c(c1, u2[s]):
                             u2[s] = c1
                             policy_indices[s] = a_idx
-                            policy[s] = state_actions[s][a_idx]
+                            policy[s] = self.actions_per_state[s].values[a_idx]
 
                         first_action = 0
+                counter = counter + 1
+                # printf("**%d\n", counter)
+                # for i in range(nb_states):
+                #     printf("%.2f[%.2f] ", u1[i], u2[i])
+                # printf("\n")
 
                 # stopping condition
                 if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
+                    # printf("%d", counter)
                     return max_u1 - min_u1
                 else:
                     memcpy(u1, u2, nb_states * sizeof(DTYPE_t))
                     get_sorted_indices(u1, nb_states, sorted_indices)
+                    # for i in range(nb_states):
+                    #     printf("%d , ", sorted_indices[i])
+                    # printf("\n")
+
+
+    cpdef get_uvectors(self):
+#        cdef np.npy_intp shape[1]
+#        shape[0] = <np.npy_intp> self.nb_states
+#        npu1 = np.PyArray_SimpleNewFromData(1, shape, np.NPY_FLOAT64, self.u1)
+#        print(npu1)
+#        npu2 = np.PyArray_SimpleNewFromData(1, shape, np.NPY_FLOAT64, self.u2)
+#        return npu1, npu2
+        u1n = -99*np.ones((self.nb_states,))
+        u2n = -99*np.ones((self.nb_states,))
+        for i in range(self.nb_states):
+            u1n[i] = self.u1[i]
+            u2n[i] = self.u2[i]
+        return u1n, u2n
