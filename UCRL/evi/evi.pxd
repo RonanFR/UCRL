@@ -20,6 +20,9 @@ cdef struct VectorStruct:
 cdef void max_proba_purec(DTYPE_t[:] p, SIZE_t* asc_sorted_indices,
                           DTYPE_t beta, DTYPE_t[:] new_p) nogil
 
+cdef void max_proba_reduced(DTYPE_t[:] p, SIZE_t* asc_sorted_indices,
+                            DTYPE_t beta, DTYPE_t[:] new_p) nogil
+
 cdef DTYPE_t dot_prod(DTYPE_t[:] x, DTYPE_t* y, SIZE_t dim) nogil
 
 cdef class EVI:
