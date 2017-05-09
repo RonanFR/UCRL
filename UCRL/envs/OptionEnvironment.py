@@ -1,5 +1,5 @@
 from .Environment import Environment
-from .Tree import Node
+from UCRL.Tree import Node
 
 import numpy as np
 import copy

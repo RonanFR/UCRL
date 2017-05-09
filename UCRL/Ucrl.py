@@ -10,7 +10,7 @@ import time
 
 class UcrlMdp:
     """
-    Implementation of Upper Confidence Reinforcement Learning (UCRL) algorithm for finite state/actions MDPs with
+    Implementation of Upper Confidence Reinforcement Learning (UCRL) algorithm for toys state/actions MDPs with
     positive bounded rewards.
     """
 
@@ -179,7 +179,7 @@ class UcrlMdp:
     def max_proba(self, p, sorted_indices, beta):
         """
         Use compiled .so file for improved speed.
-        :param p: probability distribution with finite support
+        :param p: probability distribution with toys support
         :param sorted_indices: argsort of value function
         :param beta: confidence bound on the empirical probability
         :return: optimal probability

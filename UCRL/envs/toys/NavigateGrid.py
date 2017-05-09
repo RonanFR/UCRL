@@ -1,7 +1,8 @@
-from .Environment import Environment
-
 import random
+
 import numpy as np
+
+from UCRL.envs.Environment import Environment
 
 
 class NavigateGrid(Environment):

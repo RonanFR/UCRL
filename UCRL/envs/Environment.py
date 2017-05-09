@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod
 
 class Environment(metaclass=ABCMeta):
     """
-    Environment is an abstract class representing a finite state/action Semi-Markov Decision Process (SMDP).
+    Environment is an abstract class representing a toys state/action Semi-Markov Decision Process (SMDP).
     It can be used for MDPs by setting self.holding_time = 1 in function "execute".
     All subclasses should implement the functions "execute" and "compute_max_gain".
     Variable "state_actions" should preferably be accessed through the getters defined below to avoid problems.
@@ -56,6 +56,9 @@ class Environment(metaclass=ABCMeta):
         :return: number of actions available in state "state"
         """
         return len(self.state_actions[state])
+
+    def get_total_nb_actions(self):
+        return max(map(max, self.state_actions)) + 1
 
     @abstractmethod
     def execute(self, action):

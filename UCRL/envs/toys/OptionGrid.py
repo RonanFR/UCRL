@@ -1,6 +1,4 @@
-from .OptionEnvironment import OptionEnvironment
-
-import numpy as np
+from UCRL.envs.OptionEnvironment import OptionEnvironment
 
 
 class OptionGrid1(OptionEnvironment):
