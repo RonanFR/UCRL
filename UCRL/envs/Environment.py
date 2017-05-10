@@ -57,16 +57,13 @@ class Environment(metaclass=ABCMeta):
         """
         return len(self.state_actions[state])
 
-    def get_total_nb_actions(self):
-        return max(map(max, self.state_actions)) + 1
-
     @abstractmethod
     def execute(self, action):
         """
         Execute action "action" in current state "state". Attributes "state", "reward" and "holding_time"
         must be updated.
         :param action: index of the action to be executed
-        :return: nothing
+        :return: history or None
         """
         pass
 

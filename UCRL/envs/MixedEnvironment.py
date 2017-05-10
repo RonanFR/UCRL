@@ -37,7 +37,7 @@ class MixedEnvironment(OptionEnvironment):
         if delete_environment_actions is not None:
             if isinstance(delete_environment_actions, list):
                 delete_environment_actions = np.unique(delete_environment_actions)
-                if len(delete_environment_actions) < environment.get_total_nb_actions():
+                if len(delete_environment_actions) < environment.max_nb_actions:
                     for s, actions in enumerate(environment.get_state_actions()):
                         available_actions.append(np.setdiff1d(actions, delete_environment_actions).tolist())
             elif isinstance(delete_environment_actions, str):

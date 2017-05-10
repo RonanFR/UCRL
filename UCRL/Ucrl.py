@@ -4,17 +4,16 @@ from .evi.evi import EVI
 
 import math as m
 import numpy as np
-from scipy import sparse
 import time
 
 
-class UcrlMdp:
+class UcrlMdp(object):
     """
     Implementation of Upper Confidence Reinforcement Learning (UCRL) algorithm for toys state/actions MDPs with
     positive bounded rewards.
     """
 
-    def __init__(self, environment, r_max, range_r=-1, range_p=-1):
+    def __init__(self, environment, r_max, range_r=-1, range_p=-1, solver=None):
         """
         :param environment: an instance of any subclass of abstract class Environment which is an MDP
         :param r_max: upper bound
@@ -52,62 +51,49 @@ class UcrlMdp:
         else:
             self.range_p = range_p
 
+        if solver is None:
+            # create solver for optimistic model
+            self.opt_solver = EVI(self.environment.nb_states,
+                                  self.environment.get_state_actions())
+        else:
+            self.opt_solver = solver
+
     def learn(self, duration, regret_time_step):
-        """
-        :param duration: the algorithm is run until the number of time steps exceeds "duration"
-        :param regret_time_step: the value of the cumulative regret is stored every "regret_time_step" time steps
+        """ Run UCRL on the provided environment
+        
+        Args:
+            duration (int): the algorithm is run until the number of time steps 
+                            exceeds "duration"
+            regret_time_step (int): the value of the cumulative regret is stored
+                                    every "regret_time_step" time steps
+        
         """
         if self.total_time >= duration:
             return
         threshold = self.total_time + regret_time_step
         threshold_span = threshold
 
-        extvi = EVI(self.environment.nb_states, self.environment.get_state_actions())
-
         self.timing = []
 
         while self.total_time < duration:
             self.episode += 1
             # print(self.total_time)
+
+            # initialize the episode
             self.nu_k = np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
             self.delta = 1 / m.sqrt(self.iteration + 1)
-            beta_r = self.beta_r()  # confidence bounds on rewards
-            beta_tau = self.beta_tau()  # confidence bounds on holding times
-            beta_p = self.range_p * np.sqrt(14 * self.environment.nb_states * m.log(2 * self.environment.max_nb_actions
-                    * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))  # confidence bounds on trnasition probabilities
-            # span_value = self.extended_value_iteration(beta_r, beta_p, beta_tau, 1 / m.sqrt(self.iteration + 1))  # python implementation: slow
-            t0 = time.perf_counter()
-            span_value, u1, u2 = extended_value_iteration(self.policy_indices, self.policy, int(self.environment.nb_states), self.environment.get_state_actions(),  # cython implementation: fast
-                                     self.estimated_probabilities, self.estimated_rewards, self.estimated_holding_times,
-                                     beta_r, beta_p, beta_tau, self.tau_max, self.r_max, self.tau, self.tau_min, self.r_max / m.sqrt(self.iteration + 1))
-            t1 = time.perf_counter()
-            to = t1-t0
-            print("[%d]OLD EVI: %.3f seconds" % (self.episode,to))
 
-            t0 = time.perf_counter()
-            span_value_new = extvi.evi(self.policy_indices, self.policy,
-                                     self.estimated_probabilities, self.estimated_rewards, self.estimated_holding_times,
-                                     beta_r, beta_p, beta_tau, self.tau_max, self.r_max, self.tau, self.tau_min, self.r_max / m.sqrt(self.iteration + 1))
-            t1 = time.perf_counter()
-            tn = t1-t0
-            print("[%d]NEW EVI: %.3f seconds" % (self.episode,tn))
-
-            self.timing.append([to, tn])
-
-            print("{:.2f} / {:.2f}".format(span_value, span_value_new))
-            assert np.abs(span_value-span_value_new) < 1e-8
-
-            new_u1, new_u2 = extvi.get_uvectors()
-
-            assert np.allclose(u1, new_u1, 1e-5)
-            assert np.allclose(u2, new_u2, 1e-5)
-
+            # solve the optimistic (extended) model
+            span_value = self.solve_optimistic_model()
 
             if self.total_time > threshold_span:
                 self.span_values.append(span_value*self.tau/self.r_max)
                 self.span_times.append(self.total_time)
                 threshold_span = self.total_time + regret_time_step
-            while self.nu_k[self.environment.state][self.policy_indices[self.environment.state]] < max(1, self.nb_observations[self.environment.state][self.policy_indices[self.environment.state]]) \
+
+            # execute the recovered policy
+            while self.nu_k[self.environment.state][self.policy_indices[self.environment.state]] \
+                    < max(1, self.nb_observations[self.environment.state][self.policy_indices[self.environment.state]]) \
                     and self.total_time < duration:
                 self.update()
                 if self.total_time > threshold:
@@ -117,11 +103,33 @@ class UcrlMdp:
             self.nb_observations += self.nu_k
 
     def beta_r(self):
+        """ Confidence bounds on the reward
+        
+        Returns:
+            np.array: the vector of confidence bounds on the reward function (|S| x |A|)
+            
+        """
         return np.multiply(self.range_r, np.sqrt(7/2 * m.log(2 * self.environment.nb_states * self.environment.max_nb_actions *
                                                 (self.iteration+1)/self.delta) / np.maximum(1, self.nb_observations)))
 
     def beta_tau(self):
+        """ Confidence bounds on holding times
+        
+        Returns:
+            np.array: the vecor of confidence bounds on the holding times (|S| x |A|)
+        
+        """
         return np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
+
+    def beta_p(self):
+        """ Confidence bounds on transition probabilities
+        
+        Returns:
+            np.array: the vector of confidence bounds on the transition matrix (|S| x |A|)
+            
+        """
+        return self.range_p * np.sqrt(14 * self.environment.nb_states * m.log(2 * self.environment.max_nb_actions
+                    * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))
 
     def update(self):
         s = self.environment.state  # current state
@@ -139,6 +147,58 @@ class UcrlMdp:
         self.total_reward += r
         self.total_time += t
         self.iteration += 1
+
+
+    def solve_optimistic_model(self):
+
+        beta_r = self.beta_r()  # confidence bounds on rewards
+        beta_tau = self.beta_tau()  # confidence bounds on holding times
+        beta_p = self.beta_p()  # confidence bounds on transition probabilities
+
+        # span_value = self.extended_value_iteration(beta_r, beta_p, beta_tau, 1 / m.sqrt(self.iteration + 1))  # python implementation: slow
+        t0 = time.perf_counter()
+        span_value, u1, u2 = extended_value_iteration(
+            self.policy_indices, self.policy,
+            int(self.environment.nb_states),
+            self.environment.get_state_actions(),
+            self.estimated_probabilities,
+            self.estimated_rewards,
+            self.estimated_holding_times,
+            beta_r, beta_p, beta_tau,
+            self.tau_max, self.r_max,
+            self.tau, self.tau_min,
+            self.r_max / m.sqrt(self.iteration + 1)
+        )
+        t1 = time.perf_counter()
+        to = t1 - t0
+        print("[%d]OLD EVI: %.3f seconds" % (self.episode, to))
+
+        t0 = time.perf_counter()
+        span_value_new = self.opt_solver.evi(
+            self.policy_indices, self.policy,
+            self.estimated_probabilities,
+            self.estimated_rewards,
+            self.estimated_holding_times,
+            beta_r, beta_p, beta_tau, self.tau_max,
+            self.r_max, self.tau, self.tau_min,
+            self.r_max / m.sqrt(self.iteration + 1)
+        )
+        t1 = time.perf_counter()
+        tn = t1 - t0
+        print("[%d]NEW EVI: %.3f seconds" % (self.episode, tn))
+
+        self.timing.append([to, tn])
+
+        print("{:.2f} / {:.2f}".format(span_value, span_value_new))
+        assert np.abs(span_value - span_value_new) < 1e-8
+
+        new_u1, new_u2 = self.opt_solver.get_uvectors()
+
+        assert np.allclose(u1, new_u1, 1e-5)
+        assert np.allclose(u2, new_u2, 1e-5)
+
+        return span_value
+
 
     def extended_value_iteration(self, beta_r, beta_p, beta_tau, epsilon):
         """
@@ -293,19 +353,34 @@ class UcrlMixedBounded(UcrlSmdpBounded):
         else:
             self.update_history(history)
 
+    # def update_history(self, history):
+    #     [s, o, r, t, s2] = history.data
+    #     try:
+    #         option_index = self.environment.get_available_actions_state(s).index(o)
+    #         self.estimated_rewards[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
+    #         self.estimated_rewards[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * r
+    #         self.estimated_holding_times[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
+    #         self.estimated_holding_times[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * t
+    #         self.estimated_probabilities[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
+    #         self.estimated_probabilities[s][option_index][s2] += 1 / (self.nb_observations[s][option_index] + 1)
+    #         self.nu_k[s][option_index] += 1
+    #     except Exception:
+    #         pass
+    #     for sub_history in history.children:
+    #         self.update_history(sub_history)
+
     def update_history(self, history):
         [s, o, r, t, s2] = history.data
-        try:
-            option_index = self.environment.get_available_actions_state(s).index(o)
-            self.estimated_rewards[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
-            self.estimated_rewards[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * r
-            self.estimated_holding_times[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
-            self.estimated_holding_times[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * t
-            self.estimated_probabilities[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
-            self.estimated_probabilities[s][option_index][s2] += 1 / (self.nb_observations[s][option_index] + 1)
-            self.nu_k[s][option_index] += 1
-        except Exception:
-            pass
+
+        option_index = self.environment.get_available_actions_state(s).index(o)
+        self.estimated_rewards[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
+        self.estimated_rewards[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * r
+        self.estimated_holding_times[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
+        self.estimated_holding_times[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * t
+        self.estimated_probabilities[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
+        self.estimated_probabilities[s][option_index][s2] += 1 / (self.nb_observations[s][option_index] + 1)
+        self.nu_k[s][option_index] += 1
+
         for sub_history in history.children:
             self.update_history(sub_history)
 
