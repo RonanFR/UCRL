@@ -1,47 +1,20 @@
 from .cython.max_proba import maxProba
 from .cython.ExtendedValueIteration import extended_value_iteration
 from .evi.evi import EVI
+from .envs import MixedEnvironment
 
 import math as m
 import numpy as np
 import time
 
 
-class UcrlMdp(object):
-    """
-    Implementation of Upper Confidence Reinforcement Learning (UCRL) algorithm for toys state/actions MDPs with
-    positive bounded rewards.
-    """
+class AbstractUCRL(object):
 
-    def __init__(self, environment, r_max, range_r=-1, range_p=-1, solver=None):
-        """
-        :param environment: an instance of any subclass of abstract class Environment which is an MDP
-        :param r_max: upper bound
-        :param range_r: multiplicative factor for the concentration bound on rewards (default is r_max)
-        :param range_p: multiplicative factor for the concentration bound on transition probabilities (default is 1)
-        """
+    def __init__(self, environment, r_max,
+                 range_r=-1, range_p=-1, solver=None):
         self.environment = environment
-        self.regret = [0]  # cumulative regret of the learning algorithm
-        self.unit_duration = [1]  # ratios (nb of time steps)/(nb of decision steps)
-        self.span_values = []
-        self.span_times = []
-        self.iteration = 0
-        self.episode = 0
-        self.estimated_rewards = np.ones((self.environment.nb_states, self.environment.max_nb_actions)) * r_max
-        self.estimated_holding_times = np.ones((self.environment.nb_states, self.environment.max_nb_actions))
-        self.estimated_probabilities = np.ones((self.environment.nb_states, self.environment.max_nb_actions,
-                                                 self.environment.nb_states)) * 1/self.environment.nb_states
-        self.nb_observations = np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
-        self.nu_k = np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
-        self.delta = 1  # confidence
-        self.policy = np.zeros((self.environment.nb_states,), dtype=np.int_) #[0]*self.environment.nb_states  # initial policy
-        self.policy_indices = np.zeros((self.environment.nb_states,), dtype=np.int_) #[0]*self.environment.nb_states
-        self.tau = 0.9
-        self.tau_max = 1
-        self.tau_min = 1
         self.r_max = r_max
-        self.total_reward = 0
-        self.total_time = 0
+
         if (np.asarray(range_r) < 0).any():
             self.range_r = r_max
         else:
@@ -57,6 +30,50 @@ class UcrlMdp(object):
                                   self.environment.get_state_actions())
         else:
             self.opt_solver = solver
+
+        # initialize matrices
+        self.policy = np.zeros((self.environment.nb_states,), dtype=np.int_) #[0]*self.environment.nb_states  # initial policy
+        self.policy_indices = np.zeros((self.environment.nb_states,), dtype=np.int_) #[0]*self.environment.nb_states
+
+        # initialization
+        self.total_reward = 0
+        self.total_time = 0
+        self.regret = [0]  # cumulative regret of the learning algorithm
+        self.unit_duration = [1]  # ratios (nb of time steps)/(nb of decision steps)
+        self.span_values = []
+        self.span_times = []
+        self.iteration = 0
+        self.episode = 0
+        self.delta = 1.  # confidence
+
+
+class UcrlMdp(AbstractUCRL):
+    """
+    Implementation of Upper Confidence Reinforcement Learning (UCRL) algorithm for toys state/actions MDPs with
+    positive bounded rewards.
+    """
+
+    def __init__(self, environment, r_max, range_r=-1, range_p=-1, solver=None):
+        """
+        :param environment: an instance of any subclass of abstract class Environment which is an MDP
+        :param r_max: upper bound
+        :param range_r: multiplicative factor for the concentration bound on rewards (default is r_max)
+        :param range_p: multiplicative factor for the concentration bound on transition probabilities (default is 1)
+        """
+        super(UcrlMdp, self).__init__(environment=environment,
+                                      r_max=r_max, range_r=range_r,
+                                      range_p=range_p, solver=solver)
+        self.estimated_probabilities = np.ones((self.environment.nb_states, self.environment.max_nb_actions,
+                                                 self.environment.nb_states)) * 1/self.environment.nb_states
+        self.estimated_rewards = np.ones((self.environment.nb_states, self.environment.max_nb_actions)) * r_max
+        self.estimated_holding_times = np.ones((self.environment.nb_states, self.environment.max_nb_actions))
+
+        self.nb_observations = np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
+        self.nu_k = np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
+        self.tau = 0.9
+        self.tau_max = 1
+        self.tau_min = 1
+
 
     def learn(self, duration, regret_time_step):
         """ Run UCRL on the provided environment
@@ -353,36 +370,23 @@ class UcrlMixedBounded(UcrlSmdpBounded):
         else:
             self.update_history(history)
 
-    # def update_history(self, history):
-    #     [s, o, r, t, s2] = history.data
-    #     try:
-    #         option_index = self.environment.get_available_actions_state(s).index(o)
-    #         self.estimated_rewards[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
-    #         self.estimated_rewards[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * r
-    #         self.estimated_holding_times[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
-    #         self.estimated_holding_times[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * t
-    #         self.estimated_probabilities[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
-    #         self.estimated_probabilities[s][option_index][s2] += 1 / (self.nb_observations[s][option_index] + 1)
-    #         self.nu_k[s][option_index] += 1
-    #     except Exception:
-    #         pass
-    #     for sub_history in history.children:
-    #         self.update_history(sub_history)
-
     def update_history(self, history):
         [s, o, r, t, s2] = history.data
-
-        option_index = self.environment.get_available_actions_state(s).index(o)
-        self.estimated_rewards[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
-        self.estimated_rewards[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * r
-        self.estimated_holding_times[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
-        self.estimated_holding_times[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * t
-        self.estimated_probabilities[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
-        self.estimated_probabilities[s][option_index][s2] += 1 / (self.nb_observations[s][option_index] + 1)
-        self.nu_k[s][option_index] += 1
-
+        try:
+            option_index = self.environment.get_available_actions_state(s).index(o)
+            self.estimated_rewards[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
+            self.estimated_rewards[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * r
+            self.estimated_holding_times[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
+            self.estimated_holding_times[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * t
+            self.estimated_probabilities[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
+            self.estimated_probabilities[s][option_index][s2] += 1 / (self.nb_observations[s][option_index] + 1)
+            self.nu_k[s][option_index] += 1
+        except Exception:
+            pass
         for sub_history in history.children:
             self.update_history(sub_history)
+
+
 
 
 class UcrlSmdpExp(UcrlMdp):

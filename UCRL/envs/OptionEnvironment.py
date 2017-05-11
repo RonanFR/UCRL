@@ -13,14 +13,15 @@ class OptionEnvironment(Environment):
     define any arbitrary hierarchy of options (i.e., options over options over options...).
     """
 
-    def __init__(self, environment, state_options, options_policies, options_terminating_conditions, is_optimal=False):
+    def __init__(self, environment, state_options, options_policies,
+                 options_terminating_conditions, is_optimal=False, index_min_options=None):
         """
         :param environment: instance of any subclass of abstract class "Environment" representing the original SMDP
                             without options, it can thus be an instance of OptionEnvironment (hierarchy of options)
         :param state_options: 2D-array of integers representing the indices of options available in every state
         :param options_policies: 2D-array of integers representing the policies of every option,
                                  for every option a policy is characterized by the index of the primitive action to be
-                                 executed in every state of the original environment
+                                 executed in every state of the original environment (|O| x |S|)
         :param options_terminating_conditions: 2D-array of floats in [0,1] representing the termination condition of
                                  every option, for every option a termination condition is characterized by the
                                  probability of ending the option in every state of the original environment
@@ -34,7 +35,10 @@ class OptionEnvironment(Environment):
         self.options_terminating_conditions = options_terminating_conditions
         self.max_nb_actions = max(map(len, self.state_options))  # Maximal number of options per state
         self.nb_states = sum(map(lambda x: x > 0, map(len, self.state_options)))  # Total number of states in the new SMDP
-        self.index_min_options = min(map(lambda x: min(x, default = float("inf")), self.state_options))
+        if index_min_options is None:
+            self.index_min_options = min(map(lambda x: min(x, default = float("inf")), self.state_options))
+        else:
+            self.index_min_options = index_min_options
 
     def get_state_actions(self):
         """
@@ -108,3 +112,10 @@ class OptionEnvironment(Environment):
             return self.environment.max_gain  # optimal set of options
         else:
             return None  # TODO: implement value iteration to compute maximal gain with non-optimal options
+
+    # --------------------------------------------------------------------------
+    # Properties
+    # --------------------------------------------------------------------------
+    @property
+    def nb_options(self):
+        return len(self.options_policies)
