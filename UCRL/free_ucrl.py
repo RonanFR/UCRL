@@ -6,7 +6,7 @@ from .logging import default_logger
 
 class FreeUCRL_Alg1(AbstractUCRL):
     def __init__(self, environment, r_max, range_r=-1, range_p=-1,
-                 logger=default_logger):
+                 verbose = 0, logger=default_logger):
         assert isinstance(environment, MixedEnvironment)
 
         evi = EVI_Alg1(nb_states=environment.nb_states,
@@ -18,6 +18,7 @@ class FreeUCRL_Alg1(AbstractUCRL):
         super(FreeUCRL_Alg1, self).__init__(environment=environment,
                                             r_max=r_max, range_r=range_r,
                                             range_p=range_p, solver=evi,
+                                            verbose=verbose,
                                             logger=logger)
 
         nb_states = self.environment.nb_states

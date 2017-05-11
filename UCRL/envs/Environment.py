@@ -19,7 +19,7 @@ class Environment(metaclass=ABCMeta):
         """
         self.state = initial_state  # Index of the current state
         self.state_actions = state_actions
-        self.max_nb_actions = max(map(len, self.state_actions))  # Maximal number of actions per state
+        self.max_nb_actions_per_state = max(map(len, self.state_actions))  # Maximal number of actions per state
         self.max_gain = self.compute_max_gain()  # Optimal gain of the SMDP
         self.reward = 0   # Last reward obtained while exploring the SMDP (init = 0)
         self.holding_time = 0  # Last holding time obtained while exploring the SMDP (init = 0)

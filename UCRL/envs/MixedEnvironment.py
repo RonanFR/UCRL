@@ -49,8 +49,7 @@ class MixedEnvironment(OptionEnvironment):
         """
         assert isinstance(environment, Environment)
 
-        threshold_options = environment.max_nb_actions-1
-        nb_options = len(options_policies)
+        threshold_options = max(map(max, environment.get_state_actions()))
 
         if delete_environment_actions is not None:
             if isinstance(delete_environment_actions, list):
@@ -63,14 +62,14 @@ class MixedEnvironment(OptionEnvironment):
             else:
                 raise ValueError("Unknown value for delete_environment_actions")
 
-        map_index2action = dict()
-        map_action2index = dict()
-        index = 0
-        for i in range(threshold_options + 1 + nb_options):
-            if i not in delete_environment_actions:
-                map_index2action[index] = i
-                map_action2index[i] = index
-                index += 1
+        # map_index2action = dict()
+        # map_action2index = dict()
+        # index = 0
+        # for i in range(threshold_options + 1 + nb_options):
+        #     if i not in delete_environment_actions:
+        #         map_index2action[index] = i
+        #         map_action2index[i] = index
+        #         index += 1
 
         if hasattr(environment, 'is_optimal'):
             is_optimal = environment.is_optimal or is_optimal
@@ -78,30 +77,30 @@ class MixedEnvironment(OptionEnvironment):
         # increment the identifier of the options and
         # extend it with environment actions
         environment_actions = environment.get_state_actions()
+        new_state_options = [[]] * len(state_options)
         for s, actions in enumerate(environment_actions):
-            state_options[s] = np.setdiff1d(list(actions),
+            new_state_options[s] = np.setdiff1d(list(actions),
                                             delete_environment_actions).tolist() + \
-                               [map_action2index[x + threshold_options + 1] for x in state_options[s]]
-            # this ensures that there are no jumps
+                               [x + threshold_options + 1 for x in state_options[s]]
 
-        self.map_index2action = map_index2action
-        self.map_action2index = map_action2index
+        # self.map_index2action = map_index2action
+        # self.map_action2index = map_action2index
         self.threshold_options = threshold_options
         self.delete_environment_actions = delete_environment_actions
         super().__init__(environment=environment,
-                         state_options=state_options,
+                         state_options=new_state_options,
                          options_policies=options_policies,
                          options_terminating_conditions=options_terminating_conditions,
-                         is_optimal=is_optimal,
-                         index_min_options=map_action2index[threshold_options + 1])  # call parent constructor
+                         is_optimal=is_optimal)  # call parent constructor
+
+        self.max_nb_options_per_state = max(map(len, state_options))
 
     def execute(self, option):
         """
         :param option: index of the option to be executed
         :return: history
         """
-        index_full = self.map_index2action[option] # move to complete list
-        if index_full > self.threshold_options:
+        if option > self.threshold_options:
             # call the parent class that performs an option
             history = super(MixedEnvironment, self).execute(option)
         else:
@@ -112,10 +111,7 @@ class MixedEnvironment(OptionEnvironment):
             self.reward = self.environment.reward
         return history
 
-    def is_primitive_action(self, act_index, isIndex=True):
-        if isIndex:
-            return self.map_index2action[act_index] <= self.threshold_options
-        else:
+    def is_primitive_action(self, act_index):
             return act_index <= self.threshold_options
 
     def get_action_from_index(self, act_index):
@@ -126,14 +122,14 @@ class MixedEnvironment(OptionEnvironment):
 
     def get_zerobased_option_index(self, option, isIndex=True):
         if isIndex:
-            assert self.map_index2action[option] > self.threshold_options
+            assert self.map_index2action[option] > self.threshold_options, "Index {} is not an option".format(option)
             return self.map_index2action[option] - self.threshold_options - 1
         else:
             return option - self.threshold_options - 1
 
     def is_valid_primitive_action(self, act_index, isIndex=True):
         if isIndex:
-            assert self.map_index2action[act_index] <= self.threshold_options
+            assert self.map_index2action[act_index] <= self.threshold_options, "Index {} is not a primitive action".format(act_index)
             return self.map_index2action[act_index] not in self.delete_environment_actions
         else:
             return act_index not in self.delete_environment_actions
@@ -141,6 +137,10 @@ class MixedEnvironment(OptionEnvironment):
     # --------------------------------------------------------------------------
     # Properties
     # --------------------------------------------------------------------------
+    @property
+    def nb_max_primitive_actions_per_state(self):
+        return self.environment.max_nb_actions_per_state
+
     @property
     def nb_actions(self):
         """Gives the number of available actions (options or primitive actions)

@@ -42,15 +42,6 @@ option_environment = OptionEnvironment(
     is_optimal=True
 )
 
-MixedEnvironment(
-    environment=grid,
-    state_options=options.state_options,
-    options_policies=options.options_policies,
-    options_terminating_conditions=options.options_terminating_conditions,
-    delete_environment_actions="all",
-    is_optimal=True
-)
-
 # Define learning algorithm
 c = 0.8
 r_max = dimension  # maximal reward
@@ -77,7 +68,9 @@ for i in range(0, nb_simulations):
     seed = i  # set seed
     np.random.seed(seed)
     random.seed(seed)
-    ucrl = Ucrl.UcrlSmdpBounded(copy.deepcopy(option_environment), r_max, t_max, range_r=range_r, range_p=range_p, range_tau=range_tau)  # learning algorithm
+    ucrl = Ucrl.UcrlSmdpBounded(copy.deepcopy(option_environment), r_max, t_max,
+                                range_r=range_r, range_p=range_p, range_tau=range_tau,
+                                verbose=1)  # learning algorithm
     ucrl.learn(duration, regret_time_step)  # learn task
     times = np.array(ucrl.timing)
     df = pd.DataFrame(data=times, columns=["old", "new"])

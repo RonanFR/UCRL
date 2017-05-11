@@ -33,7 +33,7 @@ class OptionEnvironment(Environment):
         self.state_options = state_options
         self.options_policies = options_policies
         self.options_terminating_conditions = options_terminating_conditions
-        self.max_nb_actions = max(map(len, self.state_options))  # Maximal number of options per state
+        self.max_nb_actions_per_state = max(map(len, self.state_options))  # Maximal number of options per state
         self.nb_states = sum(map(lambda x: x > 0, map(len, self.state_options)))  # Total number of states in the new SMDP
         if index_min_options is None:
             self.index_min_options = min(map(lambda x: min(x, default = float("inf")), self.state_options))
@@ -64,6 +64,11 @@ class OptionEnvironment(Environment):
         :return: list of indices of options (macro-actions) available in state "state"
         """
         return self.state_options[state]
+
+    def get_index_of_action_state(self, state, action):
+        if action in self.state_options[state]:
+            return self.state_options[state].index(action)
+        return None
 
     def get_nb_available_actions_state(self, state):
         """
