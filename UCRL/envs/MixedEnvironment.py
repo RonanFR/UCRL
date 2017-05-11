@@ -121,14 +121,22 @@ class MixedEnvironment(OptionEnvironment):
     def get_action_from_index(self, act_index):
         return self.map_index2action[act_index]
 
+    def get_index_from_action(self, action):
+        return self.map_action2index[action]
+
     def get_zerobased_option_index(self, option, isIndex=True):
         if isIndex:
+            assert self.map_index2action[option] > self.threshold_options
             return self.map_index2action[option] - self.threshold_options - 1
         else:
             return option - self.threshold_options - 1
 
-    def is_valid_pa(self, act_index):
-        return act_index not in self.delete_environment_actions
+    def is_valid_primitive_action(self, act_index, isIndex=True):
+        if isIndex:
+            assert self.map_index2action[act_index] <= self.threshold_options
+            return self.map_index2action[act_index] not in self.delete_environment_actions
+        else:
+            return act_index not in self.delete_environment_actions
 
     # --------------------------------------------------------------------------
     # Properties

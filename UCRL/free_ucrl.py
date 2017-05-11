@@ -2,10 +2,11 @@ from .Ucrl import AbstractUCRL
 from .envs import MixedEnvironment
 import numpy as np
 import math as m
-
+from .logging import default_logger
 
 class FreeUCRL_Alg1(AbstractUCRL):
-    def __init__(self, environment, r_max, range_r=-1, range_p=-1):
+    def __init__(self, environment, r_max, range_r=-1, range_p=-1,
+                 logger=default_logger):
         assert isinstance(environment, MixedEnvironment)
 
         evi = EVI_Alg1(nb_states=environment.nb_states,
@@ -16,10 +17,11 @@ class FreeUCRL_Alg1(AbstractUCRL):
 
         super(FreeUCRL_Alg1, self).__init__(environment=environment,
                                             r_max=r_max, range_r=range_r,
-                                            range_p=range_p, solver=evi)
+                                            range_p=range_p, solver=evi,
+                                            logger=logger)
 
         nb_states = self.environment.nb_states
-        tot_nb_prim_actions = environment.nb_available_primitive_actions
+        tot_nb_prim_actions = environment.nb_total_primitive_actions
         nb_options = environment.nb_options
 
         # keep track of the transition probabilities for options and actions
@@ -248,7 +250,8 @@ class EVI_Alg1(object):
                     if first_action or c1 > u2[s] or np.isclose(c1, u2[s]):
                         u2[s] = c1
                         policy_indices[s] = action_idx
-                        policy[s] = action_idx
+                        policy[s] = self.actions_per_state[s][action_idx]
+                        assert policy_indices[s] == policy[s]
                     first_action = 0
 
             if max(u2-u1)-min(u2-u1) < epsilon:  # stopping condition

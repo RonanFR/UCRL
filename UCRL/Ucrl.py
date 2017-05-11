@@ -2,6 +2,7 @@ from .cython.max_proba import maxProba
 from .cython.ExtendedValueIteration import extended_value_iteration
 from .evi.evi import EVI
 from .envs import MixedEnvironment
+from .logging import default_logger
 
 import math as m
 import numpy as np
@@ -10,8 +11,10 @@ import time
 
 class AbstractUCRL(object):
 
-    def __init__(self, environment, r_max,
-                 range_r=-1, range_p=-1, solver=None):
+    def __init__(self, environment,
+                 r_max, range_r=-1, range_p=-1,
+                 solver=None,
+                 logger=default_logger):
         self.environment = environment
         self.r_max = r_max
 
@@ -46,6 +49,8 @@ class AbstractUCRL(object):
         self.episode = 0
         self.delta = 1.  # confidence
 
+        self.logger = logger
+
 
 class UcrlMdp(AbstractUCRL):
     """
@@ -53,7 +58,7 @@ class UcrlMdp(AbstractUCRL):
     positive bounded rewards.
     """
 
-    def __init__(self, environment, r_max, range_r=-1, range_p=-1, solver=None):
+    def __init__(self, environment, r_max, range_r=-1, range_p=-1, solver=None, logger=default_logger):
         """
         :param environment: an instance of any subclass of abstract class Environment which is an MDP
         :param r_max: upper bound
@@ -62,7 +67,7 @@ class UcrlMdp(AbstractUCRL):
         """
         super(UcrlMdp, self).__init__(environment=environment,
                                       r_max=r_max, range_r=range_r,
-                                      range_p=range_p, solver=solver)
+                                      range_p=range_p, solver=solver, logger=logger)
         self.estimated_probabilities = np.ones((self.environment.nb_states, self.environment.max_nb_actions,
                                                  self.environment.nb_states)) * 1/self.environment.nb_states
         self.estimated_rewards = np.ones((self.environment.nb_states, self.environment.max_nb_actions)) * r_max
@@ -289,8 +294,9 @@ class UcrlSmdpBounded(UcrlMdp):
     """
     UCRL for SMDPs with (almost surely) bounded rewards and holding times.
     """
-    def __init__(self, environment, r_max, t_max, t_min=1, range_r=-1, range_tau=-1, range_p=-1):
-        super().__init__(environment, r_max, range_r, range_p)
+    def __init__(self, environment, r_max, t_max, t_min=1,
+                 range_r=-1, range_tau=-1, range_p=-1, logger=default_logger):
+        super().__init__(environment, r_max, range_r, range_p, logger=logger)
         self.tau = t_min - 0.1
         self.tau_max = t_max
         self.tau_min = t_min
@@ -319,8 +325,10 @@ class UcrlMixedBounded(UcrlSmdpBounded):
     UCRL for SMDPs with (almost surely) bounded rewards and holding times where some actions are identified as primitive
     actions and dealt with as such.
     """
-    def __init__(self, environment, r_max, t_max, t_min=1, range_r=-1, range_r_actions=-1, range_tau=-1, range_p=-1):
-        super().__init__(environment, r_max, t_max, t_min, range_r, range_tau, range_p)
+    def __init__(self, environment, r_max, t_max, t_min=1, range_r=-1,
+                 range_r_actions=-1, range_tau=-1, range_p=-1, logger=default_logger):
+        super().__init__(environment, r_max, t_max, t_min,
+                         range_r, range_tau, range_p, logger=logger)
         self.options = np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
         self.primitive_actions = np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
         for s, actions in enumerate(environment.get_state_actions()):
@@ -393,8 +401,8 @@ class UcrlSmdpExp(UcrlMdp):
     """
     UCRL for SMDPs with sub-Exponential rewards and holding times.
     """
-    def __init__(self, environment, r_max, tau_max, tau_min=1):
-        super().__init__(environment, r_max)
+    def __init__(self, environment, r_max, tau_max, tau_min=1, logger=default_logger):
+        super().__init__(environment, r_max, logger=logger)
         self.tau = tau_min - 0.1
         self.tau_max = tau_max
         self.tau_min = tau_min
