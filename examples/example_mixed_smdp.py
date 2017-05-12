@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import UCRL.envs.toys.NavigateGrid as NavigateGrid
-import UCRL.envs.toys.OptionGrid as OptionGrid
+import UCRL.envs.toys.OptionGridFree as OptionGridFree
 import UCRL.envs.RewardDistributions as RewardDistributions
-from UCRL.smdp_ucrl import SMDPUCRL_Mixed
+from UCRL.free_ucrl import FreeUCRL_Alg1
 from UCRL.envs import MixedEnvironment
 
 # Define environment
@@ -33,7 +33,7 @@ grid = NavigateGrid.NavigateGrid2(
 t_max = 3
 # options = OptionGrid.OptionGrid1(grid, t_max)
 # options = OptionGrid.OptionGrid2(grid, t_max)
-options = OptionGrid.OptionGrid3(grid=grid, t_max=t_max)
+options = OptionGridFree.OptionGrid3_free(grid=grid, t_max=t_max)
 mixed_environment = MixedEnvironment(
     environment=grid,
     state_options=options.state_options,
@@ -78,9 +78,12 @@ for i in range(0, nb_simulations):
     seed = i  # set seed
     np.random.seed(seed)
     random.seed(seed)
-    ucrl = SMDPUCRL_Mixed(copy.deepcopy(mixed_environment), r_max, t_max,
-                          range_r=range_r, range_p=range_p, range_tau=range_tau,
-                          verbose=1)  # learning algorithm
+    ucrl = FreeUCRL_Alg1(
+        environment=copy.deepcopy(mixed_environment),
+        r_max=r_max,
+        range_r=range_r,
+        range_p=range_p,
+        verbose=1)  # learning algorithm
     ucrl.learn(duration, regret_time_step)  # learn task
     times = np.array(ucrl.timing)
     df = pd.DataFrame(data=times, columns=["old", "new"])

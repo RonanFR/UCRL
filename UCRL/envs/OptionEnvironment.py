@@ -124,3 +124,37 @@ class OptionEnvironment(Environment):
     @property
     def nb_options(self):
         return len(self.options_policies)
+
+    @property
+    def nb_reachable_states_per_option(self):
+        x = self.reachable_states_options
+        counter = list(map(len, x))
+        return counter
+
+
+    @property
+    def reachable_states_per_option(self):
+        # ----------------------------------------------------------------------
+        # Compute indexes of states of an option with B < 1
+        # ----------------------------------------------------------------------
+        # the vector contains I_o = [s_0, x] where x = {s | B_o(s) < 1}
+        # reachable_states_per_option: |O|x|vary length|
+        if not hasattr(self, 'reachable_states_options'):
+            nb_options = self.nb_options
+            self.reachable_states_options = [[]] * nb_options
+            assert nb_options == len(self.options_terminating_conditions)
+            for o in range(self.index_min_options, nb_options+self.index_min_options):
+                initial_state = None
+                counter = 0
+                for s, acts in enumerate(self.state_options):
+                    for a in acts:
+                        if a == o:
+                            counter += 1
+                            initial_state = s
+                assert counter == 1
+                self.reachable_states_options[o-self.index_min_options] = [initial_state]
+                for x, b in enumerate(self.options_terminating_conditions[o-self.index_min_options]):
+                    if b < 1:
+                        self.reachable_states_options[o-self.index_min_options].append(x)
+        return self.reachable_states_options
+

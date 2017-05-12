@@ -101,6 +101,7 @@ class UcrlMdp(AbstractUCRL):
         threshold_span = threshold
 
         self.timing = []
+        alg_trace = {'span_values': []}
 
         while self.total_time < duration:
             self.episode += 1
@@ -110,18 +111,21 @@ class UcrlMdp(AbstractUCRL):
             self.nu_k.fill(0)
             self.delta = 1 / m.sqrt(self.iteration + 1)
 
-            if self.verbose > 1:
-                self.logger.info("#Episode {}".format(self.episode))
-                self.logger.info("P_hat -> {}:\n{}".format(self.estimated_probabilities.shape, self.estimated_probabilities))
-                self.logger.info("R_hat -> {}:\n{}".format(self.estimated_rewards.shape, self.estimated_rewards))
-                self.logger.info("T_hat -> {}:\n{}".format(self.estimated_holding_times.shape, self.estimated_holding_times))
-                self.logger.info("N -> {}:\n{}".format(self.nb_observations.shape, self.nb_observations))
-                self.logger.info("nu_k -> {}:\n{}".format(self.nu_k.shape, self.nu_k))
+            if self.verbose > 0:
+                self.logger.info("{}/{} = {}".format(self.total_time, duration, self.episode))
+                if self.verbose > 1:
+                    self.logger.info("P_hat -> {}:\n{}".format(self.estimated_probabilities.shape, self.estimated_probabilities))
+                    self.logger.info("R_hat -> {}:\n{}".format(self.estimated_rewards.shape, self.estimated_rewards))
+                    self.logger.info("T_hat -> {}:\n{}".format(self.estimated_holding_times.shape, self.estimated_holding_times))
+                    self.logger.info("N -> {}:\n{}".format(self.nb_observations.shape, self.nb_observations))
+                    self.logger.info("nu_k -> {}:\n{}".format(self.nu_k.shape, self.nu_k))
 
             # solve the optimistic (extended) model
             span_value = self.solve_optimistic_model()
+            span_value *= self.tau / self.r_max
+            alg_trace['span_values'].append(span_value)
             if self.verbose > 0:
-                self.logger.info("{:.9f}".format(span_value))
+                self.logger.info("span({}): {:.9f}".format(self.episode, span_value))
 
             if self.total_time > threshold_span:
                 self.span_values.append(span_value*self.tau/self.r_max)
@@ -138,6 +142,7 @@ class UcrlMdp(AbstractUCRL):
                     self.unit_duration.append(self.total_time/self.iteration)
                     threshold = self.total_time + regret_time_step
             self.nb_observations += self.nu_k
+        return alg_trace
 
     def beta_r(self):
         """ Confidence bounds on the reward
@@ -146,7 +151,7 @@ class UcrlMdp(AbstractUCRL):
             np.array: the vector of confidence bounds on the reward function (|S| x |A|)
             
         """
-        return np.multiply(self.range_r, np.sqrt(7/2 * m.log(2 * self.environment.nb_states * self.environment.max_nb_actions *
+        return np.multiply(self.range_r, np.sqrt(7/2 * m.log(2 * self.environment.nb_states * self.environment.max_nb_actions_per_state *
                                                 (self.iteration+1)/self.delta) / np.maximum(1, self.nb_observations)))
 
     def beta_tau(self):
@@ -156,7 +161,7 @@ class UcrlMdp(AbstractUCRL):
             np.array: the vecor of confidence bounds on the holding times (|S| x |A|)
         
         """
-        return np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
+        return np.zeros((self.environment.nb_states, self.environment.max_nb_actions_per_state))
 
     def beta_p(self):
         """ Confidence bounds on transition probabilities
@@ -193,23 +198,23 @@ class UcrlMdp(AbstractUCRL):
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
 
         # span_value = self.extended_value_iteration(beta_r, beta_p, beta_tau, 1 / m.sqrt(self.iteration + 1))  # python implementation: slow
-        t0 = time.perf_counter()
-        span_value, u1, u2 = extended_value_iteration(
-            self.policy_indices, self.policy,
-            int(self.environment.nb_states),
-            self.environment.get_state_actions(),
-            self.estimated_probabilities,
-            self.estimated_rewards,
-            self.estimated_holding_times,
-            beta_r, beta_p, beta_tau,
-            self.tau_max, self.r_max,
-            self.tau, self.tau_min,
-            self.r_max / m.sqrt(self.iteration + 1)
-        )
-        t1 = time.perf_counter()
-        to = t1 - t0
-        if self.verbose > 1:
-            self.logger.info("[%d]OLD EVI: %.3f seconds" % (self.episode, to))
+        # t0 = time.perf_counter()
+        # span_value, u1, u2 = extended_value_iteration(
+        #     self.policy_indices, self.policy,
+        #     int(self.environment.nb_states),
+        #     self.environment.get_state_actions(),
+        #     self.estimated_probabilities,
+        #     self.estimated_rewards,
+        #     self.estimated_holding_times,
+        #     beta_r, beta_p, beta_tau,
+        #     self.tau_max, self.r_max,
+        #     self.tau, self.tau_min,
+        #     self.r_max / m.sqrt(self.iteration + 1)
+        # )
+        # t1 = time.perf_counter()
+        # to = t1 - t0
+        # if self.verbose > 1:
+        #     self.logger.info("[%d]OLD EVI: %.3f seconds" % (self.episode, to))
 
         t0 = time.perf_counter()
         span_value_new = self.opt_solver.evi(
@@ -226,16 +231,18 @@ class UcrlMdp(AbstractUCRL):
         if self.verbose > 1:
             print("[%d]NEW EVI: %.3f seconds" % (self.episode, tn))
 
-        self.timing.append([to, tn])
+        # self.timing.append([to, tn])
+
+        span_value = span_value_new ##############
 
         if self.verbose > 1:
             print("{:.2f} / {:.2f}".format(span_value, span_value_new))
         assert np.abs(span_value - span_value_new) < 1e-8
 
-        new_u1, new_u2 = self.opt_solver.get_uvectors()
+        # new_u1, new_u2 = self.opt_solver.get_uvectors()
 
-        assert np.allclose(u1, new_u1, 1e-5)
-        assert np.allclose(u2, new_u2, 1e-5)
+        # assert np.allclose(u1, new_u1, 1e-5)
+        # assert np.allclose(u2, new_u2, 1e-5)
 
         return span_value
 

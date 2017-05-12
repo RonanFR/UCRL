@@ -24,6 +24,7 @@ class Environment(metaclass=ABCMeta):
         self.reward = 0   # Last reward obtained while exploring the SMDP (init = 0)
         self.holding_time = 0  # Last holding time obtained while exploring the SMDP (init = 0)
         self.nb_states = len(self.state_actions)  # Total number of states
+        self.max_nb_actions_per_state = max(map(len, self.state_actions))
 
     def get_state_actions(self):
         """
@@ -42,6 +43,11 @@ class Environment(metaclass=ABCMeta):
         :return: number of actions available in current state
         """
         return len(self.state_actions[self.state])
+
+    def get_index_of_action_state(self, state, action):
+        if action in self.state_actions[state]:
+            return self.state_actions[state].index(action)
+        return None
 
     def get_available_actions_state(self, state):
         """

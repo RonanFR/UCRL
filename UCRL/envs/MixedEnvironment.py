@@ -26,26 +26,7 @@ class MixedEnvironment(OptionEnvironment):
         :param delete_environment_actions (list, "all"): do not use actions of the provided environment.
                                 Use only given options
         :param is_optimal: True if and only if there exists an optimal policy using only options and primitive actions
-                           not in delete_state_actions, default value is False
-                           
-        Examples
-        environment.state_action = [[0,1,3]...]
-        state_options = [[0, 1], ....]
-        delete_environment_actions = [1]
-        
-        self.threshold_options = 3 (we have 4 actions)
-        self.state_options = [[0,2,3,4]...
-        # state_options contains always indices of available actions without jumps
-        
-        self.map_index2action = {0: 0 
-        1: 2
-        2: 3
-        3: 4 -> first option
-        4: 5 -> second option
-        ...
-        }
-        self.min_index_option = 3 (self.map_index2action[lf.threshold_options + 1])
-        
+                           not in delete_state_actions, default value is False        
         """
         assert isinstance(environment, Environment)
 
@@ -134,6 +115,9 @@ class MixedEnvironment(OptionEnvironment):
         else:
             return act_index not in self.delete_environment_actions
 
+    def get_index_of_action_state_in_mdp(self, state, action):
+        return self.environment.get_index_of_action_state(state, action)
+
     # --------------------------------------------------------------------------
     # Properties
     # --------------------------------------------------------------------------
@@ -178,4 +162,8 @@ class MixedEnvironment(OptionEnvironment):
             int
         """
         return self.map_action2index[self.threshold_options + 1]
+
+    @property
+    def max_nb_mdp_actions_per_state(self):
+        return self.environment.max_nb_actions_per_state
 

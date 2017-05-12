@@ -69,6 +69,7 @@ class SMDPUCRL_Mixed(AbstractUCRL):
         threshold_span = threshold
 
         self.timing = []
+        alg_trace = {'span_values': []}
 
         while self.total_time < duration:
             self.episode += 1
@@ -79,7 +80,7 @@ class SMDPUCRL_Mixed(AbstractUCRL):
             self.delta = 1 / m.sqrt(self.iteration + 1)
 
             if self.verbose > 0:
-                self.logger.info("#Episode {}".format(self.episode))
+                self.logger.info("{}/{} = {}".format(self.total_time, duration, self.episode))
                 if self.verbose > 1:
                     self.logger.info("P_hat -> {}:\n{}".format(self.estimated_probabilities.shape, self.estimated_probabilities))
                     self.logger.info("R_hat -> {}:\n{}".format(self.estimated_rewards.shape, self.estimated_rewards))
@@ -89,8 +90,10 @@ class SMDPUCRL_Mixed(AbstractUCRL):
 
             # solve the optimistic (extended) model
             span_value = self.solve_optimistic_model()
+            span_value *= self.tau / self.r_max
+            alg_trace['span_values'].append(span_value)
             if self.verbose > 0:
-                self.logger.info("{:.9f}".format(span_value))
+                self.logger.info("span({}): {:.9f}".format(self.episode, span_value))
 
             if self.total_time > threshold_span:
                 self.span_values.append(span_value / self.r_max)
@@ -116,8 +119,10 @@ class SMDPUCRL_Mixed(AbstractUCRL):
 
             self.nb_observations += self.nu_k
 
+        return alg_trace
+
     def beta_p(self):
-        nb_states, nb_actions = self.estimated_rewards.shape
+        nb_states, nb_actions = self.nb_observations.shape
         return self.range_p * np.sqrt(14 * nb_states * m.log(2 * nb_actions
                     * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))
 
@@ -152,8 +157,8 @@ class SMDPUCRL_Mixed(AbstractUCRL):
 
     def update_from_option(self, history):
         [s, o, r, t, s2] = history.data # first is for sure an option
-        option_index = self.environment.get_available_actions_state(s).index(o)
-
+        option_index = self.environment.get_index_of_action_state(s, o)
+        assert option_index is not None
 
         self.estimated_rewards[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
         self.estimated_rewards[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * r
@@ -185,23 +190,23 @@ class SMDPUCRL_Mixed(AbstractUCRL):
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
 
         # span_value = self.extended_value_iteration(beta_r, beta_p, beta_tau, 1 / m.sqrt(self.iteration + 1))  # python implementation: slow
-        t0 = time.perf_counter()
-        span_value, u1, u2 = extended_value_iteration(
-            self.policy_indices, self.policy,
-            int(self.environment.nb_states),
-            self.environment.get_state_actions(),
-            self.estimated_probabilities,
-            self.estimated_rewards,
-            self.estimated_holding_times,
-            beta_r, beta_p, beta_tau,
-            self.tau_max, self.r_max,
-            self.tau, self.tau_min,
-            self.r_max / m.sqrt(self.iteration + 1)
-        )
-        t1 = time.perf_counter()
-        to = t1 - t0
-        if self.verbose > 1:
-            self.logger.info("[%d]OLD EVI: %.3f seconds" % (self.episode, to))
+        # t0 = time.perf_counter()
+        # span_value, u1, u2 = extended_value_iteration(
+        #     self.policy_indices, self.policy,
+        #     int(self.environment.nb_states),
+        #     self.environment.get_state_actions(),
+        #     self.estimated_probabilities,
+        #     self.estimated_rewards,
+        #     self.estimated_holding_times,
+        #     beta_r, beta_p, beta_tau,
+        #     self.tau_max, self.r_max,
+        #     self.tau, self.tau_min,
+        #     self.r_max / m.sqrt(self.iteration + 1)
+        # )
+        # t1 = time.perf_counter()
+        # to = t1 - t0
+        # if self.verbose > 1:
+        #     self.logger.info("[%d]OLD EVI: %.3f seconds" % (self.episode, to))
 
         t0 = time.perf_counter()
         span_value_new = self.opt_solver.evi(
@@ -219,16 +224,18 @@ class SMDPUCRL_Mixed(AbstractUCRL):
         if self.verbose > 1:
             self.logger.info("[%d]NEW EVI: %.3f seconds" % (self.episode, tn))
 
-        self.timing.append([to, tn])
+        # self.timing.append([to, tn])
+        span_value = span_value_new #########################
 
         if self.verbose > 1:
             self.logger.info("span: {:.2f} / {:.2f}".format(span_value, span_value_new))
         assert np.abs(span_value - span_value_new) < 1e-8
 
-        new_u1, new_u2 = self.opt_solver.get_uvectors()
+        # new_u1, new_u2 = self.opt_solver.get_uvectors()
+        #
+        # assert np.allclose(u1, new_u1, 1e-5)
+        # assert np.allclose(u2, new_u2, 1e-5)
 
-        assert np.allclose(u1, new_u1, 1e-5)
-        assert np.allclose(u2, new_u2, 1e-5)
 
         return span_value
 
