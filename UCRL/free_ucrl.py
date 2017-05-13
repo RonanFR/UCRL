@@ -3,6 +3,8 @@ from .envs import MixedEnvironment
 import numpy as np
 import math as m
 from .logging import default_logger
+from .evi import FreeEVIAlg1
+import time
 
 class FreeUCRL_Alg1(AbstractUCRL):
     def __init__(self, environment, r_max, range_r=-1, range_p=-1,
@@ -11,7 +13,14 @@ class FreeUCRL_Alg1(AbstractUCRL):
 
         evi = EVI_Alg1(nb_states=environment.nb_states,
                        thr=environment.threshold_options,
-                       action_per_state=environment.get_state_actions())
+                       action_per_state=environment.get_state_actions(),
+                       reachable_states_per_option=environment.reachable_states_per_option)
+
+        self.new_evi = FreeEVIAlg1(nb_states=environment.nb_states,
+                                   nb_options=environment.nb_options,
+                                   threshold=environment.threshold_options,
+                                   actions_per_state=environment.get_state_actions(),
+                                   reachable_states_per_option=environment.reachable_states_per_option)
 
         super(FreeUCRL_Alg1, self).__init__(environment=environment,
                                             r_max=r_max, range_r=range_r,
@@ -43,6 +52,7 @@ class FreeUCRL_Alg1(AbstractUCRL):
         threshold_span = threshold
 
         self.timing = []
+        alg_trace = {'span_values': []}
 
         while self.total_time < duration:
             self.episode += 1
@@ -53,30 +63,35 @@ class FreeUCRL_Alg1(AbstractUCRL):
             self.nu_k.fill(0)
             self.delta = 1 / m.sqrt(self.iteration + 1)
 
+            if self.verbose > 0:
+                self.logger.info("{}/{} = {:3.2f}%".format(self.total_time, duration, self.total_time / duration *100))
+
             # solve the optimistic (extended) model
             span_value = self.solve_optimistic_model()
+            span_value /= self.r_max
+            alg_trace['span_values'].append(span_value)
+            if self.verbose > 0:
+                self.logger.info("span({}): {:.9f}".format(self.episode, span_value))
 
             if self.total_time > threshold_span:
-                self.span_values.append(span_value / self.r_max)
+                self.span_values.append(span_value)
                 self.span_times.append(self.total_time)
                 threshold_span = self.total_time + regret_time_step
 
             # execute the recovered policy
-            curr_st = self.environment.state
-            curr_ac = self.policy_indices[curr_st]
-            while self.nu_k_mdp[curr_st][curr_ac] < max(1, self.nb_observations_mdp[curr_st][curr_ac]) \
-                    and self.total_time < duration:
-                self.update()
+            t0 = time.time()
+            while self.update() and self.total_time < duration:
                 if self.total_time > threshold:
                     self.regret.append(self.total_time * self.environment.max_gain - self.total_reward)
                     self.unit_duration.append(self.total_time / self.iteration)
                     threshold = self.total_time + regret_time_step
-                # get current state and action
-                curr_st = self.environment.state
-                curr_ac = self.policy_indices[curr_st]
+            t1 = time.time()
+            print("expl time: {} s".format(t1-t0))
 
             self.nb_observations_mdp += self.nu_k_mdp
             self.nb_observations += self.nu_k
+
+        return alg_trace
 
     def beta_r(self):
         nb_states, nb_prim_actions = self.estimated_rewards_mdp.shape
@@ -119,55 +134,67 @@ class FreeUCRL_Alg1(AbstractUCRL):
         if history is None:
             # this is a primitive action
             # update mdp information
-            self.update_from_action(s, self.policy[s], s2, r)
+            return self.update_from_action(s, self.policy[s], s2, r)
         else:
-            self.update_from_option(history)
+            return self.update_from_option(history)
 
     def update_from_option(self, history):
         [s, o, r, t, s2] = history.data # first is for sure an option
         option_index = self.environment.get_index_of_action_state(s, o)
         assert option_index is not None
 
-        self.estimated_probabilities[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
-        self.estimated_probabilities[s][option_index][s2] += 1 / (self.nb_observations[s][option_index] + 1)
+        scale_factor_opt = self.nb_observations[s][option_index] + self.nu_k[s][option_index]
+
+        self.estimated_probabilities[s][option_index] *= scale_factor_opt / (scale_factor_opt + 1.)
+        self.estimated_probabilities[s][option_index][s2] += 1. / (scale_factor_opt + 1.)
         self.nu_k[s][option_index] += 1
 
         # the rest of the actions are for sure primitive actions (1 level hierarchy)
-        node = history
-        while len(node.children) > 0:
-            assert len(node.children) == 1, "history has more than one child"
-
-            # advance node
-            node = node.children[0]
+        iterate_more = True
+        for node in history.children:
+            assert len(node.children) == 0
             [s, a, r, t, s2] = node.data # this is a primitive action which can be valid or not
             # for sure it is a primitive action (and the index corresponds to all the primitive actions
-            self.update_from_action(s, a, s2, r)
+            if self.update_from_action(s, a, s2, r) == False:
+                iterate_more = False
+
+        return iterate_more
 
     def update_from_action(self, s, a, s2, r):
         mdpopt_index = self.environment.get_index_of_action_state(s, a)
         mdp_index = self.environment.get_index_of_action_state_in_mdp(s, a)
 
-        self.estimated_rewards_mdp[s][mdp_index] *= self.nb_observations_mdp[s][mdp_index] / (self.nb_observations_mdp[s][mdp_index] + 1)
-        self.estimated_rewards_mdp[s][mdp_index] += 1 / (self.nb_observations_mdp[s][mdp_index] + 1) * r
-        self.estimated_probabilities_mdp[s][mdp_index] *= self.nb_observations_mdp[s][mdp_index] / (self.nb_observations[s][mdp_index] + 1)
-        self.estimated_probabilities_mdp[s][mdp_index][s2] += 1 / (self.nb_observations_mdp[s][mdp_index] + 1)
+        scale_factor = self.nb_observations_mdp[s][mdp_index] + self.nu_k_mdp[s][mdp_index]
+
+        # check before to increment the counter
+        iterate_more = (self.nu_k_mdp[s][mdp_index] < max(1, self.nb_observations_mdp[s][mdp_index]))
+
+        self.estimated_rewards_mdp[s][mdp_index] *= scale_factor / (scale_factor + 1.)
+        self.estimated_rewards_mdp[s][mdp_index] += 1. / (scale_factor + 1.) * r
+        self.estimated_probabilities_mdp[s][mdp_index] *= scale_factor / (scale_factor + 1.)
+        self.estimated_probabilities_mdp[s][mdp_index][s2] += 1. / (scale_factor + 1.)
         self.nu_k_mdp[s][mdp_index] += 1
         if mdpopt_index is not None:
             # this means that the primitive action is a valid action for
             # the environment mdp + opt
-            self.estimated_probabilities[s][mdpopt_index] *= self.nb_observations[s][mdpopt_index] / (self.nb_observations[s][mdpopt_index] + 1)
-            self.estimated_probabilities[s][mdpopt_index][s2] += 1 / (self.nb_observations[s][mdpopt_index] + 1)
+            scale_factor_mdpopt = self.nb_observations[s][mdpopt_index] + self.nu_k[s][mdpopt_index]
+
+            self.estimated_probabilities[s][mdpopt_index] *= scale_factor_mdpopt / (scale_factor_mdpopt + 1.)
+            self.estimated_probabilities[s][mdpopt_index][s2] += 1. / (scale_factor_mdpopt + 1.)
             self.nu_k[s][mdpopt_index] += 1
 
+        return iterate_more
+
     def solve_optimistic_model(self):
-        nb_states = self.environment.nb_states
+        # nb_states = self.environment.nb_states
         beta_r = self.beta_r()  # confidence bounds on rewards
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
         beta_mu_p = self.beta_mu_p() # confidence bound on transition model of options for mu
 
+        t0 = time.time()
         nb_options = self.environment.nb_options
-        r_tilde_opt = [[]] * nb_options
-        mu_opt = [[]] * nb_options
+        r_tilde_opt = [None] * nb_options
+        mu_opt = [None] * nb_options
         condition_numbers_opt = np.empty(nb_options)
         for o in range(nb_options):
             option_policy = self.environment.options_policies[o]
@@ -177,12 +204,12 @@ class FreeUCRL_Alg1(AbstractUCRL):
             opt_nb_states = len(option_reach_states)
 
             Q_o = np.zeros((opt_nb_states, opt_nb_states))
-            q_o = np.zeros((opt_nb_states,1))
 
             # compute the reward and the mu
+            r_o = list()
             for i, s in enumerate(option_reach_states):
                 option_action = option_policy[s]
-                r_tilde_opt[o].append(
+                r_o.append(
                     self.estimated_rewards_mdp[s, option_action] + beta_r[s,option_action]
                 )
 
@@ -193,8 +220,12 @@ class FreeUCRL_Alg1(AbstractUCRL):
             e_m = np.ones((opt_nb_states,1))
             q_o = e_m - np.dot(Q_o, e_m)
 
+            r_tilde_opt[o] = r_o
+
             Pprime_o = np.concatenate((q_o, Q_o[:, 1:]), axis=1)
-            assert np.allclose(np.sum(Pprime_o, axis=1), np.ones(opt_nb_states))
+            if not np.allclose(np.sum(Pprime_o, axis=1), np.ones(opt_nb_states)):
+                print("{}\n{}".format(Pprime_o,Q_o))
+
 
             Pap = (Pprime_o + np.eye(opt_nb_states)) / 2.
             D, U = np.linalg.eig(
@@ -202,7 +233,9 @@ class FreeUCRL_Alg1(AbstractUCRL):
             sorted_indices = np.argsort(np.real(D))
             mu = np.transpose(np.real(U))[sorted_indices[-1]]
             mu /= np.sum(mu)  # stationary distribution
-            mu_opt[o].append(mu)
+            mu_opt[o] = mu
+
+            assert len(mu_opt[o]) == len(r_tilde_opt[o])
 
             P_star = np.repeat(np.array(mu, ndmin=2), opt_nb_states,
                                axis=0)  # limiting matrix
@@ -220,28 +253,60 @@ class FreeUCRL_Alg1(AbstractUCRL):
                                                             ord=1))
             condition_numbers_opt[o] = condition_nb
 
-        self.opt_solver.run(policy_indices=self.policy_indices,
-                            policy=self.policy,
-                            p_hat=self.estimated_probabilities,
-                            r_hat_mdp=self.estimated_rewards_mdp,
-                            r_tilde_opt=r_tilde_opt,
-                            beta_p=beta_p,
-                            beta_r_mdp=beta_r,
-                            mu_opt=mu_opt,
-                            cn_opt=condition_numbers_opt,
-                            beta_mu_p=beta_mu_p,
-                            r_max=self.r_max,
-                            epsilon=self.r_max / m.sqrt(self.iteration + 1))
+        span_value, u1, u2 = self.opt_solver.run(
+            policy_indices=self.policy_indices,
+            policy=self.policy,
+            p_hat=self.estimated_probabilities,
+            r_hat_mdp=self.estimated_rewards_mdp,
+            r_tilde_opt=r_tilde_opt,
+            beta_p=beta_p,
+            beta_r_mdp=beta_r,
+            mu_opt=mu_opt,
+            cn_opt=condition_numbers_opt,
+            beta_mu_p=beta_mu_p,
+            r_max=self.r_max,
+            epsilon=self.r_max / m.sqrt(self.iteration + 1))
+        t1 = time.time()
+        print("OLD_EVI: {} s".format(t1-t0))
+
+        t0 = time.time()
+        self.new_evi.compute_mu_and_info(environment=self.environment,
+                                         estimated_probabilities_mdp=self.estimated_probabilities_mdp,
+                                         estimated_rewards_mdp=self.estimated_rewards_mdp,
+                                         beta_r = beta_r)
+        t1 = time.time()
+
+        new_span = self.new_evi.run(
+            policy_indices=self.policy_indices,
+            policy=self.policy,
+            p_hat=self.estimated_probabilities,
+            r_hat_mdp=self.estimated_rewards_mdp,
+            beta_p=beta_p,
+            beta_r_mdp=beta_r,
+            beta_mu_p=beta_mu_p,
+            r_max=self.r_max,
+            epsilon=self.r_max / m.sqrt(self.iteration + 1))
+        t2 = time.time()
+        print("NEW_EVI: {} s ({} + {})".format(t2-t0, t1-t0, t2-t1))
+        print(span_value, new_span)
+        assert np.isclose(span_value, new_span)
+        # new_u1, new_u2 = self.new_evi.get_uvectors()
+
+        # assert np.allclose(u1, new_u1, 1e-5), "{}\n{}".format(u1, new_u1)
+        # assert np.allclose(u2, new_u2, 1e-5), "{}\n{}".format(u2, new_u2)
+        return span_value
 
 class EVI_Alg1(object):
 
-    def __init__(self, nb_states, thr, action_per_state):
+    def __init__(self, nb_states, thr, action_per_state,
+                 reachable_states_per_option):
         self.mtx_maxprob_memview = np.ones((nb_states, nb_states)) * 99
         self.mtx_maxmu_memview = np.ones((nb_states, nb_states)) * 99
         self.threshold = thr
         self.actions_per_state = action_per_state
         self.u1 = np.zeros(nb_states)
         self.u2 = np.zeros(nb_states)
+        self.reachable_states_per_option = reachable_states_per_option
 
     def run(self, policy_indices, policy,
             p_hat,
@@ -254,46 +319,53 @@ class EVI_Alg1(object):
             beta_mu_p,
             r_max,
             epsilon):
+        self.u1.fill(0.0)
         nb_states = p_hat.shape[0]
         sorted_indices_u = np.arange(nb_states)
+        counter = 0
         while True:
+            counter += 1
             for s in range(nb_states):
-                first_action = 1
+                first_action = True
                 for action_idx, action in enumerate(self.actions_per_state[s]):
                     if action <= self.threshold:
                         #this is an action
                         self.mtx_maxprob_memview[s] = self.max_proba(p_hat[s][action_idx], nb_states,
                                        sorted_indices_u, beta_p[s][action_idx])
-                        self.mtx_maxprob_memview[s][s] = self.mtx_maxprob_memview[s][s] - 1.  # ????
+                        self.mtx_maxprob_memview[s][s] = self.mtx_maxprob_memview[s][s] - 1.
 
                         r_optimal = min(r_max, r_hat_mdp[s, action] + beta_r_mdp[s, action])
                         v = r_optimal + np.dot(self.mtx_maxprob_memview[s], self.u1)
                     else:
                         self.mtx_maxprob_memview[s] = self.max_proba(p_hat[s][action_idx], nb_states,
                                        sorted_indices_u, beta_p[s][action_idx])
-                        self.mtx_maxprob_memview[s][s] = self.mtx_maxprob_memview[s][s] - 1.  # ????
+                        self.mtx_maxprob_memview[s][s] = self.mtx_maxprob_memview[s][s] - 1.
 
                         o = action - self.threshold - 1 # zero based index
 
-                        x = np.minimum(r_max, r_tilde_opt[o])
-                        x[s] += np.dot(self.mtx_maxprob_memview[s], self.u1)
+                        x = np.zeros(len(self.reachable_states_per_option[o]))
+                        for kk, kk_v in enumerate(self.reachable_states_per_option[o]):
+                            x[kk] = min(r_max, r_tilde_opt[o][kk])
+
+                            if s == kk_v:
+                                x[kk] += np.dot(self.mtx_maxprob_memview[s], self.u1)
 
                         sorted_indices_mu = np.argsort(x)
 
-                        self.mtx_maxmu_memview[s] = self.max_proba(mu_opt[o], len(mu_opt[o]),
+                        max_mu = self.max_proba(mu_opt[o], len(mu_opt[o]),
                                        sorted_indices_mu, cn_opt[o]*beta_mu_p[o])
-                        v = np.dot(self.mtx_maxmu_memview[s], x)
+                        v = np.dot(max_mu, x)
 
                     c1 = v + self.u1[s]
+
                     if first_action or c1 > self.u2[s] or np.isclose(c1, self.u2[s]):
                         self.u2[s] = c1
                         policy_indices[s] = action_idx
-                        policy[s] = self.actions_per_state[s][action_idx]
-                        assert policy_indices[s] == policy[s]
-                    first_action = 0
+                        policy[s] = action
+                    first_action = False
 
             if max(self.u2-self.u1)-min(self.u2-self.u1) < epsilon:  # stopping condition
-                # print("%d\n", counter)
+                print("%d\n", counter)
                 return max(self.u1) - min(self.u1), self.u1, self.u2
             else:
                 self.u1 = self.u2

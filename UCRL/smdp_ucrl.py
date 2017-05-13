@@ -80,7 +80,7 @@ class SMDPUCRL_Mixed(AbstractUCRL):
             self.delta = 1 / m.sqrt(self.iteration + 1)
 
             if self.verbose > 0:
-                self.logger.info("{}/{} = {}".format(self.total_time, duration, self.episode))
+                self.logger.info("{}/{} = {:3.2f}%".format(self.total_time, duration, self.total_time / duration *100))
                 if self.verbose > 1:
                     self.logger.info("P_hat -> {}:\n{}".format(self.estimated_probabilities.shape, self.estimated_probabilities))
                     self.logger.info("R_hat -> {}:\n{}".format(self.estimated_rewards.shape, self.estimated_rewards))
@@ -90,13 +90,13 @@ class SMDPUCRL_Mixed(AbstractUCRL):
 
             # solve the optimistic (extended) model
             span_value = self.solve_optimistic_model()
-            span_value *= self.tau / self.r_max
+            span_value /= self.r_max
             alg_trace['span_values'].append(span_value)
             if self.verbose > 0:
                 self.logger.info("span({}): {:.9f}".format(self.episode, span_value))
 
             if self.total_time > threshold_span:
-                self.span_values.append(span_value / self.r_max)
+                self.span_values.append(span_value)
                 self.span_times.append(self.total_time)
                 threshold_span = self.total_time + regret_time_step
 

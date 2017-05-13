@@ -16,7 +16,7 @@ class AbstractUCRL(object):
                  verbose = 0,
                  logger=default_logger):
         self.environment = environment
-        self.r_max = r_max
+        self.r_max = float(r_max)
 
         if (np.asarray(range_r) < 0).any():
             self.range_r = r_max
@@ -112,7 +112,7 @@ class UcrlMdp(AbstractUCRL):
             self.delta = 1 / m.sqrt(self.iteration + 1)
 
             if self.verbose > 0:
-                self.logger.info("{}/{} = {}".format(self.total_time, duration, self.episode))
+                self.logger.info("{}/{} = {:3.2f}%".format(self.total_time, duration, self.total_time / duration *100))
                 if self.verbose > 1:
                     self.logger.info("P_hat -> {}:\n{}".format(self.estimated_probabilities.shape, self.estimated_probabilities))
                     self.logger.info("R_hat -> {}:\n{}".format(self.estimated_rewards.shape, self.estimated_rewards))
@@ -121,18 +121,22 @@ class UcrlMdp(AbstractUCRL):
                     self.logger.info("nu_k -> {}:\n{}".format(self.nu_k.shape, self.nu_k))
 
             # solve the optimistic (extended) model
+            t0 = time.time()
             span_value = self.solve_optimistic_model()
+            t1 = time.time()
             span_value *= self.tau / self.r_max
             alg_trace['span_values'].append(span_value)
             if self.verbose > 0:
                 self.logger.info("span({}): {:.9f}".format(self.episode, span_value))
+                self.logger.info("evi time: {:.4f} s".format(t1-t0))
 
             if self.total_time > threshold_span:
-                self.span_values.append(span_value*self.tau/self.r_max)
+                self.span_values.append(span_value)
                 self.span_times.append(self.total_time)
                 threshold_span = self.total_time + regret_time_step
 
             # execute the recovered policy
+            t0 = time.time()
             while self.nu_k[self.environment.state][self.policy_indices[self.environment.state]] \
                     < max(1, self.nb_observations[self.environment.state][self.policy_indices[self.environment.state]]) \
                     and self.total_time < duration:
@@ -142,6 +146,10 @@ class UcrlMdp(AbstractUCRL):
                     self.unit_duration.append(self.total_time/self.iteration)
                     threshold = self.total_time + regret_time_step
             self.nb_observations += self.nu_k
+            t1 = time.time()
+            if self.verbose > 0:
+                self.logger.info("expl time: {:.4f} s".format(t1-t0))
+
         return alg_trace
 
     def beta_r(self):
@@ -179,13 +187,17 @@ class UcrlMdp(AbstractUCRL):
         s2 = self.environment.state  # new state
         r = self.environment.reward
         t = self.environment.holding_time
-        self.estimated_rewards[s][self.policy_indices[s]] *= self.nb_observations[s][self.policy_indices[s]] / (self.nb_observations[s][self.policy_indices[s]] + 1)
-        self.estimated_rewards[s][self.policy_indices[s]] += 1 / (self.nb_observations[s][self.policy_indices[s]] + 1) * r
-        self.estimated_holding_times[s][self.policy_indices[s]] *= self.nb_observations[s][self.policy_indices[s]] / (self.nb_observations[s][self.policy_indices[s]] + 1)
-        self.estimated_holding_times[s][self.policy_indices[s]] += 1 / (self.nb_observations[s][self.policy_indices[s]] + 1) * t
-        self.estimated_probabilities[s][self.policy_indices[s]] *= self.nb_observations[s][self.policy_indices[s]] / (self.nb_observations[s][self.policy_indices[s]] + 1)
-        self.estimated_probabilities[s][self.policy_indices[s]][s2] += 1 / (self.nb_observations[s][self.policy_indices[s]] + 1)
-        self.nu_k[s][self.policy_indices[s]] += 1
+
+        curr_act = self.policy_indices[s]
+        scale_f = self.nb_observations[s][curr_act] + self.nu_k[s][curr_act]
+
+        self.estimated_rewards[s][curr_act] *= scale_f / (scale_f + 1.)
+        self.estimated_rewards[s][curr_act] += 1. / (scale_f + 1.) * r
+        self.estimated_holding_times[s][curr_act] *= scale_f / (scale_f + 1.)
+        self.estimated_holding_times[s][curr_act] += 1. / (scale_f + 1) * t
+        self.estimated_probabilities[s][curr_act] *= scale_f / (scale_f + 1.)
+        self.estimated_probabilities[s][curr_act][s2] += 1. / (scale_f + 1.)
+        self.nu_k[s][curr_act] += 1
         self.total_reward += r
         self.total_time += t
         self.iteration += 1
@@ -397,12 +409,14 @@ class UcrlMixedBounded(UcrlSmdpBounded):
         self.total_time += t
         self.iteration += 1
         if history is None:
-            self.estimated_rewards[s][self.policy_indices[s]] *= self.nb_observations[s][self.policy_indices[s]] / (self.nb_observations[s][self.policy_indices[s]] + 1)
-            self.estimated_rewards[s][self.policy_indices[s]] += 1 / (self.nb_observations[s][self.policy_indices[s]] + 1) * r
-            self.estimated_holding_times[s][self.policy_indices[s]] *= self.nb_observations[s][self.policy_indices[s]] / (self.nb_observations[s][self.policy_indices[s]] + 1)
-            self.estimated_holding_times[s][self.policy_indices[s]] += 1 / (self.nb_observations[s][self.policy_indices[s]] + 1) * t
-            self.estimated_probabilities[s][self.policy_indices[s]] *= self.nb_observations[s][self.policy_indices[s]] / (self.nb_observations[s][self.policy_indices[s]] + 1)
-            self.estimated_probabilities[s][self.policy_indices[s]][s2] += 1 / (self.nb_observations[s][self.policy_indices[s]] + 1)
+            scale_f = self.nb_observations[s][self.policy_indices[s]] + self.nu_k[s][self.policy_indices[s]]
+
+            self.estimated_rewards[s][self.policy_indices[s]] *= scale_f / (scale_f + 1)
+            self.estimated_rewards[s][self.policy_indices[s]] += 1 / (scale_f + 1) * r
+            self.estimated_holding_times[s][self.policy_indices[s]] *= scale_f / (scale_f + 1)
+            self.estimated_holding_times[s][self.policy_indices[s]] += 1 / (scale_f + 1) * t
+            self.estimated_probabilities[s][self.policy_indices[s]] *= scale_f / (scale_f + 1)
+            self.estimated_probabilities[s][self.policy_indices[s]][s2] += 1 / (scale_f + 1)
             self.nu_k[s][self.policy_indices[s]] += 1
         else:
             self.update_history(history)

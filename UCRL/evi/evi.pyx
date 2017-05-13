@@ -25,66 +25,11 @@ from ._utils cimport sign
 from ._utils cimport isclose_c
 from ._utils cimport get_sorted_indices
 from ._utils cimport check_end
+from ._utils cimport dot_prod
 
-# =============================================================================
-# Max Probabilities give CI [Near-optimal Regret Bounds for RL]
-# =============================================================================
+from ._max_proba cimport max_proba_purec
+from ._max_proba cimport max_proba_reduced
 
-cdef void max_proba_purec(DTYPE_t[:] p, SIZE_t* asc_sorted_indices,
-                          DTYPE_t beta, DTYPE_t[:] new_p) nogil:
-    cdef SIZE_t i, n
-    cdef DTYPE_t temp
-    cdef DTYPE_t sum_p = 0.0
-    n = p.shape[0]
-
-    temp = min(1., p[asc_sorted_indices[n-1]] + beta/2.0)
-    new_p[asc_sorted_indices[n-1]] = temp
-    sum_p = temp
-    if temp < 1.:
-        for i in range(0, n-1):
-            temp = p[asc_sorted_indices[i]]
-            new_p[asc_sorted_indices[i]] = temp
-            sum_p += temp
-        i = 0
-        while sum_p > 1.0 and i < n:
-            sum_p -= p[asc_sorted_indices[i]]
-            new_p[asc_sorted_indices[i]] = max(0.0, 1. - sum_p)
-            sum_p += new_p[asc_sorted_indices[i]]
-            i += 1
-    else:
-        for i in range(0, n):
-            new_p[i] = 0
-        new_p[asc_sorted_indices[n-1]] = temp
-
-cdef void max_proba_reduced(DTYPE_t[:] p, SIZE_t* asc_sorted_indices,
-                            DTYPE_t beta, DTYPE_t[:] new_p) nogil:
-    cdef SIZE_t i, n
-    cdef DTYPE_t temp, thr = 0.
-    cdef DTYPE_t sum_p = 0.0
-    n = p.shape[0]
-
-    temp = min(1., p[asc_sorted_indices[n-1]] + beta/2.0)
-    sum_p = 1.0 + temp - p[asc_sorted_indices[n-1]]
-    new_p[asc_sorted_indices[n-1]] = temp
-    if temp - 1. < thr:
-        for i in range(0, n-1):
-            if sum_p > 1.0:
-                sum_p -= p[asc_sorted_indices[i]]
-                new_p[asc_sorted_indices[i]] = max(0.0, 1. - sum_p)
-                sum_p += new_p[asc_sorted_indices[i]]
-            else:
-                new_p[asc_sorted_indices[i]] = p[asc_sorted_indices[i]]
-    else:
-        for i in prange(0, n):
-            new_p[i] = 0
-        new_p[asc_sorted_indices[n-1]] = temp
-
-cdef inline DTYPE_t dot_prod(DTYPE_t[:] x, DTYPE_t* y, SIZE_t dim) nogil:
-    cdef SIZE_t i
-    cdef DTYPE_t total = 0.
-    for i in range(dim):
-        total += x[i] * y[i]
-    return total
 
 # =============================================================================
 # Extended Value Iteration Class
@@ -111,7 +56,7 @@ cdef class EVI:
 
         n = len(actions_per_state)
         assert n == nb_states
-        self.actions_per_state = <VectorStruct *> malloc(n * sizeof(VectorStruct))
+        self.actions_per_state = <IntVectorStruct *> malloc(n * sizeof(IntVectorStruct))
         for i in range(n):
             m = len(actions_per_state[i])
             self.actions_per_state[i].dim = m
@@ -167,6 +112,7 @@ cdef class EVI:
                         # max_proba_purec
                         # max_proba_reduced
                         max_proba_purec(estimated_probabilities[s][a_idx],
+                                        nb_states,
                                     sorted_indices, beta_p[s][a_idx],
                                     mtx_maxprob_memview[s])
                         mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1. #????
@@ -192,7 +138,7 @@ cdef class EVI:
 
                 # stopping condition
                 if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
-                    # printf("%d", counter)
+                    printf("%d\n", counter)
                     return max_u1 - min_u1
                 else:
                     memcpy(u1, u2, nb_states * sizeof(DTYPE_t))

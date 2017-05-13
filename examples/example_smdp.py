@@ -72,7 +72,7 @@ r_max = dimension  # maximal reward
 range_r = t_max*c
 range_tau = (t_max - 1)*c
 range_p = 0.015
-# ucrl = Ucrl.UcrlMdp(grid, r_max, range_r=range_r, range_p=range_p, verbose=1)
+ucrl = Ucrl.UcrlMdp(grid, r_max, range_r=range_r, range_p=range_p, verbose=1)
 # ucrl = Ucrl.UcrlSmdpBounded(options, r_max, t_max, range_r=range_r, range_p=range_p, range_tau = range_tau, verbose=1)
 
 # Set seeds
@@ -93,9 +93,9 @@ for i in range(0, nb_simulations):
     np.random.seed(seed)
     random.seed(seed)
     t0 = time.time()
-    ucrl = Ucrl.UcrlSmdpBounded(copy.deepcopy(option_environment), r_max, t_max,
-                                range_r=range_r, range_p=range_p, range_tau=range_tau,
-                                verbose=1)  # learning algorithm
+    # ucrl = Ucrl.UcrlSmdpBounded(copy.deepcopy(option_environment), r_max, t_max,
+    #                             range_r=range_r, range_p=range_p, range_tau=range_tau,
+    #                             verbose=1)  # learning algorithm
     h = ucrl.learn(duration, regret_time_step)  # learn task
     t1 = time.time()
     print("TIME: {}".format(t1-t0))

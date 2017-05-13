@@ -14,6 +14,21 @@ ctypedef np.npy_int32 INT32_t            # Signed 32 bit integer
 ctypedef np.npy_uint32 UINT32_t          # Unsigned 32 bit integer
 
 
+cdef struct IntVectorStruct:
+    SIZE_t* values
+    SIZE_t dim
+
+cdef struct DoubleVectorStruct:
+    DTYPE_t* values
+    SIZE_t dim
+
+cdef inline DTYPE_t dot_prod(DTYPE_t[:] x, DTYPE_t* y, SIZE_t dim) nogil:
+    cdef SIZE_t i
+    cdef DTYPE_t total = 0.
+    for i in range(dim):
+        total += x[i] * y[i]
+    return total
+
 cdef DTYPE_t sign(DTYPE_t a, DTYPE_t tol=*) nogil
 
 cdef int isclose_c(DTYPE_t a, DTYPE_t b, DTYPE_t rel_tol=*, DTYPE_t abs_tol=*) nogil

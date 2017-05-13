@@ -8,22 +8,8 @@
 import numpy as np
 cimport numpy as np
 
-ctypedef np.npy_float64 DTYPE_t          # Type matrices
-ctypedef np.npy_intp SIZE_t              # Type for indices and counters
-ctypedef np.npy_int32 INT32_t            # Signed 32 bit integer
-ctypedef np.npy_uint32 UINT32_t          # Unsigned 32 bit integer
-
-cdef struct VectorStruct:
-    SIZE_t* values
-    SIZE_t dim
-
-cdef void max_proba_purec(DTYPE_t[:] p, SIZE_t* asc_sorted_indices,
-                          DTYPE_t beta, DTYPE_t[:] new_p) nogil
-
-cdef void max_proba_reduced(DTYPE_t[:] p, SIZE_t* asc_sorted_indices,
-                            DTYPE_t beta, DTYPE_t[:] new_p) nogil
-
-cdef DTYPE_t dot_prod(DTYPE_t[:] x, DTYPE_t* y, SIZE_t dim) nogil
+from ._utils cimport DTYPE_t, SIZE_t
+from ._utils cimport IntVectorStruct
 
 cdef class EVI:
     cdef DTYPE_t *u1
@@ -32,7 +18,7 @@ cdef class EVI:
     cdef DTYPE_t[:,:] mtx_maxprob_memview
     cdef SIZE_t *sorted_indices
     cdef SIZE_t nb_states
-    cdef VectorStruct* actions_per_state
+    cdef IntVectorStruct* actions_per_state
 
     # Methods
 
