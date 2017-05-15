@@ -15,28 +15,28 @@ from UCRL.envs import OptionEnvironment, MixedEnvironment
 from UCRL.smdp_ucrl import SMDPUCRL_Mixed
 
 # Define environment
-dimension = 20  # dimension of the grid
+dimension = 5  # dimension of the grid
 initial_position = [dimension - 1, dimension - 1]  # initial state
 nb_target_actions = 1  # number of available actions in the targeted state
 nb_reset_actions = 1  # number of available actions in the reset state
-reward_distribution_states = RewardDistributions.ConstantReward(1)
+reward_distribution_states = RewardDistributions.ConstantReward(0)
 reward_distribution_target = RewardDistributions.ConstantReward(dimension)
-# grid = NavigateGrid(dimension, initial_position, reward_distribution_states, reward_distribution_target,
-#                     nb_target_actions)
-grid = NavigateGrid.NavigateGrid2(
-    dimension=dimension,
-    initial_position=initial_position,
-    reward_distribution_states=reward_distribution_states,
-    reward_distribution_target=reward_distribution_target,
-    nb_reset_actions=nb_reset_actions
-)
+grid = NavigateGrid.NavigateGrid(dimension, initial_position, reward_distribution_states, reward_distribution_target,
+                    nb_target_actions)
+# grid = NavigateGrid.NavigateGrid2(
+#     dimension=dimension,
+#     initial_position=initial_position,
+#     reward_distribution_states=reward_distribution_states,
+#     reward_distribution_target=reward_distribution_target,
+#     nb_reset_actions=nb_reset_actions
+# )
 
 # Add options
-t_max = 3
-# options = OptionGrid.OptionGrid1(grid, t_max)
+t_max = 1
+options = OptionGrid.OptionGrid1(grid, t_max)
 # options = OptionGrid.OptionGrid2(grid, t_max)
-options = OptionGrid.OptionGrid3(grid=grid, t_max=t_max)
-options_free = OptionGridFree.OptionGrid3_free(grid=grid, t_max=t_max)
+# options = OptionGrid.OptionGrid3(grid=grid, t_max=t_max)
+# options_free = OptionGridFree.OptionGrid3_free(grid=grid, t_max=t_max)
 option_environment = OptionEnvironment(
     environment=grid,
     state_options=options.state_options,
@@ -45,33 +45,33 @@ option_environment = OptionEnvironment(
     is_optimal=True
 )
 
-mixed_environment = MixedEnvironment(
-    environment=grid,
-    state_options=options_free.state_options,
-    options_policies=options_free.options_policies,
-    options_terminating_conditions=options_free.options_terminating_conditions,
-    is_optimal=True,
-    delete_environment_actions="all"
-)
+# mixed_environment = MixedEnvironment(
+#     environment=grid,
+#     state_options=options_free.state_options,
+#     options_policies=options_free.options_policies,
+#     options_terminating_conditions=options_free.options_terminating_conditions,
+#     is_optimal=True,
+#     delete_environment_actions="all"
+# )
 
-nb_options = mixed_environment.nb_options
-x = mixed_environment.reachable_states_per_option
-
-assert len(mixed_environment.state_options) == len(options.state_options)
-for x, y in zip(mixed_environment.state_options, options.state_options):
-    for i in y:
-        f = False
-        for j in x:
-            if j == i + mixed_environment.threshold_options + 1:
-                f = True
-    assert f
+# nb_options = mixed_environment.nb_options
+# x = mixed_environment.reachable_states_per_option
+#
+# assert len(mixed_environment.state_options) == len(options.state_options)
+# for x, y in zip(mixed_environment.state_options, options.state_options):
+#     for i in y:
+#         f = False
+#         for j in x:
+#             if j == i + mixed_environment.threshold_options + 1:
+#                 f = True
+#     assert f
 
 # Define learning algorithm
 c = 0.8
 r_max = dimension  # maximal reward
 range_r = t_max*c
 range_tau = (t_max - 1)*c
-range_p = 0.015
+range_p = 0.1
 ucrl = Ucrl.UcrlMdp(grid, r_max, range_r=range_r, range_p=range_p, verbose=1)
 # ucrl = Ucrl.UcrlSmdpBounded(options, r_max, t_max, range_r=range_r, range_p=range_p, range_tau = range_tau, verbose=1)
 
@@ -81,7 +81,7 @@ np.random.seed(seed)
 random.seed(seed)
 
 # Learn task
-duration = 30000000  # number of decision steps
+duration = 5e6 #30000000  # number of decision steps
 regret_time_step = 1000
 
 # Main loop
@@ -108,6 +108,7 @@ for i in range(0, nb_simulations):
     plt.plot(ucrl.span_values)
     plt.ylabel("span")
     plt.show()
+
     exit(8)
 
     np.random.seed(seed)

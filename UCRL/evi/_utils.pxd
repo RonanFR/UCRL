@@ -29,6 +29,9 @@ cdef inline DTYPE_t dot_prod(DTYPE_t[:] x, DTYPE_t* y, SIZE_t dim) nogil:
         total += x[i] * y[i]
     return total
 
+cdef inline SIZE_t pos2index_2d(SIZE_t n_row, SIZE_t n_col, SIZE_t row, SIZE_t col) nogil:
+    return col * n_row + row
+
 cdef DTYPE_t sign(DTYPE_t a, DTYPE_t tol=*) nogil
 
 cdef int isclose_c(DTYPE_t a, DTYPE_t b, DTYPE_t rel_tol=*, DTYPE_t abs_tol=*) nogil

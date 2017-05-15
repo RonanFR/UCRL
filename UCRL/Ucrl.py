@@ -75,12 +75,12 @@ class UcrlMdp(AbstractUCRL):
                                       logger=logger)
         self.estimated_probabilities = np.ones((self.environment.nb_states, self.environment.max_nb_actions_per_state,
                                                  self.environment.nb_states)) * 1/self.environment.nb_states
-        self.estimated_rewards = np.ones((self.environment.nb_states, self.environment.max_nb_actions_per_state)) * r_max
+        self.estimated_rewards = np.ones((self.environment.nb_states, self.environment.max_nb_actions_per_state)) * (r_max+1)
         self.estimated_holding_times = np.ones((self.environment.nb_states, self.environment.max_nb_actions_per_state))
 
         self.nb_observations = np.zeros((self.environment.nb_states, self.environment.max_nb_actions_per_state))
         self.nu_k = np.zeros((self.environment.nb_states, self.environment.max_nb_actions_per_state))
-        self.tau = 0.9
+        self.tau = 1.# 0.9
         self.tau_max = 1
         self.tau_min = 1
 
@@ -242,6 +242,7 @@ class UcrlMdp(AbstractUCRL):
         tn = t1 - t0
         if self.verbose > 1:
             print("[%d]NEW EVI: %.3f seconds" % (self.episode, tn))
+        print(self.policy_indices)
 
         # self.timing.append([to, tn])
 
@@ -271,7 +272,9 @@ class UcrlMdp(AbstractUCRL):
         sorted_indices = np.arange(self.environment.nb_states)
         u2 = np.zeros(self.environment.nb_states)
         p = self.estimated_probabilities
+        counter = 0
         while True:
+            counter += 1
             for s in range(0, self.environment.nb_states):
                 first_action = True
                 for c, a in enumerate(self.environment.get_available_actions_state(s)):
@@ -289,7 +292,8 @@ class UcrlMdp(AbstractUCRL):
                         self.policy[s] = a
                     first_action = False
             if max(u2-u1)-min(u2-u1) < epsilon:  # stopping condition of EVI
-                return max(u1) - min(u1)
+                print("---{}".format(counter))
+                return max(u1) - min(u1), u1, u2
             else:
                 u1 = u2
                 u2 = np.empty(self.environment.nb_states)

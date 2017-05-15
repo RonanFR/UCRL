@@ -26,6 +26,7 @@ from ._utils cimport isclose_c
 from ._utils cimport get_sorted_indices
 from ._utils cimport check_end
 from ._utils cimport dot_prod
+from ._utils cimport pos2index_2d
 
 from ._max_proba cimport max_proba_purec
 from ._max_proba cimport max_proba_purec2
@@ -43,8 +44,10 @@ cdef class FreeEVIAlg1:
                  int nb_options,
                  list actions_per_state,
                  int threshold,
-                 list reachable_states_per_option):
-        cdef SIZE_t n, m, i, j
+                 list option_policies,
+                 list reachable_states_per_option,
+                 list options_terminating_conditions):
+        cdef SIZE_t n, m, i, j, idx
         cdef SIZE_t max_states_per_option = 0
         self.nb_states = nb_states
         self.nb_options = nb_options
@@ -80,6 +83,8 @@ cdef class FreeEVIAlg1:
         self.r_tilde_opt = <DoubleVectorStruct *> malloc(nb_options * sizeof(DoubleVectorStruct))
         self.mu_opt = <DoubleVectorStruct *> malloc(nb_options * sizeof(DoubleVectorStruct))
         self.cn_opt = <DTYPE_t *> malloc(nb_options * sizeof(DTYPE_t))
+        self.options_policies = <SIZE_t *>malloc(nb_options * nb_states * sizeof(SIZE_t)) # (O x S)
+        self.options_terminating_conditions = <DTYPE_t *>malloc(nb_options * nb_states * sizeof(SIZE_t)) # (O x S)
         for i in range(n):
             m = len(reachable_states_per_option[i])
             if m > max_states_per_option:
@@ -98,6 +103,11 @@ cdef class FreeEVIAlg1:
 
             for j in range(m):
                 self.reachable_states_per_option[i].values[j] = reachable_states_per_option[i][j]
+
+            for j in range(nb_states):
+                idx = pos2index_2d(nb_options, nb_states, i, j)
+                self.options_policies[idx] = option_policies[i][j]
+                self.options_terminating_conditions[idx] = options_terminating_conditions[i][j]
 
         # self.sorted_indices_mu = <SIZE_t *> malloc(max_states_per_option * sizeof(SIZE_t))
 
@@ -120,65 +130,53 @@ cdef class FreeEVIAlg1:
         free(self.reachable_states_per_option)
         free(self.x)
         free(self.cn_opt)
+        free(self.options_terminating_conditions)
+        free(self.options_policies)
+
+    cpdef compute_mu_info(self,
+                          DTYPE_t[:,:,:] estimated_probabilities_mdp,
+                          DTYPE_t[:,:] estimated_rewards_mdp,
+                          DTYPE_t[:,:] beta_r):
+        cdef SIZE_t nb_options = self.nb_options
+        cdef SIZE_t o, opt_nb_states, i, j, s, a, nexts, idx
+        cdef DTYPE_t prob, condition_nb
 
 
-    def compute_mu_and_info(self, environment,
-                              estimated_probabilities_mdp,
-                              estimated_rewards_mdp,
-                              beta_r):
-        nb_options = environment.nb_options
-        r_tilde_opt = [None] * nb_options
-
-        mu_opt = [None] * nb_options
-
-        condition_numbers_opt = np.empty(nb_options)
 
         for o in range(nb_options):
-            option_policy = environment.options_policies[o]
-            option_reach_states = environment.reachable_states_per_option[o]
-            term_cond = environment.options_terminating_conditions[o]
+            option_reach_states = self.reachable_states_per_option[o]
 
-            opt_nb_states = len(option_reach_states)
+            opt_nb_states = option_reach_states.dim
 
             Q_o = np.zeros((opt_nb_states, opt_nb_states))
-            q_o = np.zeros((opt_nb_states,1))
 
-            # compute the reward and the mu
-            r_o = list()
-            for i, s in enumerate(option_reach_states):
-                option_action = option_policy[s]
-                r_o.append(
-                    estimated_rewards_mdp[s, option_action] + beta_r[s,option_action]
-                )
-                self.r_tilde_opt[o].values[i] = estimated_rewards_mdp[s, option_action] + beta_r[s,option_action]
+            for i in range(option_reach_states.dim):
+                s = option_reach_states.values[i]
+                a = self.options_policies[pos2index_2d(nb_options, self.nb_states, o, s)]
 
-                for j, sprime in enumerate(option_reach_states):
-                    prob = estimated_probabilities_mdp[s][option_action][sprime]
-                    #q_o[i,0] += term_cond[sprime] * prob
-                    Q_o[i,j] = (1. - term_cond[sprime]) * prob
+                self.r_tilde_opt[o].values[i] = estimated_rewards_mdp[s, a] + beta_r[s,a]
+
+                for j in range(option_reach_states.dim):
+                    nexts = option_reach_states.values[j]
+                    idx = pos2index_2d(nb_options, self.nb_states, o, nexts)
+                    prob = estimated_probabilities_mdp[s][a][nexts]
+                    Q_o[i,j] = (1. - self.options_terminating_conditions[idx]) * prob
             e_m = np.ones((opt_nb_states,1))
             q_o = e_m - np.dot(Q_o, e_m)
-
-            r_tilde_opt[o] = r_o
 
             Pprime_o = np.concatenate((q_o, Q_o[:, 1:]), axis=1)
             assert np.allclose(np.sum(Pprime_o, axis=1), np.ones(opt_nb_states))
 
             Pap = (Pprime_o + np.eye(opt_nb_states)) / 2.
-            D, U = np.linalg.eig(
-                np.transpose(Pap))  # eigen decomposition of transpose of P
+            D, U = np.linalg.eig(np.transpose(Pap))  # eigen decomposition of transpose of P
             sorted_indices = np.argsort(np.real(D))
             mu = np.transpose(np.real(U))[sorted_indices[len(sorted_indices)-1]]
             mu_sum =  np.sum(mu)  # stationary distribution
-            mu_opt[o] = mu / mu_sum
 
-            for xx in range(opt_nb_states):
-                self.mu_opt[o].values[xx] = mu[xx] / mu_sum
+            for i in range(opt_nb_states):
+                self.mu_opt[o].values[i] = mu[i] / mu_sum
 
-            assert len(mu_opt[o]) == len(r_tilde_opt[o])
-
-            P_star = np.repeat(np.array(mu, ndmin=2), opt_nb_states,
-                               axis=0)  # limiting matrix
+            P_star = np.repeat(np.array(mu, ndmin=2), opt_nb_states, axis=0)  # limiting matrix
 
             # Compute deviation matrix
             I = np.eye(opt_nb_states)  # identity matrix
@@ -188,19 +186,8 @@ cdef class FreeEVIAlg1:
             condition_nb = 0  # condition number of deviation matrix
             for i in range(0, opt_nb_states):  # Seneta's condition number
                 for j in range(i + 1, opt_nb_states):
-                    condition_nb = max(condition_nb,
-                                       0.5 * np.linalg.norm(H[i, :] - H[j, :],
-                                                            ord=1))
-            condition_numbers_opt[o] = condition_nb
+                    condition_nb = max(condition_nb, 0.5 * np.linalg.norm(H[i, :] - H[j, :], ord=1))
             self.cn_opt[o] = condition_nb
-
-            # print(mu / mu_sum)
-            # print(condition_nb)
-            # print("-----------------------------------------------------------")
-
-
-        return r_tilde_opt, mu_opt, condition_numbers_opt
-
 
     cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
                      DTYPE_t[:,:,:] p_hat,
@@ -228,6 +215,8 @@ cdef class FreeEVIAlg1:
         cdef DoubleVectorStruct* mu_opt = self.mu_opt
         cdef DoubleVectorStruct* x = self.x
         cdef DoubleVectorStruct* r_tilde_opt = self.r_tilde_opt
+
+        cdef SIZE_t sts
 
         with nogil:
             for i in range(nb_states):
@@ -265,16 +254,20 @@ cdef class FreeEVIAlg1:
                             # printf("option: %d\n", o)
 
                             sub_dim = self.reachable_states_per_option[o].dim
-                            # printf("sub_dim: %d\n", sub_dim)
-                            for i in range(sub_dim):
-                                x[o].values[i] = min(r_max, r_tilde_opt[o].values[i])
-                                if s == self.reachable_states_per_option[o].values[i]:
-                                    x[o].values[i] = x[o].values[i] + dot_prod(mtx_maxprob_memview[s], u1, nb_states)
-                                # printf("x[%d][%d]: %f ", o,i,x[o].values[i])
-
                             sorted_indices_mu =<SIZE_t *> malloc(sub_dim * sizeof(SIZE_t))
+                            # printf("sub_dim: %d\n", sub_dim)
+                            sts = 0
                             for i in range(sub_dim):
                                 sorted_indices_mu[i] = i
+                                x[o].values[i] = min(r_max, r_tilde_opt[o].values[i])
+
+                                if s == self.reachable_states_per_option[o].values[i]:
+                                    x[o].values[i] = x[o].values[i] + dot_prod(mtx_maxprob_memview[s], u1, nb_states)
+                                    sts = 1
+                                # printf("x[%d][%d]: %f ", o,i,x[o].values[i])
+
+                            with gil:
+                                assert sts == 1
                             get_sorted_indices(x[o].values, sub_dim, sorted_indices_mu)
 
                             # for i in range(sub_dim):
@@ -304,7 +297,7 @@ cdef class FreeEVIAlg1:
 
                         first_action = 0
                 counter = counter + 1
-                printf("**%d\n", counter)
+                # printf("**%d\n", counter)
                 # for i in range(nb_states):
                 #     printf("%.2f[%.2f] ", u1[i], u2[i])
                 # printf("\n")

@@ -13,27 +13,27 @@ from UCRL.free_ucrl import FreeUCRL_Alg1
 from UCRL.envs import MixedEnvironment
 
 # Define environment
-dimension = 20  # dimension of the grid
+dimension = 5  # dimension of the grid
 initial_position = [dimension - 1, dimension - 1]  # initial state
 nb_target_actions = 1  # number of available actions in the targeted state
 nb_reset_actions = 1  # number of available actions in the reset state
-reward_distribution_states = RewardDistributions.ConstantReward(1)
+reward_distribution_states = RewardDistributions.ConstantReward(0)
 reward_distribution_target = RewardDistributions.ConstantReward(dimension)
-# grid = NavigateGrid(dimension, initial_position, reward_distribution_states, reward_distribution_target,
-#                     nb_target_actions)
-grid = NavigateGrid.NavigateGrid2(
-    dimension=dimension,
-    initial_position=initial_position,
-    reward_distribution_states=reward_distribution_states,
-    reward_distribution_target=reward_distribution_target,
-    nb_reset_actions=nb_reset_actions
-)
+grid = NavigateGrid.NavigateGrid(dimension, initial_position, reward_distribution_states, reward_distribution_target,
+                    nb_target_actions)
+# grid = NavigateGrid.NavigateGrid2(
+#     dimension=dimension,
+#     initial_position=initial_position,
+#     reward_distribution_states=reward_distribution_states,
+#     reward_distribution_target=reward_distribution_target,
+#     nb_reset_actions=nb_reset_actions
+# )
 
 # Add options
-t_max = 3
-# options = OptionGrid.OptionGrid1(grid, t_max)
+t_max = 2
+options = OptionGridFree.OptionGrid1(grid, t_max)
 # options = OptionGrid.OptionGrid2(grid, t_max)
-options = OptionGridFree.OptionGrid3_free(grid=grid, t_max=t_max)
+# options = OptionGridFree.OptionGrid3_free(grid=grid, t_max=t_max)
 mixed_environment = MixedEnvironment(
     environment=grid,
     state_options=options.state_options,
@@ -57,7 +57,8 @@ c = 0.8
 r_max = dimension  # maximal reward
 range_r = t_max*c
 range_tau = (t_max - 1)*c
-range_p = 0.015
+range_p = 0.1
+range_mu_p = 0.1
 # ucrl = Ucrl.UcrlMdp(grid, r_max, range_r=range_r, range_p=range_p)
 # ucrl = Ucrl.UcrlSmdpBounded(options, r_max, t_max, range_r=range_r, range_p=range_p, range_tau = range_tau)
 
@@ -67,7 +68,7 @@ np.random.seed(seed)
 random.seed(seed)
 
 # Learn task
-duration = 30000000  # number of decision steps
+duration =  5e6#30000000  # number of decision steps
 regret_time_step = 1000
 
 # Main loop
@@ -83,8 +84,24 @@ for i in range(0, nb_simulations):
         r_max=r_max,
         range_r=range_r,
         range_p=range_p,
+        range_mu_p=range_mu_p,
         verbose=1)  # learning algorithm
+    t0 = time.time()
     ucrl.learn(duration, regret_time_step)  # learn task
+    t1 = time.time()
+    print("TIME: {}".format(t1-t0))
+
+    plt.figure()
+    plt.plot(ucrl.regret)
+    plt.ylabel("regret")
+
+    plt.figure()
+    plt.plot(ucrl.span_values)
+    plt.ylabel("span")
+    plt.show()
+    exit(8)
+
+
     times = np.array(ucrl.timing)
     df = pd.DataFrame(data=times, columns=["old", "new"])
     df.to_csv("timing_{}.csv".format(i))

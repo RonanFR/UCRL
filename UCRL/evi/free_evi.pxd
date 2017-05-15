@@ -27,6 +27,8 @@ cdef class FreeEVIAlg1:
     cdef DTYPE_t *cn_opt
     cdef DTYPE_t *beta_mu_p
     cdef DoubleVectorStruct* r_tilde_opt
+    cdef SIZE_t* options_policies
+    cdef DTYPE_t* options_terminating_conditions
 
     # Methods
     cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
@@ -42,5 +44,10 @@ cdef class FreeEVIAlg1:
     #                       DTYPE_t[:,:,:] estimated_probabilities_mdp,
     #                       DTYPE_t[:,:] estimated_rewards_mdp,
     #                       DTYPE_t[:,:] beta_r)
+
+    cpdef compute_mu_info(self,
+                      DTYPE_t[:,:,:] estimated_probabilities_mdp,
+                      DTYPE_t[:,:] estimated_rewards_mdp,
+                      DTYPE_t[:,:] beta_r)
 
     cpdef get_uvectors(self)

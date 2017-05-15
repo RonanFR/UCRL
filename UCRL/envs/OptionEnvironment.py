@@ -126,13 +126,6 @@ class OptionEnvironment(Environment):
         return len(self.options_policies)
 
     @property
-    def nb_reachable_states_per_option(self):
-        x = self.reachable_states_options
-        counter = list(map(len, x))
-        return counter
-
-
-    @property
     def reachable_states_per_option(self):
         # ----------------------------------------------------------------------
         # Compute indexes of states of an option with B < 1

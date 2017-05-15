@@ -115,7 +115,7 @@ cdef class EVI:
                                         nb_states,
                                     sorted_indices, beta_p[s][a_idx],
                                     mtx_maxprob_memview[s])
-                        mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1. #????
+                        mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
                         r_optimal = min(tau_max*r_max,
                                         estimated_rewards[s][a_idx] + beta_r[s][a_idx])
                         v = r_optimal + dot_prod(mtx_maxprob_memview[s], u1, nb_states) * tau
