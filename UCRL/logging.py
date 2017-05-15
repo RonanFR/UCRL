@@ -1,4 +1,5 @@
 import logging
+import os
 
 
 def get_console_logger():
@@ -35,7 +36,6 @@ def create_logger(name, path="", fake_log=False):
     if fake_log:
         logger.addHandler(logging.NullHandler())
     else:
-        import os
         fname = os.path.join(path, '{}.log'.format(name))
         hdlr = logging.FileHandler(fname)
         formatter = logging.Formatter('%(message)s')
@@ -44,5 +44,29 @@ def create_logger(name, path="", fake_log=False):
         logger.setLevel(logging.DEBUG)
     return logger
 
+
+def create_multilogger(console=True, filename=None, path="", fake_log=False):
+    # create logger with 'spam_application'
+    logger = logging.getLogger('ucrl_application')
+    logger.setLevel(logging.DEBUG)
+    if fake_log:
+        logger.addHandler(logging.NullHandler())
+    else:
+        # create formatter and add it to the handlers
+        formatter = logging.Formatter('%(message)s')
+        if console:
+            # create console handler with a higher log level
+            ch = logging.StreamHandler()
+            ch.setLevel(logging.DEBUG)
+            ch.setFormatter(formatter)
+            logger.addHandler(ch)
+        if filename is not None:
+            fname = os.path.join(path, '{}.log'.format(filename))
+            # create file handler which logs even debug messages
+            fh = logging.FileHandler(fname)
+            fh.setLevel(logging.DEBUG)
+            fh.setFormatter(formatter)
+            logger.addHandler(fh)
+    return logger
 
 default_logger = get_console_logger()

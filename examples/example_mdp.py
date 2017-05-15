@@ -22,8 +22,6 @@ parser.add_option("-d", "--dimension", dest="dimension", type="int",
                   help="dimension of the gridworld", default=5)
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="t_max for options", default=30000000)
-parser.add_option("-t", "--tmax", dest="t_max", type="int",
-                  help="t_max for options", default=5)
 parser.add_option("-c", dest="c", type="float",
                   help="c value", default=5)
 parser.add_option("--rmax", dest="r_max", type="float",
@@ -33,7 +31,7 @@ parser.add_option("--p_range", dest="range_p", type="float",
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
-                  help="Number of repetitions", default=1)
+                  help="Number of repetitions", default=2)
 parser.add_option("--id", dest="id", type="str",
                   help="Identifier of the script", default=None)
 parser.add_option("-q", "--quiet",
@@ -50,12 +48,10 @@ if in_options.r_max < 0:
 if in_options.id is None:
     in_options.id = '{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now())
 
-range_r = in_options.t_max * in_options.c
-range_tau = (in_options.t_max - 1) * in_options.c
+range_r = in_options.c
 
 config = vars(in_options)
 config['range_r'] = range_r
-config['range_tau'] = range_tau
 
 # Define environment
 initial_position = [in_options.dimension - 1, in_options.dimension - 1]  # initial state
@@ -68,53 +64,8 @@ grid = NavigateGrid.NavigateGrid(dimension=in_options.dimension,
                                  reward_distribution_states=reward_distribution_states,
                                  reward_distribution_target=reward_distribution_target,
                                  nb_target_actions=nb_target_actions)
-# grid = NavigateGrid.NavigateGrid2(
-#     dimension=dimension,
-#     initial_position=initial_position,
-#     reward_distribution_states=reward_distribution_states,
-#     reward_distribution_target=reward_distribution_target,
-#     nb_reset_actions=nb_reset_actions
-# )
 
-# Add options
-# options = OptionGrid.OptionGrid1(grid, in_options.t_max)
-# options = OptionGrid.OptionGrid2(grid, t_max)
-# options = OptionGrid.OptionGrid3(grid=grid, t_max=t_max)
-options = OptionGridFree.OptionGrid1(grid=grid, t_max=in_options.t_max)
-option_environment = OptionEnvironment(
-    environment=grid,
-    state_options=options.state_options,
-    options_policies=options.options_policies,
-    options_terminating_conditions=options.options_terminating_conditions,
-    is_optimal=True
-)
-
-# mixed_environment = MixedEnvironment(
-#     environment=grid,
-#     state_options=options_free.state_options,
-#     options_policies=options_free.options_policies,
-#     options_terminating_conditions=options_free.options_terminating_conditions,
-#     is_optimal=True,
-#     delete_environment_actions="all"
-# )
-
-# nb_options = mixed_environment.nb_options
-# x = mixed_environment.reachable_states_per_option
-#
-# assert len(mixed_environment.state_options) == len(options.state_options)
-# for x, y in zip(mixed_environment.state_options, options.state_options):
-#     for i in y:
-#         f = False
-#         for j in x:
-#             if j == i + mixed_environment.threshold_options + 1:
-#                 f = True
-#     assert f
-
-# Define learning algorithm
-# ucrl = Ucrl.UcrlMdp(grid, r_max, range_r=range_r, range_p=range_p, verbose=1)
-# ucrl = Ucrl.UcrlSmdpBounded(options, r_max, t_max, range_r=range_r, range_p=range_p, range_tau = range_tau, verbose=1)
-
-folder_results = os.path.abspath('smdp_{}'.format(in_options.id))
+folder_results = os.path.abspath('mdp_{}'.format(in_options.id))
 if os.path.exists(folder_results):
     shutil.rmtree(folder_results)
 os.makedirs(folder_results)
@@ -138,15 +89,12 @@ for rep in range(in_options.nb_simulations):
                                               filename=name,
                                               path=folder_results)
 
-    ucrl = Ucrl.UcrlSmdpBounded(
-        environment=copy.deepcopy(option_environment),
-        r_max=in_options.r_max,
-        t_max=in_options.t_max,
-        range_r=range_r,
-        range_p=in_options.range_p,
-        range_tau=range_tau,
-        verbose=1,
-        logger=ucrl_log)  # learning algorithm
+    ucrl = Ucrl.UcrlMdp(grid,
+                        r_max=in_options.r_max,
+                        range_r=range_r,
+                        range_p=in_options.range_p,
+                        verbose=1,
+                        logger=ucrl_log)
     h = ucrl.learn(in_options.duration, in_options.regret_time_steps)  # learn task
     ucrl.clear_before_pickle()
 
