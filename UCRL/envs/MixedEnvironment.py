@@ -43,15 +43,6 @@ class MixedEnvironment(OptionEnvironment):
             else:
                 raise ValueError("Unknown value for delete_environment_actions")
 
-        # map_index2action = dict()
-        # map_action2index = dict()
-        # index = 0
-        # for i in range(threshold_options + 1 + nb_options):
-        #     if i not in delete_environment_actions:
-        #         map_index2action[index] = i
-        #         map_action2index[i] = index
-        #         index += 1
-
         if hasattr(environment, 'is_optimal'):
             is_optimal = environment.is_optimal or is_optimal
 
@@ -64,8 +55,6 @@ class MixedEnvironment(OptionEnvironment):
                                             delete_environment_actions).tolist() + \
                                [x + threshold_options + 1 for x in state_options[s]]
 
-        # self.map_index2action = map_index2action
-        # self.map_action2index = map_action2index
         self.threshold_options = threshold_options
         self.delete_environment_actions = delete_environment_actions
         super().__init__(environment=environment,
@@ -95,74 +84,12 @@ class MixedEnvironment(OptionEnvironment):
     def is_primitive_action(self, act_index):
             return act_index <= self.threshold_options
 
-    def get_action_from_index(self, act_index):
-        return self.map_index2action[act_index]
-
-    def get_index_from_action(self, action):
-        return self.map_action2index[action]
-
-    def get_zerobased_option_index(self, option, isIndex=True):
-        if isIndex:
-            assert self.map_index2action[option] > self.threshold_options, "Index {} is not an option".format(option)
-            return self.map_index2action[option] - self.threshold_options - 1
-        else:
-            return option - self.threshold_options - 1
-
-    def is_valid_primitive_action(self, act_index, isIndex=True):
-        if isIndex:
-            assert self.map_index2action[act_index] <= self.threshold_options, "Index {} is not a primitive action".format(act_index)
-            return self.map_index2action[act_index] not in self.delete_environment_actions
-        else:
-            return act_index not in self.delete_environment_actions
-
     def get_index_of_action_state_in_mdp(self, state, action):
         return self.environment.get_index_of_action_state(state, action)
 
     # --------------------------------------------------------------------------
     # Properties
     # --------------------------------------------------------------------------
-    @property
-    def nb_max_primitive_actions_per_state(self):
-        return self.environment.max_nb_actions_per_state
-
-    @property
-    def nb_actions(self):
-        """Gives the number of available actions (options or primitive actions)
-        
-        Returns:
-             int
-        """
-        return len(self.map_index2action.keys())
-
-    @property
-    def nb_total_primitive_actions(self):
-        """Gives the number of primitive actions (available and not)
-        
-        Returns:
-             int
-        """
-        return self.threshold_options + 1
-
-    @property
-    def nb_available_primitive_actions(self):
-        """Gives the number of primitive actions available
-        
-        Returns:
-            int
-        """
-        val = self.nb_actions - self.nb_options
-        assert val == self.nb_total_primitive_actions - len(self.delete_environment_actions)
-        return val
-
-    @property
-    def index_first_option(self):
-        """Gives the index of the first option in the set of available actions
-        
-        Returns:
-            int
-        """
-        return self.map_action2index[self.threshold_options + 1]
-
     @property
     def max_nb_mdp_actions_per_state(self):
         return self.environment.max_nb_actions_per_state
