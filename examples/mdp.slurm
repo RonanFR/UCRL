@@ -3,9 +3,9 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=24
 #SBATCH --time=24:00:00
-#SBATCH --job-name=ucrl_smdp
+#SBATCH --job-name=ucrl_mdp
 #SBATCH --mem=80G
-#SBATCH --output=smdp_%j.out
+#SBATCH --output=mdp_%j.out
 
 pwd; hostname; date
 echo "Running MDP-UCRL program on $SLURM_JOB_NUM_NODES nodes with $SLURM_NTASKS tasks, each with $SLURM_CPUS_PER_TASK cores."
