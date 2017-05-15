@@ -21,11 +21,11 @@ parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
                   help="dimension of the gridworld", default=5)
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="t_max for options", default=30000000)
+                  help="duration of the experiment", default=5000000)
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
-                  help="t_max for options", default=5)
+                  help="t_max for options", default=3)
 parser.add_option("-c", dest="c", type="float",
-                  help="c value", default=5)
+                  help="c value", default=0.8)
 parser.add_option("--rmax", dest="r_max", type="float",
                   help="maximum reward", default=-1)
 parser.add_option("--p_range", dest="range_p", type="float",
@@ -153,15 +153,16 @@ for rep in range(in_options.nb_simulations):
     with open(os.path.join(folder_results, 'ucrl_{}.pickle'.format(rep)), 'wb') as f:
         pickle.dump(ucrl, f)
 
-    # plt.figure()
-    # plt.plot(ucrl.span_times, ucrl.span_values, 'o-')
-    # plt.xlabel("Span times")
-    # plt.ylabel("Span")
-    # plt.savefig("span_{}.png".format(rep))
-    # plt.figure()
-    # plt.plot(ucrl.unit_duration, ucrl.regret, 'o-')
-    # plt.xlabel("UCRL Iterations")
-    # plt.ylabel("Regret")
-    # plt.savefig("regret_{}.png".format(rep))
+    plt.figure()
+    plt.plot(ucrl.span_values, 'o-')
+    plt.xlabel("Points")
+    plt.ylabel("Span")
+    plt.savefig(os.path.join(folder_results, "span_{}.png".format(rep)))
+    plt.figure()
+    plt.plot(ucrl.regret, 'o-')
+    plt.xlabel("Points")
+    plt.ylabel("Regret")
+    plt.savefig(os.path.join(folder_results, "regret_{}.png".format(rep)))
     # plt.show()
+    plt.close('all')
 

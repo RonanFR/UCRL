@@ -227,9 +227,9 @@ cdef class FreeEVIAlg1:
                      DTYPE_t epsilon):
 
         cdef SIZE_t s, i, a_idx, action, sub_dim, counter = 0
-        cdef SIZE_t first_action, idx
+        cdef SIZE_t first_action, idx, o
         cdef DTYPE_t c1
-        cdef DTYPE_t min_u1, max_u1, r_optimal, v, tau_optimal, check_val
+        cdef DTYPE_t min_u1, max_u1, r_optimal, v, tau_optimal
         cdef SIZE_t nb_states = self.nb_states
         cdef SIZE_t threshold = self.threshold
 
@@ -245,7 +245,6 @@ cdef class FreeEVIAlg1:
         cdef DoubleVectorStruct* r_tilde_opt = self.r_tilde_opt
         cdef DTYPE_t* xx = self.xx
 
-        cdef SIZE_t sts
 
         with nogil:
             for i in range(nb_states):
@@ -253,7 +252,7 @@ cdef class FreeEVIAlg1:
                 sorted_indices[i] = i
 
             while True: #counter < 5:
-                for s in range(nb_states):
+                for s in prange(nb_states):
                     # printf("state: %d\n", s)
                     first_action = 1
                     for a_idx in range(self.actions_per_state[s].dim):
@@ -266,11 +265,6 @@ cdef class FreeEVIAlg1:
                         max_proba_purec(p_hat[s][a_idx], nb_states,
                                     sorted_indices, beta_p[s][a_idx],
                                     mtx_maxprob_memview[s])
-                        check_val = 0
-                        for i in range(nb_states):
-                            check_val += mtx_maxprob_memview[s][i]
-                        with gil:
-                            assert(fabs(check_val-1.) <1e-4)
 
                         mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
 
@@ -284,7 +278,7 @@ cdef class FreeEVIAlg1:
 
                             sub_dim = self.reachable_states_per_option[o].dim
                             # printf("sub_dim: %d\n", sub_dim)
-                            sts = 0
+
                             for i in range(sub_dim):
                                 idx = pos2index_2d(nb_states, self.max_reachable_states_per_opt, s, i)
                                 sorted_indices_mu[idx] = i
@@ -294,11 +288,7 @@ cdef class FreeEVIAlg1:
                                 if s == self.reachable_states_per_option[o].values[i]:
                                     #x[o].values[i] = x[o].values[i] + dot_prod(mtx_maxprob_memview[s], u1, nb_states)
                                     xx[idx] = xx[idx] + dot_prod(mtx_maxprob_memview[s], u1, nb_states)
-                                    sts = 1
-                                # printf("x[%d][%d]: %f ", o,i,x[o].values[i])
 
-                            with gil:
-                                assert sts == 1
                             idx = pos2index_2d(nb_states, self.max_reachable_states_per_opt, s, 0)
                             get_sorted_indices(&xx[idx], sub_dim, &sorted_indices_mu[idx])
                             #get_sorted_indices(x[o].values, sub_dim, sorted_indices_mu[idx])
@@ -312,20 +302,7 @@ cdef class FreeEVIAlg1:
                             max_proba_purec2(mu_opt[o].values, sub_dim,
                                         &sorted_indices_mu[idx], self.cn_opt[o]*self.beta_mu_p[o],
                                         mtx_maxprob_memview[s])
-                            if s == 10:
-                                printf("\n")
-                                for i in range(sub_dim):
-                                    printf("%.2f ", mu_opt[o].values[i])
-                                printf("\n%.2f\n", self.cn_opt[o]*self.beta_mu_p[o])
-                                for i in range(sub_dim):
-                                    printf("%.2f[%.2f] ", mtx_maxprob_memview[s][i], xx[idx+i])
-                                printf("\n")
 
-                            check_val = 0
-                            for i in range(sub_dim):
-                                check_val += mtx_maxprob_memview[s][i]
-                            with gil:
-                                assert(fabs(check_val-1.) <1e-4)
                             # for i in range(sub_dim):
                             #     printf("mtx_maxprob_memview[%d] = %f", i, mtx_maxprob_memview[s][i])
                             # v = dot_prod(mtx_maxprob_memview[s], x[o].values, sub_dim)
@@ -341,14 +318,14 @@ cdef class FreeEVIAlg1:
 
                         first_action = 0
                 counter = counter + 1
-                printf("**%d\n", counter)
-                for i in range(nb_states):
-                    printf("%.2f[%.2f]  ", u1[i], u2[i])
-                printf("\n")
+                # printf("**%d\n", counter)
+                # for i in range(nb_states):
+                #     printf("%.2f[%.2f]  ", u1[i], u2[i])
+                # printf("\n")
 
                 # stopping condition
                 if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
-                    printf("-- %d\n", counter)
+                    # printf("-- %d\n", counter)
                     return max_u1 - min_u1
                 else:
                     memcpy(u1, u2, nb_states * sizeof(DTYPE_t))
