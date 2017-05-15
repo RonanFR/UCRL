@@ -103,10 +103,11 @@ class UcrlMdp(AbstractUCRL):
         threshold = self.total_time + regret_time_step
         threshold_span = threshold
 
-        self.timing = []
+        self.solver_times = []
+        self.simulation_times = []
         alg_trace = {'span_values': []}
 
-        t0 = time.time()
+        t_star_all = time.perf_counter()
         while self.total_time < duration:
             self.episode += 1
             # print(self.total_time)
@@ -140,7 +141,7 @@ class UcrlMdp(AbstractUCRL):
                 threshold_span = self.total_time + regret_time_step
 
             # execute the recovered policy
-            t0 = time.time()
+            t0 = time.perf_counter()
             while self.nu_k[self.environment.state][self.policy_indices[self.environment.state]] \
                     < max(1, self.nb_observations[self.environment.state][self.policy_indices[self.environment.state]]) \
                     and self.total_time < duration:
@@ -150,13 +151,14 @@ class UcrlMdp(AbstractUCRL):
                     self.unit_duration.append(self.total_time/self.iteration)
                     threshold = self.total_time + regret_time_step
             self.nb_observations += self.nu_k
-            t1 = time.time()
+            t1 = time.perf_counter()
+            self.simulation_times.append(t1-t0)
             if self.verbose > 0:
                 self.logger.info("expl time: {:.4f} s".format(t1-t0))
 
-        t1 = time.time()
-        self.speed = t1 - t0
-        self.logger.info("TIME: {} s".format(self.speed))
+        t_end_all = time.perf_counter()
+        self.speed = t_end_all - t_star_all
+        self.logger.info("TIME: %.5f s" % self.speed)
         return alg_trace
 
     def beta_r(self):
@@ -247,11 +249,11 @@ class UcrlMdp(AbstractUCRL):
         )
         t1 = time.perf_counter()
         tn = t1 - t0
+        self.solver_times.append(tn)
         if self.verbose > 1:
-            print("[%d]NEW EVI: %.3f seconds" % (self.episode, tn))
-        print(self.policy_indices)
-
-        # self.timing.append([to, tn])
+            self.logger.info("[%d]NEW EVI: %.3f seconds" % (self.episode, tn))
+            if self.verbose > 2:
+                self.logger.info(self.policy_indices)
 
         span_value = span_value_new ##############
 

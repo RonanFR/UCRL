@@ -138,7 +138,7 @@ cdef class EVI:
 
                 # stopping condition
                 if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
-                    printf("%d\n", counter)
+                    # printf("%d\n", counter)
                     return max_u1 - min_u1
                 else:
                     memcpy(u1, u2, nb_states * sizeof(DTYPE_t))
