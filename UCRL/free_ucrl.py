@@ -19,10 +19,11 @@ class FreeUCRL_Alg1(AbstractUCRL):
         self.new_evi = FreeEVIAlg1(nb_states=environment.nb_states,
                                    nb_options=environment.nb_options,
                                    threshold=environment.threshold_options,
-                                   actions_per_state=environment.get_state_actions(),
+                                   macro_actions_per_state=environment.get_state_actions(),
                                    reachable_states_per_option=environment.reachable_states_per_option,
                                    option_policies=environment.options_policies,
-                                   options_terminating_conditions=environment.options_terminating_conditions)
+                                   options_terminating_conditions=environment.options_terminating_conditions,
+                                   mdp_actions_per_state=environment.environment.get_state_actions())
 
         super(FreeUCRL_Alg1, self).__init__(environment=environment,
                                             r_max=r_max, range_r=range_r,
@@ -287,46 +288,52 @@ class FreeUCRL_Alg1(AbstractUCRL):
         #                          beta_p=beta_p,
         #                          beta_tau=np.zeros_like(self.estimated_rewards_mdp),
         #                          epsilon=self.r_max / m.sqrt(self.iteration + 1))
-        # sp, u1n, u2n = uuuu.extended_value_iteration(policy=new_pol, policy_indices=new_pol_ind,
-        #                          estimated_probabilities=copy.deepcopy(self.estimated_probabilities_mdp),
-        #                          nb_states=self.environment.nb_states,
-        #                          state_actions=self.environment.environment.get_state_actions(),
-        #                          estimated_rewards=self.estimated_rewards_mdp,
-        #                          estimated_holding_times=np.ones_like(self.estimated_rewards_mdp),
-        #                          beta_r=beta_r,
-        #                          beta_p=beta_p,
-        #                          beta_tau=np.zeros_like(self.estimated_rewards_mdp),
-        #                          tau_max=1,
-        #                          r_max=self.r_max,
-        #                          tau=1,
-        #                          tau_min=1,
-        #                          epsilon=self.r_max / m.sqrt(self.iteration + 1))
         # assert np.isclose(span_value, sp)
         # assert np.allclose(u1, u1n)
         # assert np.allclose(uuuu.policy_indices, self.policy_indices)
 
-        # t0 = time.time()
-        # self.new_evi.compute_mu_info(#environment=self.environment,
-        #                                  estimated_probabilities_mdp=self.estimated_probabilities_mdp,
-        #                                  estimated_rewards_mdp=self.estimated_rewards_mdp,
-        #                                  beta_r = beta_r)
-        # t1 = time.time()
-        #
-        # new_span = self.new_evi.run(
-        #     policy_indices=self.policy_indices,
-        #     policy=self.policy,
-        #     p_hat=self.estimated_probabilities,
-        #     r_hat_mdp=self.estimated_rewards_mdp,
-        #     beta_p=beta_p,
-        #     beta_r_mdp=beta_r,
-        #     beta_mu_p=beta_mu_p,
-        #     r_max=self.r_max,
-        #     epsilon=self.r_max / m.sqrt(self.iteration + 1))
-        # t2 = time.time()
-        # print("NEW_EVI: {} s ({} + {})".format(t2-t0, t1-t0, t2-t1))
-        # print(span_value, new_span)
-        # assert np.isclose(span_value, new_span)
-        # new_u1, new_u2 = self.new_evi.get_uvectors()
+        t0 = time.time()
+        self.new_evi.compute_mu_info(  # environment=self.environment,
+            estimated_probabilities_mdp=self.estimated_probabilities_mdp,
+            estimated_rewards_mdp=self.estimated_rewards_mdp,
+            beta_r=beta_r,
+            nb_observations_mdp=self.nb_observations_mdp,
+            delta=self.delta,
+            max_nb_actions=max_nb_actions,
+            total_time=self.total_time,
+            range_mu_p=self.range_mu_p)
+        t1 = time.time()
+
+        r = self.new_evi.get_r_tilde_opt()
+        assert len(r) == len(r_tilde_opt)
+        for x, y in zip(r, r_tilde_opt):
+            assert np.allclose(x, y)
+
+        mu_e = self.new_evi.get_mu()
+        assert len(mu_opt) == len(mu_e)
+        for x, y in zip(mu_e, mu_opt):
+            assert np.allclose(x, y)
+
+        cn_e = self.new_evi.get_conditioning_numbers()
+        assert np.allclose(condition_numbers_opt, cn_e)
+
+        b_mu_e = self.new_evi.get_beta_mu_p()
+        assert np.allclose(b_mu_e, beta_mu_p)
+
+        new_span = self.new_evi.run(
+            policy_indices=self.policy_indices,
+            policy=self.policy,
+            p_hat=self.estimated_probabilities,
+            r_hat_mdp=self.estimated_rewards_mdp,
+            beta_p=beta_p,
+            beta_r_mdp=beta_r,
+            r_max=self.r_max,
+            epsilon=self.r_max / m.sqrt(self.iteration + 1))
+        t2 = time.time()
+        print("NEW_EVI: {} s ({} + {})".format(t2-t0, t1-t0, t2-t1))
+        print(span_value, new_span)
+        assert np.isclose(span_value, new_span)
+        #new_u1, new_u2 = self.new_evi.get_uvectors()
 
         # assert np.allclose(u1, new_u1, 1e-5), "{}\n{}".format(u1, new_u1)
         # assert np.allclose(u2, new_u2, 1e-5), "{}\n{}".format(u2, new_u2)
@@ -385,10 +392,17 @@ class EVI_Alg1(object):
                             if s == kk_v:
                                 x[kk] += np.dot(gg, self.u1)
 
-                        sorted_indices_mu = np.argsort(x)
+                        sorted_indices_mu = np.argsort(x, kind='mergesort')
+                        # print(sorted_indices_mu)
 
                         max_mu = self.max_proba(mu_opt[o], len(mu_opt[o]),
                                        sorted_indices_mu, cn_opt[o]*beta_mu_p[o])
+                        if s == 10:
+                            print("{}".format(mu_opt[o]))
+                            print("{}".format(cn_opt[o]*beta_mu_p[o]))
+                            for i in range(len(self.reachable_states_per_option[o])):
+                                print("{:.2f}[{:.2f}]".format(max_mu[i], x[i]), end=" ")
+                            print("\n")
                         v = np.dot(max_mu, x)
 
                     c1 = v + self.u1[s]
@@ -398,13 +412,18 @@ class EVI_Alg1(object):
                         policy[s] = action
                     first_action = False
 
+            print("**%d\n" % self.counter)
+            for i in range(nb_states):
+                print("{:.2f}[{:.2f}] ".format(self.u1[i], self.u2[i]), end=" ")
+            print("\n")
+
             if max(self.u2-self.u1)-min(self.u2-self.u1) < epsilon:  # stopping condition
-                print("%d\n", self.counter)
+                print("++ {}\n".format(self.counter))
                 return max(self.u1) - min(self.u1), self.u1, self.u2
             else:
                 self.u1 = self.u2
                 self.u2 = np.empty(nb_states)
-                sorted_indices_u = np.argsort(self.u1)
+                sorted_indices_u = np.argsort(self.u1, kind='mergesort')
                 # for i in range(nb_states):
                 #     printf("%d , ", sorted_indices[i])
                 # printf("\n")

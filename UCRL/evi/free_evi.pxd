@@ -17,18 +17,22 @@ cdef class FreeEVIAlg1:
     cdef DTYPE_t *mtx_maxprob
     cdef DTYPE_t[:,:] mtx_maxprob_memview
     cdef SIZE_t *sorted_indices
+    cdef SIZE_t *sorted_indices_mu
     cdef SIZE_t nb_states
     cdef SIZE_t threshold
     cdef SIZE_t nb_options
+    cdef SIZE_t max_reachable_states_per_opt
     cdef IntVectorStruct* actions_per_state
     cdef IntVectorStruct* reachable_states_per_option
-    cdef DoubleVectorStruct* x
+    # cdef DoubleVectorStruct* x
     cdef DoubleVectorStruct* mu_opt
     cdef DTYPE_t *cn_opt
-    cdef DTYPE_t *beta_mu_p
     cdef DoubleVectorStruct* r_tilde_opt
     cdef SIZE_t* options_policies
+    cdef SIZE_t* options_policies_indices_mdp
     cdef DTYPE_t* options_terminating_conditions
+    cdef DTYPE_t* xx
+    cdef DTYPE_t* beta_mu_p
 
     # Methods
     cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
@@ -36,7 +40,6 @@ cdef class FreeEVIAlg1:
                      DTYPE_t[:,:] r_hat_mdp,
                      DTYPE_t[:,:] beta_p,
                      DTYPE_t[:,:] beta_r_mdp,
-                     DTYPE_t[:] beta_mu_p,
                      DTYPE_t r_max,
                      DTYPE_t epsilon)
 
@@ -46,8 +49,17 @@ cdef class FreeEVIAlg1:
     #                       DTYPE_t[:,:] beta_r)
 
     cpdef compute_mu_info(self,
-                      DTYPE_t[:,:,:] estimated_probabilities_mdp,
-                      DTYPE_t[:,:] estimated_rewards_mdp,
-                      DTYPE_t[:,:] beta_r)
+                          DTYPE_t[:,:,:] estimated_probabilities_mdp,
+                          DTYPE_t[:,:] estimated_rewards_mdp,
+                          DTYPE_t[:,:] beta_r,
+                          SIZE_t[:,:] nb_observations_mdp,
+                          DTYPE_t range_mu_p,
+                          DTYPE_t total_time,
+                          DTYPE_t delta,
+                          DTYPE_t max_nb_actions)
 
     cpdef get_uvectors(self)
+    cpdef get_conditioning_numbers(self)
+    cpdef get_beta_mu_p(self)
+    cpdef get_mu(self)
+    cpdef get_r_tilde_opt(self)

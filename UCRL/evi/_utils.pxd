@@ -30,7 +30,8 @@ cdef inline DTYPE_t dot_prod(DTYPE_t[:] x, DTYPE_t* y, SIZE_t dim) nogil:
     return total
 
 cdef inline SIZE_t pos2index_2d(SIZE_t n_row, SIZE_t n_col, SIZE_t row, SIZE_t col) nogil:
-    return col * n_row + row
+    # return col * n_row + row
+    return row * n_col + col
 
 cdef DTYPE_t sign(DTYPE_t a, DTYPE_t tol=*) nogil
 
