@@ -52,6 +52,10 @@ class AbstractUCRL(object):
         self.verbose = verbose
         self.logger = logger
 
+    def clear_before_pickle(self):
+        del self.opt_solver
+        del self.logger
+
 
 class UcrlMdp(AbstractUCRL):
     """
@@ -80,10 +84,9 @@ class UcrlMdp(AbstractUCRL):
 
         self.nb_observations = np.zeros((self.environment.nb_states, self.environment.max_nb_actions_per_state))
         self.nu_k = np.zeros((self.environment.nb_states, self.environment.max_nb_actions_per_state))
-        self.tau = 1.# 0.9
+        self.tau = 0.9
         self.tau_max = 1
         self.tau_min = 1
-
 
     def learn(self, duration, regret_time_step):
         """ Run UCRL on the provided environment
@@ -103,6 +106,7 @@ class UcrlMdp(AbstractUCRL):
         self.timing = []
         alg_trace = {'span_values': []}
 
+        t0 = time.time()
         while self.total_time < duration:
             self.episode += 1
             # print(self.total_time)
@@ -113,7 +117,7 @@ class UcrlMdp(AbstractUCRL):
 
             if self.verbose > 0:
                 self.logger.info("{}/{} = {:3.2f}%".format(self.total_time, duration, self.total_time / duration *100))
-                if self.verbose > 1:
+                if self.verbose > 2:
                     self.logger.info("P_hat -> {}:\n{}".format(self.estimated_probabilities.shape, self.estimated_probabilities))
                     self.logger.info("R_hat -> {}:\n{}".format(self.estimated_rewards.shape, self.estimated_rewards))
                     self.logger.info("T_hat -> {}:\n{}".format(self.estimated_holding_times.shape, self.estimated_holding_times))
@@ -150,6 +154,9 @@ class UcrlMdp(AbstractUCRL):
             if self.verbose > 0:
                 self.logger.info("expl time: {:.4f} s".format(t1-t0))
 
+        t1 = time.time()
+        self.speed = t1 - t0
+        self.logger.info("TIME: {} s".format(self.speed))
         return alg_trace
 
     def beta_r(self):

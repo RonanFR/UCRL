@@ -3,26 +3,71 @@ import os
 import pickle
 import random
 import time
+import datetime
+import shutil
+import json
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import UCRL.envs.toys.NavigateGrid as NavigateGrid
 import UCRL.envs.toys.OptionGrid as OptionGrid
 import UCRL.envs.toys.OptionGridFree as OptionGridFree
 import UCRL.envs.RewardDistributions as RewardDistributions
 import UCRL.Ucrl as Ucrl
 from UCRL.envs import OptionEnvironment, MixedEnvironment
-from UCRL.smdp_ucrl import SMDPUCRL_Mixed
+import UCRL.logging as ucrl_logger
+from optparse import OptionParser
+
+parser = OptionParser()
+parser.add_option("-d", "--dimension", dest="dimension", type="int",
+                  help="dimension of the gridworld", default=5)
+parser.add_option("-n", "--duration", dest="duration", type="int",
+                  help="t_max for options", default=1000000)
+parser.add_option("-t", "--tmax", dest="t_max", type="int",
+                  help="t_max for options", default=5)
+parser.add_option("-c", dest="c", type="float",
+                  help="c value", default=5)
+parser.add_option("--rmax", dest="r_max", type="float",
+                  help="maximum reward", default=-1)
+parser.add_option("--p_range", dest="range_p", type="float",
+                  help="range of transition matrix", default=0.1)
+parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
+                  help="regret time steps", default=1000)
+parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
+                  help="Number of repetitions", default=1)
+parser.add_option("--id", dest="id", type="str",
+                  help="Identifier of the script", default=None)
+parser.add_option("-q", "--quiet",
+                  action="store_true", dest="quiet", default=False,
+                  help="don't print status messages to stdout")
+parser.add_option("--seed", dest="seed_0", default=random.getrandbits(128),
+                  help="Seed used to generate the random seed sequence")
+
+(in_options, in_args) = parser.parse_args()
+
+if in_options.r_max < 0:
+    in_options.r_max = in_options.dimension
+
+if in_options.id is None:
+    in_options.id = '{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now())
+
+range_r = in_options.t_max * in_options.c
+range_tau = (in_options.t_max - 1) * in_options.c
+
+config = vars(in_options)
+config['range_r'] = range_r
+config['range_tau'] = range_tau
 
 # Define environment
-dimension = 5  # dimension of the grid
-initial_position = [dimension - 1, dimension - 1]  # initial state
+initial_position = [in_options.dimension - 1, in_options.dimension - 1]  # initial state
 nb_target_actions = 1  # number of available actions in the targeted state
 nb_reset_actions = 1  # number of available actions in the reset state
 reward_distribution_states = RewardDistributions.ConstantReward(0)
-reward_distribution_target = RewardDistributions.ConstantReward(dimension)
-grid = NavigateGrid.NavigateGrid(dimension, initial_position, reward_distribution_states, reward_distribution_target,
-                    nb_target_actions)
+reward_distribution_target = RewardDistributions.ConstantReward(in_options.dimension)
+grid = NavigateGrid.NavigateGrid(dimension=in_options.dimension,
+                                 initial_position=initial_position,
+                                 reward_distribution_states=reward_distribution_states,
+                                 reward_distribution_target=reward_distribution_target,
+                                 nb_target_actions=nb_target_actions)
 # grid = NavigateGrid.NavigateGrid2(
 #     dimension=dimension,
 #     initial_position=initial_position,
@@ -32,8 +77,7 @@ grid = NavigateGrid.NavigateGrid(dimension, initial_position, reward_distributio
 # )
 
 # Add options
-t_max = 1
-options = OptionGrid.OptionGrid1(grid, t_max)
+options = OptionGrid.OptionGrid1(grid, in_options.t_max)
 # options = OptionGrid.OptionGrid2(grid, t_max)
 # options = OptionGrid.OptionGrid3(grid=grid, t_max=t_max)
 # options_free = OptionGridFree.OptionGrid3_free(grid=grid, t_max=t_max)
@@ -67,67 +111,47 @@ option_environment = OptionEnvironment(
 #     assert f
 
 # Define learning algorithm
-c = 0.8
-r_max = dimension  # maximal reward
-range_r = t_max*c
-range_tau = (t_max - 1)*c
-range_p = 0.1
-ucrl = Ucrl.UcrlMdp(grid, r_max, range_r=range_r, range_p=range_p, verbose=1)
+# ucrl = Ucrl.UcrlMdp(grid, r_max, range_r=range_r, range_p=range_p, verbose=1)
 # ucrl = Ucrl.UcrlSmdpBounded(options, r_max, t_max, range_r=range_r, range_p=range_p, range_tau = range_tau, verbose=1)
 
-# Set seeds
-seed = 1
-np.random.seed(seed)
-random.seed(seed)
+folder_results = os.path.abspath('smdp_{}'.format(in_options.id))
+if os.path.exists(folder_results):
+    shutil.rmtree(folder_results)
+os.makedirs(folder_results)
 
-# Learn task
-duration = 5e6 #30000000  # number of decision steps
-regret_time_step = 1000
+random.seed(in_options.seed_0)
+seed_sequence = [random.randint(0, 2**30) for _ in range(in_options.nb_simulations)]
+
+config['seed_sequence'] = seed_sequence
+
+with open(os.path.join(folder_results, 'settings.conf'), 'w') as f:
+    json.dump(config, f, indent=4, sort_keys=True)
 
 # Main loop
-id_experiment = 1203  # experiment ID
-nb_simulations = 1
-for i in range(0, nb_simulations):
-    start_time = time.time()
-    seed = i  # set seed
+for rep in range(in_options.nb_simulations):
+    seed = seed_sequence[rep]  # set seed
     np.random.seed(seed)
     random.seed(seed)
-    t0 = time.time()
-    # ucrl = Ucrl.UcrlSmdpBounded(copy.deepcopy(option_environment), r_max, t_max,
-    #                             range_r=range_r, range_p=range_p, range_tau=range_tau,
-    #                             verbose=1)  # learning algorithm
-    h = ucrl.learn(duration, regret_time_step)  # learn task
-    t1 = time.time()
-    print("TIME: {}".format(t1-t0))
 
-    plt.figure()
-    plt.plot(ucrl.regret)
-    plt.ylabel("regret")
+    name = "trace_{}".format(rep)
+    ucrl_log = ucrl_logger.create_logger(name=name, path=folder_results)
+    if not in_options.quiet:
+        ucrl_log.addHandler(ucrl_logger.default_logger)
 
-    plt.figure()
-    plt.plot(ucrl.span_values)
-    plt.ylabel("span")
-    plt.show()
+    ucrl = Ucrl.UcrlSmdpBounded(
+        environment=copy.deepcopy(option_environment),
+        r_max=in_options.r_max,
+        t_max=in_options.t_max,
+        range_r=range_r,
+        range_p=in_options.range_p,
+        range_tau=range_tau,
+        verbose=1,
+        logger=ucrl_log)  # learning algorithm
+    h = ucrl.learn(in_options.duration, in_options.regret_time_steps)  # learn task
+    ucrl.clear_before_pickle()
 
-    exit(8)
-
-    np.random.seed(seed)
-    random.seed(seed)
-    t0 = time.time()
-    ucrl2 = SMDPUCRL_Mixed(copy.deepcopy(mixed_environment), r_max, t_max,
-                          range_r=range_r, range_p=range_p, range_tau=range_tau,
-                          verbose=1)  # learning algorithm
-    h2 = ucrl2.learn(duration, regret_time_step)  # learn task
-    t1 = time.time()
-    print("TIME: {}".format(t1 - t0))
-
-    df = pd.DataFrame(
-        data=np.column_stack((np.array(h['span_values']), np.array(h2['span_values']))),
-        columns=["option", "mixed"])
-    df.to_csv("spanvalues_{}.csv".format(i))
-
-    assert len(h['span_values']) == len(h2['span_values'])
-    assert np.allclose(h['span_values'], h2['span_values'])
+    with open(os.path.join(folder_results, 'ucrl_{}.pickle'.format(rep)), 'wb') as f:
+        pickle.dump(ucrl, f)
 
     # times = np.array(ucrl.timing)
     # df = pd.DataFrame(data=times, columns=["old", "new"])

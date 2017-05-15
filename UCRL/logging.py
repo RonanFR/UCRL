@@ -29,14 +29,16 @@ def get_console_logger():
     return logger
 
 
-def create_logger(name, fake_log=False):
+def create_logger(name, path="", fake_log=False):
     name = str(name)
     logger = logging.getLogger(name)
     if fake_log:
         logger.addHandler(logging.NullHandler())
     else:
-        hdlr = logging.FileHandler('{}.log'.format(name))
-        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
+        import os
+        fname = os.path.join(path, '{}.log'.format(name))
+        hdlr = logging.FileHandler(fname)
+        formatter = logging.Formatter('%(message)s')
         hdlr.setFormatter(formatter)
         logger.addHandler(hdlr)
         logger.setLevel(logging.DEBUG)
