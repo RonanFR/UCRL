@@ -15,7 +15,8 @@ rmax=${dim}
 i=1
 for (( t=1; t<=${tmax}; t++ ))
 do
-    fname=${folder}/fsucrl1_${dim}_${t}.slurm
+    sname=fsucrl1_${dim}_${t}.slurm
+    fname=${folder}/${sname}
     echo "#!/bin/bash" > ${fname}                                                                                                      
     echo "#SBATCH --nodes=1" >> ${fname}
     echo "#SBATCH --ntasks-per-node=1" >> ${fname}
@@ -36,7 +37,7 @@ do
     i=$((i+1))
     
     cd ${folder}
-    sbatch ${fname}
+    sbatch ${sname}
     cd ..
     sleep 1
 done
@@ -45,7 +46,8 @@ done
 i=1
 for (( t=1; t<=${tmax}; t++ ))
 do
-    fname=${folder}/sucrl_${dim}_${t}.slurm
+    sname=sucrl_${dim}_${t}.slurm
+    fname=${folder}/${sname}
     echo "#!/bin/bash" > ${fname}                                                                                                      
     echo "#SBATCH --nodes=1" >> ${fname}
     echo "#SBATCH --ntasks-per-node=1" >> ${fname}
@@ -66,13 +68,14 @@ do
     i=$((i+1))
     
     cd ${folder}
-    sbatch ${fname}
+    sbatch ${sname}
     cd ..
     sleep 1
 done
 
 # CREATE CONFIGURATION FOR MDP
-fname=${folder}/mdpucrl_${dim}_${t}.slurm
+sname=mdpucrl_${dim}_${t}.slurm
+fname=${folder}/${sname}
 echo "#!/bin/bash" > ${fname}                                                                                                      
 echo "#SBATCH --nodes=1" >> ${fname}
 echo "#SBATCH --ntasks-per-node=1" >> ${fname}
@@ -91,5 +94,5 @@ echo "python ../example_mdp.py -d ${dim} -n ${duration} --rmax ${rmax} -r ${repe
 echo "python ../example_mdp.py -b -d ${dim} -n ${duration} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c2" >> ${fname} #bernstein
 
 cd ${folder}
-sbatch ${fname}
+sbatch ${sname}
 cd ..
