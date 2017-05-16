@@ -14,6 +14,7 @@ import UCRL.envs.RewardDistributions as RewardDistributions
 import UCRL.Ucrl as Ucrl
 from UCRL.envs import OptionEnvironment, MixedEnvironment
 import UCRL.logging as ucrl_logger
+import UCRL.parameters_init as tuning
 from optparse import OptionParser
 
 import matplotlib
@@ -35,7 +36,9 @@ parser.add_option("-c", dest="c", type="float",
 parser.add_option("--rmax", dest="r_max", type="float",
                   help="maximum reward", default=-1)
 parser.add_option("--p_range", dest="range_p", type="float",
-                  help="range of transition matrix", default=0.1)
+                  help="range of transition matrix", default=-1)
+parser.add_option("--r_range", dest="range_r", type="float",
+                  help="range of reward", default=-1)
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
@@ -56,11 +59,20 @@ if in_options.r_max < 0:
 if in_options.id is None:
     in_options.id = '{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now())
 
-range_r = in_options.t_max * in_options.c
+# range_r = in_options.t_max * in_options.c
 range_tau = (in_options.t_max - 1) * in_options.c
 
+if in_options.range_p < 0:
+    in_options.range_p = tuning.range_p_from_hoeffding(
+        nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
+if in_options.range_r < 0:
+    range_r = tuning.range_r_from_hoeffding(
+        nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
+    range_tau = range_r * (in_options.t_max - 1.)
+    in_options.range_r = in_options.t_max * range_r
+
 config = vars(in_options)
-config['range_r'] = range_r
+#config['range_r'] = range_r
 config['range_tau'] = range_tau
 
 # Define environment
@@ -149,7 +161,7 @@ for rep in range(in_options.nb_simulations):
         environment=copy.deepcopy(option_environment),
         r_max=in_options.r_max,
         t_max=in_options.t_max,
-        range_r=range_r,
+        range_r=in_options.range_r,
         range_p=in_options.range_p,
         range_tau=range_tau,
         verbose=1,

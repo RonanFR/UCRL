@@ -12,8 +12,8 @@ import UCRL.envs.toys.OptionGrid as OptionGrid
 import UCRL.envs.toys.OptionGridFree as OptionGridFree
 import UCRL.envs.RewardDistributions as RewardDistributions
 import UCRL.Ucrl as Ucrl
-from UCRL.envs import OptionEnvironment, MixedEnvironment
 import UCRL.logging as ucrl_logger
+import UCRL.parameters_init as tuning
 from optparse import OptionParser
 
 import matplotlib
@@ -25,19 +25,19 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
-                  help="dimension of the gridworld", default=5)
+                  help="dimension of the gridworld", default=10)
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=30000000)
-parser.add_option("-c", dest="c", type="float",
-                  help="c value", default=0.8)
+                  help="duration of the experiment", default=10000000)
+# parser.add_option("-c", dest="c", type="float",
+#                   help="c value", default=0.8)
 parser.add_option("--rmax", dest="r_max", type="float",
                   help="maximum reward", default=-1)
 parser.add_option("--p_range", dest="range_p", type="float",
-                  help="range of transition matrix", default=0.1)
+                  help="range of transition matrix", default=0.01)
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
-                  help="Number of repetitions", default=2)
+                  help="Number of repetitions", default=1)
 parser.add_option("--id", dest="id", type="str",
                   help="Identifier of the script", default=None)
 parser.add_option("-q", "--quiet",
@@ -54,10 +54,16 @@ if in_options.r_max < 0:
 if in_options.id is None:
     in_options.id = '{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now())
 
-range_r = in_options.c
+# range_r = in_options.c
+if in_options.range_p < 0:
+    in_options.range_p = tuning.range_p_from_hoeffding(
+        nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
+if in_options.range_r < 0:
+    in_options.range_r = tuning.range_r_from_hoeffding(
+        nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
 
 config = vars(in_options)
-config['range_r'] = range_r
+#config['range_r'] = range_r
 
 # Define environment
 initial_position = [in_options.dimension - 1, in_options.dimension - 1]  # initial state
@@ -98,7 +104,7 @@ for rep in range(in_options.nb_simulations):
 
     ucrl = Ucrl.UcrlMdp(grid,
                         r_max=in_options.r_max,
-                        range_r=range_r,
+                        range_r=in_options.range_r,
                         range_p=in_options.range_p,
                         verbose=1,
                         logger=ucrl_log)
@@ -109,12 +115,12 @@ for rep in range(in_options.nb_simulations):
         pickle.dump(ucrl, f)
 
     plt.figure()
-    plt.plot(ucrl.span_values, 'o-')
+    plt.plot(ucrl.span_values)
     plt.xlabel("Points")
     plt.ylabel("Span")
     plt.savefig(os.path.join(folder_results, "span_{}.png".format(rep)))
     plt.figure()
-    plt.plot(ucrl.regret, 'o-')
+    plt.plot(ucrl.regret)
     plt.xlabel("Points")
     plt.ylabel("Regret")
     plt.savefig(os.path.join(folder_results, "regret_{}.png".format(rep)))

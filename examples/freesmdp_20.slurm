@@ -14,8 +14,6 @@ module load anaconda3/4.1.0
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export NUMEXPR_NUM_THREADS=$SLURM_CPUS_PER_TASK
-python example_free_smdp.py -d 20 -n 30000000 --tmax 4 -c 0.8 --rmax 20 --p_range 0.1 --mu_range 0.1 -r 10 --seed 17632376383341475136 --id c1
-python example_free_smdp.py -d 20 -n 30000000 --tmax 8 -c 0.8 --rmax 20 --p_range 0.1 --mu_range 0.1 -r 10 --seed 17632376383341475136 --id c2
-python example_free_smdp.py -d 30 -n 50000000 --tmax 4 -c 0.8 --rmax 30 --p_range 0.1 --mu_range 0.1 -r 10 --seed 17632376383341475136 --id c3
-python example_free_smdp.py -d 30 -n 50000000 --tmax 8 -c 0.8 --rmax 30 --p_range 0.1 --mu_range 0.1 -r 10 --seed 17632376383341475136 --id c4
-
+python example_free_smdp.py -d 20 -n 30000000 --tmax 4  --rmax 20 -r 3 --seed 17632376383341475136 --id c1
+python example_free_smdp.py -d 20 -n 30000000 --tmax 8  --rmax 20 -r 3 --seed 17632376383341475136 --id c2
+python example_free_smdp.py -d 20 -n 30000000 --tmax 16 --rmax 20 -r 3 --seed 17632376383341475136 --id c3
