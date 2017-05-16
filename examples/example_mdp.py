@@ -25,15 +25,19 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
-                  help="dimension of the gridworld", default=10)
+                  help="dimension of the gridworld", default=5)
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=10000000)
+                  help="duration of the experiment", default=5000000)
 # parser.add_option("-c", dest="c", type="float",
 #                   help="c value", default=0.8)
+parser.add_option("-b", "--bernstein", action="store_true", dest="use_bernstein",
+                  default=False, help="use Bernstein bound")
 parser.add_option("--rmax", dest="r_max", type="float",
                   help="maximum reward", default=-1)
 parser.add_option("--p_range", dest="range_p", type="float",
-                  help="range of transition matrix", default=0.01)
+                  help="range of transition matrix", default=-1)
+parser.add_option("--r_range", dest="range_r", type="float",
+                  help="range of reward", default=-1)
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
@@ -56,8 +60,13 @@ if in_options.id is None:
 
 # range_r = in_options.c
 if in_options.range_p < 0:
-    in_options.range_p = tuning.range_p_from_hoeffding(
-        nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
+    if not in_options.use_bernstein:
+        in_options.range_p = tuning.range_p_from_hoeffding(
+            nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
+    else:
+        in_options.range_p = tuning.range_p_from_bernstein(
+            nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
+
 if in_options.range_r < 0:
     in_options.range_r = tuning.range_r_from_hoeffding(
         nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
@@ -102,12 +111,14 @@ for rep in range(in_options.nb_simulations):
                                               filename=name,
                                               path=folder_results)
 
-    ucrl = Ucrl.UcrlMdp(grid,
-                        r_max=in_options.r_max,
-                        range_r=in_options.range_r,
-                        range_p=in_options.range_p,
-                        verbose=1,
-                        logger=ucrl_log)
+    ucrl = Ucrl.UcrlMdp(
+        grid,
+        r_max=in_options.r_max,
+        range_r=in_options.range_r,
+        range_p=in_options.range_p,
+        verbose=1,
+        logger=ucrl_log,
+        bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
     h = ucrl.learn(in_options.duration, in_options.regret_time_steps)  # learn task
     ucrl.clear_before_pickle()
 

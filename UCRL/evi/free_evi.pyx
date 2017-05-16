@@ -20,7 +20,6 @@ from cython.parallel import prange
 import numpy as np
 cimport numpy as np
 
-from ._utils cimport sign
 from ._utils cimport isclose_c
 from ._utils cimport get_sorted_indices
 from ._utils cimport check_end
@@ -29,6 +28,7 @@ from ._utils cimport pos2index_2d
 
 from ._max_proba cimport max_proba_purec
 from ._max_proba cimport max_proba_purec2
+from ._max_proba cimport max_proba_bernstein
 
 from libc.stdio cimport printf
 
@@ -46,7 +46,8 @@ cdef class FreeEVIAlg1:
                  int threshold,
                  list option_policies,
                  list reachable_states_per_option,
-                 list options_terminating_conditions):
+                 list options_terminating_conditions,
+                 use_bernstein=0):
         cdef SIZE_t n, m, i, j, idx
         cdef SIZE_t max_states_per_option = 0
         self.nb_states = nb_states
@@ -54,6 +55,8 @@ cdef class FreeEVIAlg1:
         self.threshold = threshold
         self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
         self.u2 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
+
+        self.bernstein_bound = use_bernstein
 
         # allocate indices and memoryview (may slow down)
         self.sorted_indices = <SIZE_t *> malloc(nb_states * sizeof(SIZE_t))
@@ -79,7 +82,6 @@ cdef class FreeEVIAlg1:
         n = len(reachable_states_per_option)
         assert n == nb_options
         self.reachable_states_per_option = <IntVectorStruct *> malloc(n * sizeof(IntVectorStruct))
-        # self.x = <DoubleVectorStruct *> malloc(n * sizeof(DoubleVectorStruct))
         self.r_tilde_opt = <DoubleVectorStruct *> malloc(nb_options * sizeof(DoubleVectorStruct))
         self.mu_opt = <DoubleVectorStruct *> malloc(nb_options * sizeof(DoubleVectorStruct))
         self.cn_opt = <DTYPE_t *> malloc(nb_options * sizeof(DTYPE_t))
@@ -94,9 +96,6 @@ cdef class FreeEVIAlg1:
                 max_states_per_option = m
             self.reachable_states_per_option[i].dim = m
             self.reachable_states_per_option[i].values = <SIZE_t *> malloc(m * sizeof(SIZE_t))
-
-            # self.x[i].dim = m
-            # self.x[i].values = <DTYPE_t *> malloc(m * sizeof(DTYPE_t))
 
             self.r_tilde_opt[i].dim = m
             self.r_tilde_opt[i].values = <DTYPE_t *> malloc(m * sizeof(DTYPE_t))
@@ -132,13 +131,11 @@ cdef class FreeEVIAlg1:
         free(self.actions_per_state)
         for i in range(self.nb_options):
             free(self.reachable_states_per_option[i].values)
-            #free(self.x[i].values)
             free(self.mu_opt[i].values)
             free(self.r_tilde_opt[i].values)
         free(self.mu_opt)
         free(self.r_tilde_opt)
         free(self.reachable_states_per_option)
-        #free(self.x)
         free(self.cn_opt)
         free(self.options_terminating_conditions)
         free(self.options_policies)
@@ -153,15 +150,13 @@ cdef class FreeEVIAlg1:
                           DTYPE_t[:,:] beta_r,
                           SIZE_t[:,:] nb_observations_mdp,
                           DTYPE_t range_mu_p,
-                          DTYPE_t total_time,
+                          SIZE_t total_time,
                           DTYPE_t delta,
-                          DTYPE_t max_nb_actions):
+                          SIZE_t max_nb_actions):
         cdef SIZE_t nb_options = self.nb_options
         cdef SIZE_t o, opt_nb_states, i, j, s, nexts, idx, mdp_index_a
-        cdef DTYPE_t prob, condition_nb
-        cdef SIZE_t visits = 0
-
-
+        cdef DTYPE_t prob, condition_nb, bernstein_bound, bernstein_log
+        cdef SIZE_t visits = 0, nb_o
 
         for o in range(nb_options):
             option_reach_states = self.reachable_states_per_option[o]
@@ -170,7 +165,9 @@ cdef class FreeEVIAlg1:
 
             Q_o = np.zeros((opt_nb_states, opt_nb_states))
 
-            visits = 0
+            self.beta_mu_p[o] = 0.
+            visits = total_time
+            bernstein_log = log(6 * max_nb_actions / delta)
             for i in range(option_reach_states.dim):
                 s = option_reach_states.values[i]
                 # a = self.options_policies[pos2index_2d(nb_options, self.nb_states, o, s)]
@@ -178,18 +175,25 @@ cdef class FreeEVIAlg1:
 
                 self.r_tilde_opt[o].values[i] = estimated_rewards_mdp[s, mdp_index_a] + beta_r[s,mdp_index_a]
 
-                visits = nb_observations_mdp[s, mdp_index_a]
+                if visits > nb_observations_mdp[s, mdp_index_a]:
+                    visits = nb_observations_mdp[s, mdp_index_a]
+
+                bernstein_bound = 0.
+                nb_o = max(1, nb_observations_mdp[s, mdp_index_a])
 
                 for j in range(option_reach_states.dim):
                     nexts = option_reach_states.values[j]
                     idx = pos2index_2d(nb_options, self.nb_states, o, nexts)
                     prob = estimated_probabilities_mdp[s][mdp_index_a][nexts]
                     Q_o[i,j] = (1. - self.options_terminating_conditions[idx]) * prob
+                    bernstein_bound += np.sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o) + bernstein_log * 7 / (3 * nb_o)
+                if self.beta_mu_p[o] < bernstein_bound:
+                    self.beta_mu_p[o] = bernstein_bound
             e_m = np.ones((opt_nb_states,1))
             q_o = e_m - np.dot(Q_o, e_m)
 
-
-            self.beta_mu_p[o] =  range_mu_p * np.sqrt(14 * opt_nb_states * log(2 * max_nb_actions
+            if self.bernstein_bound == 0:
+                self.beta_mu_p[o] =  range_mu_p * np.sqrt(14 * opt_nb_states * log(2 * max_nb_actions
                     * (total_time + 1)/delta)
                                        / np.maximum(1, visits))
 
@@ -221,7 +225,7 @@ cdef class FreeEVIAlg1:
     cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
                      DTYPE_t[:,:,:] p_hat,
                      DTYPE_t[:,:] r_hat_mdp,
-                     DTYPE_t[:,:] beta_p,
+                     DTYPE_t[:,:,:] beta_p,
                      DTYPE_t[:,:] beta_r_mdp,
                      DTYPE_t r_max,
                      DTYPE_t epsilon):
@@ -262,9 +266,14 @@ cdef class FreeEVIAlg1:
 
                         # max_proba_purec
                         # max_proba_reduced
-                        max_proba_purec(p_hat[s][a_idx], nb_states,
-                                    sorted_indices, beta_p[s][a_idx],
-                                    mtx_maxprob_memview[s])
+                        if self.bernstein_bound == 0:
+                            max_proba_purec(p_hat[s][a_idx], nb_states,
+                                        sorted_indices, beta_p[s][a_idx][0],
+                                        mtx_maxprob_memview[s])
+                        else:
+                            max_proba_bernstein(p_hat[s][a_idx], nb_states,
+                                        sorted_indices, beta_p[s][a_idx],
+                                        mtx_maxprob_memview[s])
 
                         mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
 

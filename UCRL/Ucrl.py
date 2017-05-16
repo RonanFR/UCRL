@@ -14,7 +14,9 @@ class AbstractUCRL(object):
                  r_max, range_r=-1, range_p=-1,
                  solver=None,
                  verbose = 0,
-                 logger=default_logger):
+                 logger=default_logger,
+                 bound_type="hoeffding"):
+        assert bound_type in ["hoeffding",  "bernstein"]
         self.environment = environment
         self.r_max = float(r_max)
 
@@ -30,7 +32,9 @@ class AbstractUCRL(object):
         if solver is None:
             # create solver for optimistic model
             self.opt_solver = EVI(self.environment.nb_states,
-                                  self.environment.get_state_actions())
+                                  self.environment.get_state_actions(),
+                                  use_bernstein=1 if bound_type == "bernstein" else 0
+                                  )
         else:
             self.opt_solver = solver
 
@@ -48,6 +52,7 @@ class AbstractUCRL(object):
         self.iteration = 0
         self.episode = 0
         self.delta = 1.  # confidence
+        self.bound_type = bound_type
 
         self.verbose = verbose
         self.logger = logger
@@ -64,7 +69,7 @@ class UcrlMdp(AbstractUCRL):
     """
 
     def __init__(self, environment, r_max, range_r=-1, range_p=-1, solver=None,
-                 verbose = 0,
+                 bound_type="hoeffding", verbose = 0,
                  logger=default_logger):
         """
         :param environment: an instance of any subclass of abstract class Environment which is an MDP
@@ -76,7 +81,7 @@ class UcrlMdp(AbstractUCRL):
                                       r_max=r_max, range_r=range_r,
                                       range_p=range_p, solver=solver,
                                       verbose=verbose,
-                                      logger=logger)
+                                      logger=logger, bound_type=bound_type)
         self.estimated_probabilities = np.ones((self.environment.nb_states, self.environment.max_nb_actions_per_state,
                                                  self.environment.nb_states)) * 1/self.environment.nb_states
         self.estimated_rewards = np.ones((self.environment.nb_states, self.environment.max_nb_actions_per_state)) * (r_max+1)
@@ -187,8 +192,16 @@ class UcrlMdp(AbstractUCRL):
             np.array: the vector of confidence bounds on the transition matrix (|S| x |A|)
             
         """
-        return self.range_p * np.sqrt(14 * self.environment.nb_states * m.log(2 * self.environment.max_nb_actions_per_state
+        if self.bound_type == "hoeffding":
+            beta = self.range_p * np.sqrt(14 * self.environment.nb_states * m.log(2 * self.environment.max_nb_actions_per_state
                     * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))
+            return beta.reshape([self.environment.nb_states, self.environment.max_nb_actions_per_state, 1])
+        else:
+            Z = m.log(6 * self.environment.max_nb_actions_per_state * (self.iteration + 1) / self.delta)
+            n = np.maximum(1, self.nb_observations)
+            A = np.sqrt(2 * self.estimated_probabilities * (1-self.estimated_probabilities) * Z / n[:,:,np.newaxis])
+            B = Z * 7 / (3 * n)
+            return self.range_p * (A + B[:,:,np.newaxis])
 
     def update(self):
         s = self.environment.state  # current state
@@ -346,9 +359,10 @@ class UcrlSmdpBounded(UcrlMdp):
     """
     def __init__(self, environment, r_max, t_max, t_min=1,
                  range_r=-1, range_tau=-1, range_p=-1,
+                 bound_type="hoeffding",
                  verbose = 0, logger=default_logger):
         super().__init__(environment, r_max, range_r, range_p,
-                         verbose=verbose, logger=logger)
+                         verbose=verbose, logger=logger, bound_type=bound_type)
         self.tau = t_min - 0.1
         self.tau_max = t_max
         self.tau_min = t_min
@@ -379,10 +393,11 @@ class UcrlMixedBounded(UcrlSmdpBounded):
     """
     def __init__(self, environment, r_max, t_max, t_min=1, range_r=-1,
                  range_r_actions=-1, range_tau=-1, range_p=-1,
+                 bound_type="hoeffding",
                  verbose = 0, logger=default_logger):
         super().__init__(environment, r_max, t_max, t_min,
                          range_r, range_tau, range_p,
-                         verbose=verbose, logger=logger)
+                         verbose=verbose, logger=logger, bound_type=bound_type)
         self.options = np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
         self.primitive_actions = np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
         for s, actions in enumerate(environment.get_state_actions()):

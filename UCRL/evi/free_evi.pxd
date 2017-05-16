@@ -34,11 +34,13 @@ cdef class FreeEVIAlg1:
     cdef DTYPE_t* xx
     cdef DTYPE_t* beta_mu_p
 
+    cdef SIZE_t bernstein_bound
+
     # Methods
     cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
                      DTYPE_t[:,:,:] p_hat,
                      DTYPE_t[:,:] r_hat_mdp,
-                     DTYPE_t[:,:] beta_p,
+                     DTYPE_t[:,:,:] beta_p,
                      DTYPE_t[:,:] beta_r_mdp,
                      DTYPE_t r_max,
                      DTYPE_t epsilon)
@@ -54,12 +56,14 @@ cdef class FreeEVIAlg1:
                           DTYPE_t[:,:] beta_r,
                           SIZE_t[:,:] nb_observations_mdp,
                           DTYPE_t range_mu_p,
-                          DTYPE_t total_time,
+                          SIZE_t total_time,
                           DTYPE_t delta,
-                          DTYPE_t max_nb_actions)
+                          SIZE_t max_nb_actions)
 
     cpdef get_uvectors(self)
     cpdef get_conditioning_numbers(self)
     cpdef get_beta_mu_p(self)
     cpdef get_mu(self)
     cpdef get_r_tilde_opt(self)
+
+

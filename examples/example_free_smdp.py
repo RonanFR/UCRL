@@ -35,6 +35,8 @@ parser.add_option("-t", "--tmax", dest="t_max", type="int",
 #                   help="c value", default=0.8)
 parser.add_option("--rmax", dest="r_max", type="float",
                   help="maximum reward", default=-1)
+parser.add_option("-b", "--bernstein", action="store_true", dest="use_bernstein",
+                  default=False, help="use Bernstein bound")
 parser.add_option("--p_range", dest="range_p", type="float",
                   help="range of transition matrix", default=-1)
 parser.add_option("--r_range", dest="range_r", type="float",
@@ -62,8 +64,13 @@ if in_options.id is None:
     in_options.id = '{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now())
 
 if in_options.range_p < 0:
-    in_options.range_p = tuning.range_p_from_hoeffding(
-        nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
+    if not in_options.use_bernstein:
+        in_options.range_p = tuning.range_p_from_hoeffding(
+            nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
+    else:
+        in_options.range_p = tuning.range_p_from_bernstein(
+            nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
+
 if in_options.range_mu_p < 0:
     in_options.range_mu_p = tuning.range_p_from_hoeffding(
         nb_states=2, nb_actions=4, nb_observations=10)
@@ -158,7 +165,8 @@ for rep in range(in_options.nb_simulations):
         range_p=in_options.range_p,
         range_mu_p=in_options.range_mu_p,
         verbose=1,
-        logger=ucrl_log)  # learning algorithm
+        logger=ucrl_log,
+        bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
     h = ucrl.learn(in_options.duration, in_options.regret_time_steps)  # learn task
     ucrl.clear_before_pickle()
 

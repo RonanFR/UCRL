@@ -7,29 +7,34 @@ from .evi import FreeEVIAlg1
 import time
 
 class FreeUCRL_Alg1(AbstractUCRL):
-    def __init__(self, environment, r_max, range_r=-1, range_p=-1, range_mu_p=-1,
+    def __init__(self, environment, r_max,
+                 range_r=-1, range_p=-1, range_mu_p=-1,
+                 bound_type="hoeffding",
                  verbose = 0, logger=default_logger):
         assert isinstance(environment, MixedEnvironment)
 
-        # evi = EVI_Alg1(nb_states=environment.nb_states,
-        #                thr=environment.threshold_options,
-        #                action_per_state=environment.get_state_actions(),
-        #                reachable_states_per_option=environment.reachable_states_per_option)
+        self.pyevi = EVI_Alg1(nb_states=environment.nb_states,
+                              thr=environment.threshold_options,
+                              action_per_state=environment.get_state_actions(),
+                              reachable_states_per_option=environment.reachable_states_per_option,
+                              use_bernstein=1 if bound_type == "bernstein" else 0)
 
         new_evi = FreeEVIAlg1(nb_states=environment.nb_states,
-                                   nb_options=environment.nb_options,
-                                   threshold=environment.threshold_options,
-                                   macro_actions_per_state=environment.get_state_actions(),
-                                   reachable_states_per_option=environment.reachable_states_per_option,
-                                   option_policies=environment.options_policies,
-                                   options_terminating_conditions=environment.options_terminating_conditions,
-                                   mdp_actions_per_state=environment.environment.get_state_actions())
+                              nb_options=environment.nb_options,
+                              threshold=environment.threshold_options,
+                              macro_actions_per_state=environment.get_state_actions(),
+                              reachable_states_per_option=environment.reachable_states_per_option,
+                              option_policies=environment.options_policies,
+                              options_terminating_conditions=environment.options_terminating_conditions,
+                              mdp_actions_per_state=environment.environment.get_state_actions(),
+                              use_bernstein=1 if bound_type == "bernstein" else 0)
 
         super(FreeUCRL_Alg1, self).__init__(environment=environment,
                                             r_max=r_max, range_r=range_r,
                                             range_p=range_p, solver=new_evi,
                                             verbose=verbose,
-                                            logger=logger)
+                                            logger=logger,
+                                            bound_type=bound_type)
 
         nb_states = self.environment.nb_states
         max_nb_mdp_actions = environment.max_nb_mdp_actions_per_state # actions of the mdp
@@ -120,8 +125,16 @@ class FreeUCRL_Alg1(AbstractUCRL):
 
     def beta_p(self):
         nb_states, nb_actions = self.nb_observations.shape
-        return self.range_p * np.sqrt(14 * nb_states * m.log(2 * nb_actions
-                    * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))
+        if self.bound_type == "hoeffding":
+            beta = self.range_p * np.sqrt(14 * nb_states * m.log(2 * nb_actions
+                        * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))
+            return beta.reshape([nb_states, nb_actions, 1])
+        else:
+            Z = m.log(6 * nb_actions * (self.iteration + 1) / self.delta)
+            n = np.maximum(1, self.nb_observations)
+            A = np.sqrt(2 * self.estimated_probabilities * (1-self.estimated_probabilities) * Z / n[:,:,np.newaxis])
+            B = Z * 7 / (3 * n)
+            return self.range_p * (A + B[:,:,np.newaxis])
 
     def update(self):
         s = self.environment.state  # current state
@@ -191,90 +204,102 @@ class FreeUCRL_Alg1(AbstractUCRL):
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
         max_nb_actions = self.estimated_probabilities.shape[1]
 
-#         t0 = time.time()
-#         nb_options = self.environment.nb_options
-#         r_tilde_opt = [None] * nb_options
-#         mu_opt = [None] * nb_options
-#         condition_numbers_opt = np.empty((nb_options,))
-#         beta_mu_p = np.empty((nb_options,))
-#         for o in range(nb_options):
-#             option_policy = self.environment.options_policies[o]
-#             option_reach_states = self.environment.reachable_states_per_option[o]
-#             term_cond = self.environment.options_terminating_conditions[o]
-#
-#             opt_nb_states = len(option_reach_states)
-#
-#             Q_o = np.zeros((opt_nb_states, opt_nb_states))
-#
-#             # compute the reward and the mu
-#             r_o = [0] * len(option_reach_states)
-#             visits = 0
-#             for i, s in enumerate(option_reach_states):
-#                 option_action = option_policy[s]
-#                 option_action_index = self.environment.get_index_of_action_state_in_mdp(s, option_action)
-#                 r_o[i] = self.estimated_rewards_mdp[s, option_action_index] + beta_r[s,option_action_index]
-#
-#                 visits = self.nb_observations_mdp[s, option_action_index]
-#
-# #                Q_o[i,:] = (1. - term_cond[option_reach_states]) * self.estimated_probabilities_mdp[s][option_action][option_reach_states]
-#                 for j, sprime in enumerate(option_reach_states):
-#                     prob = self.estimated_probabilities_mdp[s][option_action_index][sprime]
-#                     #q_o[i,0] += term_cond[sprime] * prob
-#                     Q_o[i,j] = (1. - term_cond[sprime]) * prob
-#             e_m = np.ones((opt_nb_states,1))
-#             q_o = e_m - np.dot(Q_o, e_m)
-#
-#             r_tilde_opt[o] = r_o
-#             beta_mu_p[o] =  self.range_mu_p * np.sqrt(14 * opt_nb_states * m.log(2 * max_nb_actions
-#                     * (self.total_time + 1)/self.delta)
-#                                        / np.maximum(1, visits))
-#
-#             Pprime_o = np.concatenate((q_o, Q_o[:, 1:]), axis=1)
-#             if not np.allclose(np.sum(Pprime_o, axis=1), np.ones(opt_nb_states)):
-#                 print("{}\n{}".format(Pprime_o,Q_o))
-#
-#
-#             Pap = (Pprime_o + np.eye(opt_nb_states)) / 2.
-#             D, U = np.linalg.eig(
-#                 np.transpose(Pap))  # eigen decomposition of transpose of P
-#             sorted_indices = np.argsort(np.real(D))
-#             mu = np.transpose(np.real(U))[sorted_indices[-1]]
-#             mu /= np.sum(mu)  # stationary distribution
-#             mu_opt[o] = mu
-#
-#             assert len(mu_opt[o]) == len(r_tilde_opt[o])
-#
-#             P_star = np.repeat(np.array(mu, ndmin=2), opt_nb_states,
-#                                axis=0)  # limiting matrix
-#
-#             # Compute deviation matrix
-#             I = np.eye(opt_nb_states)  # identity matrix
-#             Z = np.linalg.inv(I - Pap + P_star)  # fundamental matrix
-#             H = np.dot(Z, I - P_star)  # deviation matrix
-#
-#             condition_nb = 0  # condition number of deviation matrix
-#             for i in range(0, opt_nb_states):  # Seneta's condition number
-#                 for j in range(i + 1, opt_nb_states):
-#                     condition_nb = max(condition_nb,
-#                                        0.5 * np.linalg.norm(H[i, :] - H[j, :],
-#                                                             ord=1))
-#             condition_numbers_opt[o] = condition_nb
-#
-#         span_value, u1, u2 = self.opt_solver.run(
-#             policy_indices=self.policy_indices,
-#             policy=self.policy,
-#             p_hat=self.estimated_probabilities,
-#             r_hat_mdp=self.estimated_rewards_mdp,
-#             r_tilde_opt=r_tilde_opt,
-#             beta_p=beta_p,
-#             beta_r_mdp=beta_r,
-#             mu_opt=mu_opt,
-#             cn_opt=condition_numbers_opt,
-#             beta_mu_p=beta_mu_p,
-#             r_max=self.r_max,
-#             epsilon=self.r_max / m.sqrt(self.iteration + 1))
-#         t1 = time.time()
-#         print("OLD_EVI: {} s [{}]".format(t1-t0, span_value / self.r_max))
+        t0 = time.time()
+        nb_options = self.environment.nb_options
+        r_tilde_opt = [None] * nb_options
+        mu_opt = [None] * nb_options
+        condition_numbers_opt = np.empty((nb_options,))
+
+        beta_mu_p = np.zeros((nb_options,))
+
+        for o in range(nb_options):
+            option_policy = self.environment.options_policies[o]
+            option_reach_states = self.environment.reachable_states_per_option[o]
+            term_cond = self.environment.options_terminating_conditions[o]
+
+            opt_nb_states = len(option_reach_states)
+
+            Q_o = np.zeros((opt_nb_states, opt_nb_states))
+
+            # compute the reward and the mu
+            r_o = [0] * len(option_reach_states)
+            visits = self.total_time
+            bernstein_log = m.log(6* max_nb_actions / self.delta)
+            for i, s in enumerate(option_reach_states):
+                option_action = option_policy[s]
+                option_action_index = self.environment.get_index_of_action_state_in_mdp(s, option_action)
+                r_o[i] = self.estimated_rewards_mdp[s, option_action_index] + beta_r[s,option_action_index]
+
+                if visits > self.nb_observations_mdp[s, option_action_index]:
+                    visits = self.nb_observations_mdp[s, option_action_index]
+
+                bernstein_bound = 0.
+                nb_o = max(1, self.nb_observations_mdp[s, option_action_index])
+
+                for j, sprime in enumerate(option_reach_states):
+                    prob = self.estimated_probabilities_mdp[s][option_action_index][sprime]
+                    #q_o[i,0] += term_cond[sprime] * prob
+                    Q_o[i,j] = (1. - term_cond[sprime]) * prob
+                    bernstein_bound += np.sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o) + bernstein_log * 7 / (3 * nb_o)
+
+                if beta_mu_p[o] < bernstein_bound:
+                    beta_mu_p[o] = bernstein_bound
+
+            e_m = np.ones((opt_nb_states,1))
+            q_o = e_m - np.dot(Q_o, e_m)
+
+            r_tilde_opt[o] = r_o
+
+            if self.bound_type == "hoeffding":
+                beta_mu_p[o] =  self.range_mu_p * np.sqrt(14 * opt_nb_states * m.log(2 * max_nb_actions
+                    * (self.total_time + 1)/self.delta) / max(1, visits))
+
+            Pprime_o = np.concatenate((q_o, Q_o[:, 1:]), axis=1)
+            if not np.allclose(np.sum(Pprime_o, axis=1), np.ones(opt_nb_states)):
+                print("{}\n{}".format(Pprime_o,Q_o))
+
+
+            Pap = (Pprime_o + np.eye(opt_nb_states)) / 2.
+            D, U = np.linalg.eig(
+                np.transpose(Pap))  # eigen decomposition of transpose of P
+            sorted_indices = np.argsort(np.real(D))
+            mu = np.transpose(np.real(U))[sorted_indices[-1]]
+            mu /= np.sum(mu)  # stationary distribution
+            mu_opt[o] = mu
+
+            assert len(mu_opt[o]) == len(r_tilde_opt[o])
+
+            P_star = np.repeat(np.array(mu, ndmin=2), opt_nb_states,
+                               axis=0)  # limiting matrix
+
+            # Compute deviation matrix
+            I = np.eye(opt_nb_states)  # identity matrix
+            Z = np.linalg.inv(I - Pap + P_star)  # fundamental matrix
+            H = np.dot(Z, I - P_star)  # deviation matrix
+
+            condition_nb = 0  # condition number of deviation matrix
+            for i in range(0, opt_nb_states):  # Seneta's condition number
+                for j in range(i + 1, opt_nb_states):
+                    condition_nb = max(condition_nb,
+                                       0.5 * np.linalg.norm(H[i, :] - H[j, :],
+                                                            ord=1))
+            condition_numbers_opt[o] = condition_nb
+
+        span_value, u1, u2 = self.pyevi.run(
+            policy_indices=self.policy_indices,
+            policy=self.policy,
+            p_hat=self.estimated_probabilities,
+            r_hat_mdp=self.estimated_rewards_mdp,
+            r_tilde_opt=r_tilde_opt,
+            beta_p=beta_p,
+            beta_r_mdp=beta_r,
+            mu_opt=mu_opt,
+            cn_opt=condition_numbers_opt,
+            beta_mu_p=beta_mu_p,
+            r_max=self.r_max,
+            epsilon=self.r_max / m.sqrt(self.iteration + 1))
+        t1 = time.time()
+        print("OLD_EVI: {} s [{}]".format(t1-t0, span_value / self.r_max))
 
         # CHECK WHEN T_MAX=1
         # # # from UCRL.cython import  extended_value_iteration
@@ -326,42 +351,43 @@ class FreeUCRL_Alg1(AbstractUCRL):
         self.solver_times.append((t1-t0, t2-t1))
 
         # CHECK WITH PYTHON IMPL
-        # # r = self.new_evi.get_r_tilde_opt()
-        # # assert len(r) == len(r_tilde_opt)
-        # # for x, y in zip(r, r_tilde_opt):
-        # #     assert np.allclose(x, y)
-        # #
-        # # mu_e = self.new_evi.get_mu()
-        # # assert len(mu_opt) == len(mu_e)
-        # # for x, y in zip(mu_e, mu_opt):
-        # #     assert np.allclose(x, y)
-        # #
-        # # cn_e = self.new_evi.get_conditioning_numbers()
-        # # assert np.allclose(condition_numbers_opt, cn_e)
-        # #
-        # # b_mu_e = self.new_evi.get_beta_mu_p()
-        # # assert np.allclose(b_mu_e, beta_mu_p)
+        r = self.opt_solver.get_r_tilde_opt()
+        assert len(r) == len(r_tilde_opt)
+        for x, y in zip(r, r_tilde_opt):
+            assert np.allclose(x, y)
 
-        # print("NEW_EVI: {} s ({} + {})".format(t2-t0, t1-t0, t2-t1))
-        # print(span_value, new_span)
-        # assert np.isclose(span_value, new_span)
-        # #new_u1, new_u2 = self.new_evi.get_uvectors()
-        #
-        # # assert np.allclose(u1, new_u1, 1e-5), "{}\n{}".format(u1, new_u1)
-        # # assert np.allclose(u2, new_u2, 1e-5), "{}\n{}".format(u2, new_u2)
+        mu_e = self.opt_solver.get_mu()
+        assert len(mu_opt) == len(mu_e)
+        for x, y in zip(mu_e, mu_opt):
+            assert np.allclose(x, y)
+
+        cn_e = self.opt_solver.get_conditioning_numbers()
+        assert np.allclose(condition_numbers_opt, cn_e)
+
+        b_mu_e = self.opt_solver.get_beta_mu_p()
+        assert np.allclose(b_mu_e, beta_mu_p)
+
+        print("NEW_EVI: {} s ({} + {})".format(t2-t0, t1-t0, t2-t1))
+        print(span_value, new_span)
+        assert np.isclose(span_value, new_span)
+        #new_u1, new_u2 = self.new_evi.get_uvectors()
+
+        # assert np.allclose(u1, new_u1, 1e-5), "{}\n{}".format(u1, new_u1)
+        # assert np.allclose(u2, new_u2, 1e-5), "{}\n{}".format(u2, new_u2)
         return new_span
 
 
 class EVI_Alg1(object):
 
     def __init__(self, nb_states, thr, action_per_state,
-                 reachable_states_per_option):
+                 reachable_states_per_option, use_bernstein=0):
         self.mtx_maxprob_memview = np.ones((nb_states, nb_states)) * 99
         self.threshold = thr
         self.actions_per_state = action_per_state
         self.u1 = np.zeros(nb_states)
         self.u2 = np.zeros(nb_states)
         self.reachable_states_per_option = reachable_states_per_option
+        self.use_bernstein = use_bernstein
 
     def run(self, policy_indices, policy,
             p_hat,
@@ -383,18 +409,20 @@ class EVI_Alg1(object):
             for s in range(nb_states):
                 first_action = True
                 for action_idx, action in enumerate(self.actions_per_state[s]):
+                    if self.use_bernstein == 0:
+                        gg = self.max_proba(p_hat[s][action_idx], nb_states,
+                                       sorted_indices_u, beta_p[s][action_idx][0])
+                        assert len(beta_p[s][action_idx]) == 1
+                    else:
+                        gg = self.max_proba_bernstein(p_hat[s][action_idx], nb_states,
+                                       sorted_indices_u, beta_p[s][action_idx])
+                    gg[s] = gg[s] - 1.
+
                     if action <= self.threshold:
                         #this is an action
-                        self.mtx_maxprob_memview[s] = self.max_proba(p_hat[s][action_idx], nb_states,
-                                       sorted_indices_u, beta_p[s][action_idx])
-                        self.mtx_maxprob_memview[s][s] = self.mtx_maxprob_memview[s][s] - 1.
-
                         r_optimal = min(r_max, r_hat_mdp[s, action] + beta_r_mdp[s, action])
-                        v = r_optimal + np.dot(self.mtx_maxprob_memview[s], self.u1)
+                        v = r_optimal + np.dot(gg, self.u1)
                     else:
-                        gg = self.max_proba(p_hat[s][action_idx], nb_states,
-                                       sorted_indices_u, beta_p[s][action_idx])
-                        gg[s] = gg[s] - 1.
 
                         o = action - self.threshold - 1 # zero based index
 
@@ -487,3 +515,18 @@ class EVI_Alg1(object):
                 s = s2
                 if s <= 1: break
         return p2
+
+    def max_proba_bernstein(self, p, n, asc_sorted_indices, beta):
+        new_p = np.zeros(n)
+        delta = 1.
+        for i in range(n):
+            new_p[i] = max(0, p[i] - beta[i])
+            delta -= new_p[i]
+        i = n - 1
+        while delta > 0 and i >= 0:
+            idx = asc_sorted_indices[i]
+            new_delta = min(delta, p[idx] + beta[idx] - new_p[idx])
+            new_p[idx] += new_delta
+            delta -= new_delta
+            i -= 1
+        return new_p

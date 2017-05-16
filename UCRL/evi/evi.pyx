@@ -28,7 +28,7 @@ from ._utils cimport check_end
 from ._utils cimport dot_prod
 
 from ._max_proba cimport max_proba_purec
-from ._max_proba cimport max_proba_reduced
+from ._max_proba cimport max_proba_bernstein
 
 
 # =============================================================================
@@ -37,11 +37,13 @@ from ._max_proba cimport max_proba_reduced
 
 cdef class EVI:
 
-    def __init__(self, nb_states, list actions_per_state):
+    def __init__(self, nb_states, list actions_per_state, use_bernstein=0):
         cdef SIZE_t n, m, i, j
         self.nb_states = nb_states
         self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
         self.u2 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
+
+        self.bernstein_bound = use_bernstein
 
         # allocate indices and memoryview (may slow down)
         self.sorted_indices = <SIZE_t *> malloc(nb_states * sizeof(SIZE_t))
@@ -79,7 +81,7 @@ cdef class EVI:
                      DTYPE_t[:,:] estimated_rewards,
                      DTYPE_t[:,:] estimated_holding_times,
                      DTYPE_t[:,:] beta_r,
-                     DTYPE_t[:,:] beta_p,
+                     DTYPE_t[:,:,:] beta_p,
                      DTYPE_t[:,:] beta_tau,
                      DTYPE_t tau_max,
                      DTYPE_t r_max,
@@ -109,12 +111,16 @@ cdef class EVI:
                 for s in prange(nb_states):
                     first_action = 1
                     for a_idx in range(self.actions_per_state[s].dim):
-                        # max_proba_purec
-                        # max_proba_reduced
-                        max_proba_purec(estimated_probabilities[s][a_idx],
-                                        nb_states,
-                                    sorted_indices, beta_p[s][a_idx],
-                                    mtx_maxprob_memview[s])
+                        if self.bernstein_bound == 0:
+                            # max_proba_purec
+                            # max_proba_reduced
+                            max_proba_purec(estimated_probabilities[s][a_idx], nb_states,
+                                        sorted_indices, beta_p[s][a_idx][0],
+                                        mtx_maxprob_memview[s])
+                        else:
+                            max_proba_bernstein(estimated_probabilities[s][a_idx], nb_states,
+                                        sorted_indices, beta_p[s][a_idx],
+                                        mtx_maxprob_memview[s])
                         mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
                         r_optimal = min(tau_max*r_max,
                                         estimated_rewards[s][a_idx] + beta_r[s][a_idx])

@@ -19,6 +19,7 @@ cdef class EVI:
     cdef SIZE_t *sorted_indices
     cdef SIZE_t nb_states
     cdef IntVectorStruct* actions_per_state
+    cdef SIZE_t bernstein_bound
 
     # Methods
 
@@ -27,7 +28,7 @@ cdef class EVI:
                      DTYPE_t[:,:] estimated_rewards,
                      DTYPE_t[:,:] estimated_holding_times,
                      DTYPE_t[:,:] beta_r,
-                     DTYPE_t[:,:] beta_p,
+                     DTYPE_t[:,:,:] beta_p,
                      DTYPE_t[:,:] beta_tau,
                      DTYPE_t tau_max,
                      DTYPE_t r_max,

@@ -10,6 +10,7 @@ import time
 class SMDPUCRL_Mixed(AbstractUCRL):
     def __init__(self, environment, r_max, t_max, t_min=1, range_r=-1,
                  range_r_actions=-1, range_tau=-1, range_p=-1,
+                 bound_type="hoeffding",
                  verbose = 0, logger=default_logger):
         assert isinstance(environment, MixedEnvironment)
 
@@ -17,7 +18,8 @@ class SMDPUCRL_Mixed(AbstractUCRL):
                                              r_max=r_max, range_r=range_r,
                                              range_p=range_p, solver=None,
                                              verbose=verbose,
-                                             logger=logger)
+                                             logger=logger,
+                                             bound_type=bound_type)
         self.tau = t_min - 0.1
         self.tau_max = t_max
         self.tau_min = t_min
@@ -123,8 +125,16 @@ class SMDPUCRL_Mixed(AbstractUCRL):
 
     def beta_p(self):
         nb_states, nb_actions = self.nb_observations.shape
-        return self.range_p * np.sqrt(14 * nb_states * m.log(2 * nb_actions
+        if self.bound_type == "hoeffding":
+            beta = self.range_p * np.sqrt(14 * nb_states * m.log(2 * nb_actions
                     * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))
+            return beta.reshape([nb_states, nb_actions, 1])
+        else:
+            Z = m.log(6 * nb_actions * (self.iteration + 1) / self.delta)
+            n = np.maximum(1, self.nb_observations)
+            A = np.sqrt(2 * self.estimated_probabilities * (1-self.estimated_probabilities) * Z / n)
+            B = Z * 7 / (3 * n)
+            return self.range_p * (A + B)
 
     def beta_r(self):
         nb_states, nb_actions = self.estimated_rewards.shape
