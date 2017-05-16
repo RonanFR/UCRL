@@ -6,7 +6,6 @@ import time
 import datetime
 import shutil
 import json
-import matplotlib.pyplot as plt
 import numpy as np
 import UCRL.envs.toys.NavigateGrid as NavigateGrid
 import UCRL.envs.toys.OptionGrid as OptionGrid
@@ -16,6 +15,13 @@ from UCRL.free_ucrl import FreeUCRL_Alg1
 from UCRL.envs import OptionEnvironment, MixedEnvironment
 import UCRL.logging as ucrl_logger
 from optparse import OptionParser
+
+import matplotlib
+# 'DISPLAY' will be something like this ':0'
+# on your local machine, and None otherwise
+if os.environ.get('DISPLAY') is None:
+    matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
