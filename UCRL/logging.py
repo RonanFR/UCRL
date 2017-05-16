@@ -45,9 +45,11 @@ def create_logger(name, path="", fake_log=False):
     return logger
 
 
-def create_multilogger(console=True, filename=None, path="", fake_log=False):
-    # create logger with 'spam_application'
-    logger = logging.getLogger('ucrl_application')
+def create_multilogger(logger_name, console=True,
+                       filename=None, path="", fake_log=False):
+    logger = logging.getLogger(logger_name)
+    if len(logger.handlers) > 0:
+        return logger
     logger.setLevel(logging.DEBUG)
     if fake_log:
         logger.addHandler(logging.NullHandler())

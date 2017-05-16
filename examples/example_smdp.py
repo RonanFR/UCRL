@@ -140,7 +140,8 @@ for rep in range(in_options.nb_simulations):
     random.seed(seed)
 
     name = "trace_{}".format(rep)
-    ucrl_log = ucrl_logger.create_multilogger(console=not in_options.quiet,
+    ucrl_log = ucrl_logger.create_multilogger(logger_name=name,
+                                              console=not in_options.quiet,
                                               filename=name,
                                               path=folder_results)
 
