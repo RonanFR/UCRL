@@ -36,7 +36,7 @@ from libc.stdio cimport printf
 # Extended Value Iteration Class
 # =============================================================================
 
-cdef class FreeEVIAlg1:
+cdef class EVI_FSUCRLv1:
 
     def __init__(self,
                  int nb_states,

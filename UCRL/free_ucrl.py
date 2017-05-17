@@ -3,40 +3,43 @@ from .envs import MixedEnvironment
 import numpy as np
 import math as m
 from .logging import default_logger
-from .evi import FreeEVIAlg1
+from .evi import EVI_FSUCRLv1
+from .evi.pyfreeevi import PyEVI_FSUCRLv1, PyEVI_FSUCRLv2
 import time
 
 
-class FreeUCRL_Alg1(AbstractUCRL):
+class FSUCRLv1(AbstractUCRL):
     def __init__(self, environment, r_max,
                  range_r=-1, range_p=-1, range_mu_p=-1,
                  bound_type="hoeffding",
-                 verbose = 0, logger=default_logger):
+                 verbose = 0, logger=default_logger,
+                 evi_solver=None):
 
         assert isinstance(environment, MixedEnvironment)
 
-        # self.pyevi = EVI_Alg1(nb_states=environment.nb_states,
+        # self.pyevi = PyEVI_FSUCRLv1(nb_states=environment.nb_states,
         #                       thr=environment.threshold_options,
         #                       action_per_state=environment.get_state_actions(),
         #                       reachable_states_per_option=environment.reachable_states_per_option,
         #                       use_bernstein=1 if bound_type == "bernstein" else 0)
 
-        new_evi = FreeEVIAlg1(nb_states=environment.nb_states,
-                              nb_options=environment.nb_options,
-                              threshold=environment.threshold_options,
-                              macro_actions_per_state=environment.get_state_actions(),
-                              reachable_states_per_option=environment.reachable_states_per_option,
-                              option_policies=environment.options_policies,
-                              options_terminating_conditions=environment.options_terminating_conditions,
-                              mdp_actions_per_state=environment.environment.get_state_actions(),
-                              use_bernstein=1 if bound_type == "bernstein" else 0)
+        if evi_solver is None:
+            evi_solver = EVI_FSUCRLv1(nb_states=environment.nb_states,
+                                  nb_options=environment.nb_options,
+                                  threshold=environment.threshold_options,
+                                  macro_actions_per_state=environment.get_state_actions(),
+                                  reachable_states_per_option=environment.reachable_states_per_option,
+                                  option_policies=environment.options_policies,
+                                  options_terminating_conditions=environment.options_terminating_conditions,
+                                  mdp_actions_per_state=environment.environment.get_state_actions(),
+                                  use_bernstein=1 if bound_type == "bernstein" else 0)
 
-        super(FreeUCRL_Alg1, self).__init__(environment=environment,
-                                            r_max=r_max, range_r=range_r,
-                                            range_p=range_p, solver=new_evi,
-                                            verbose=verbose,
-                                            logger=logger,
-                                            bound_type=bound_type)
+        super(FSUCRLv1, self).__init__(environment=environment,
+                                       r_max=r_max, range_r=range_r,
+                                       range_p=range_p, solver=evi_solver,
+                                       verbose=verbose,
+                                       logger=logger,
+                                       bound_type=bound_type)
 
         nb_states = self.environment.nb_states
         max_nb_mdp_actions = environment.max_nb_mdp_actions_per_state # actions of the mdp
@@ -380,156 +383,55 @@ class FreeUCRL_Alg1(AbstractUCRL):
         return new_span
 
 
-class EVI_Alg1(object):
+class FSUCRLv2(FSUCRLv1):
+    def __init__(self, environment, r_max,
+                 range_r=-1, range_p=-1, range_opt_p=-1,
+                 bound_type="hoeffding",
+                 verbose = 0, logger=default_logger):
 
-    def __init__(self, nb_states, thr, action_per_state,
-                 reachable_states_per_option, use_bernstein=0):
-        self.mtx_maxprob_memview = np.ones((nb_states, nb_states)) * 99
-        self.threshold = thr
-        self.actions_per_state = action_per_state
-        self.u1 = np.zeros(nb_states)
-        self.u2 = np.zeros(nb_states)
-        self.reachable_states_per_option = reachable_states_per_option
-        self.use_bernstein = use_bernstein
+        evi_solver = PyEVI_FSUCRLv2(nb_states=environment.nb_states,
+                                    nb_options=environment.nb_options,
+                                    threshold=environment.threshold_options,
+                                    macro_actions_per_state=environment.get_state_actions(),
+                                    reachable_states_per_option=environment.reachable_states_per_option,
+                                    option_policies=environment.options_policies,
+                                    options_terminating_conditions=environment.options_terminating_conditions,
+                                    mdp_actions_per_state=environment.environment.get_state_actions(),
+                                    use_bernstein=1 if bound_type == "bernstein" else 0)
 
-    def run(self, policy_indices, policy,
-            p_hat,
-            r_hat_mdp,
-            r_tilde_opt,
-            beta_p,
-            beta_r_mdp,
-            mu_opt,
-            cn_opt,
-            beta_mu_p,
-            r_max,
-            epsilon):
-        self.u1.fill(0.0)
-        nb_states = p_hat.shape[0]
-        sorted_indices_u = np.arange(nb_states)
-        self.counter = 0
-        while True:
-            self.counter += 1
-            for s in range(nb_states):
-                first_action = True
-                for action_idx, action in enumerate(self.actions_per_state[s]):
-                    if self.use_bernstein == 0:
-                        gg = self.max_proba(p_hat[s][action_idx], nb_states,
-                                       sorted_indices_u, beta_p[s][action_idx][0])
-                        assert len(beta_p[s][action_idx]) == 1
-                    else:
-                        gg = self.max_proba_bernstein(p_hat[s][action_idx], nb_states,
-                                       sorted_indices_u, beta_p[s][action_idx])
-                    gg[s] = gg[s] - 1.
+        super(FSUCRLv2, self).__init__(
+            environment=environment,
+            r_max=r_max,
+            range_r=range_r, range_p=range_p, range_mu_p=range_opt_p,
+            bound_type=bound_type,
+            verbose=verbose, logger=logger,
+            evi_solver=evi_solver
+        )
 
-                    if action <= self.threshold:
-                        #this is an action
-                        r_optimal = min(r_max, r_hat_mdp[s, action] + beta_r_mdp[s, action])
-                        v = r_optimal + np.dot(gg, self.u1)
-                    else:
 
-                        o = action - self.threshold - 1 # zero based index
+    def solve_optimistic_model(self):
+        beta_r = self.beta_r()  # confidence bounds on rewards
+        beta_p = self.beta_p()  # confidence bounds on transition probabilities
+        max_nb_actions = self.estimated_probabilities.shape[1]
 
-                        x = np.zeros(len(self.reachable_states_per_option[o]))
-                        for kk, kk_v in enumerate(self.reachable_states_per_option[o]):
-                            x[kk] = min(r_max, r_tilde_opt[o][kk])
+        self.opt_solver.compute_prerun_info(
+            estimated_probabilities_mdp=self.estimated_probabilities,
+            estimated_rewards_mdp=self.estimated_rewards_mdp,
+            beta_r=beta_r,
+            nb_observations_mdp=self.nb_observations_mdp,
+            total_time=self.total_time,
+            delta=self.delta,
+            max_nb_actions=max_nb_actions,
+            range_opt_p=self.range_mu_p)
 
-                            if s == kk_v:
-                                x[kk] += np.dot(gg, self.u1)
+        new_span, u1, u2 = self.opt_solver.run(
+            policy_indices=self.policy_indices,
+            policy=self.policy,
+            p_hat=self.estimated_probabilities,
+            r_hat_mdp=self.estimated_rewards_mdp,
+            beta_p=beta_p,
+            beta_r_mdp=beta_r,
+            r_max=self.r_max,
+            epsilon=self.r_max / m.sqrt(self.iteration + 1))
 
-                        sorted_indices_mu = np.argsort(x, kind='mergesort')
-                        # print(sorted_indices_mu)
-
-                        max_mu = self.max_proba(mu_opt[o], len(mu_opt[o]),
-                                       sorted_indices_mu, cn_opt[o]*beta_mu_p[o])
-                        v = np.dot(max_mu, x)
-
-                    c1 = v + self.u1[s]
-                    if first_action or c1 > self.u2[s] or m.isclose(c1, self.u2[s]):
-                        self.u2[s] = c1
-                        policy_indices[s] = action_idx
-                        policy[s] = action
-                    first_action = False
-
-            # print("**%d\n" % self.counter)
-            # for i in range(nb_states):
-            #     print("{:.2f}[{:.2f}] ".format(self.u1[i], self.u2[i]), end=" ")
-            # print("\n")
-
-            if max(self.u2-self.u1)-min(self.u2-self.u1) < epsilon:  # stopping condition
-                # print("++ {}\n".format(self.counter))
-                return max(self.u1) - min(self.u1), self.u1, self.u2
-            else:
-                self.u1 = self.u2
-                self.u2 = np.empty(nb_states)
-                sorted_indices_u = np.argsort(self.u1, kind='mergesort')
-                # for i in range(nb_states):
-                #     printf("%d , ", sorted_indices[i])
-                # printf("\n")
-
-    # def max_proba(self, p, n, asc_sorted_indices, beta):
-    #     new_p = 99 * np.ones(n)
-    #     temp = min(1., p[asc_sorted_indices[n-1]] + beta/2.0)
-    #     new_p[asc_sorted_indices[n-1]] = temp
-    #     sum_p = temp
-    #     if temp < 1.:
-    #         for i in range(0, n-1):
-    #             temp = p[asc_sorted_indices[i]]
-    #             new_p[asc_sorted_indices[i]] = temp
-    #             sum_p += temp
-    #         i = 0
-    #         while sum_p > 1.0 and i < n:
-    #             sum_p -= p[asc_sorted_indices[i]]
-    #             new_p[asc_sorted_indices[i]] = max(0.0, 1. - sum_p)
-    #             sum_p += new_p[asc_sorted_indices[i]]
-    #             i += 1
-    #     else:
-    #         for i in range(0, n):
-    #             new_p[i] = 0
-    #         new_p[asc_sorted_indices[n-1]] = temp
-    #     return new_p
-
-    def max_proba(self, p, n, sorted_indices, beta):
-        """
-        Use compiled .so file for improved speed.
-        :param p: probability distribution with toys support
-        :param sorted_indices: argsort of value function
-        :param beta: confidence bound on the empirical probability
-        :return: optimal probability
-        """
-        #n = np.size(sorted_indices)
-        min1 = min(1, p[sorted_indices[n-1]] + beta/2)
-        if min1 == 1:
-            p2 = np.zeros(n)
-            p2[sorted_indices[n-1]] = 1
-        else:
-            sorted_p = p[sorted_indices]
-            support_sorted_p = np.nonzero(sorted_p)[0]
-            restricted_sorted_p = sorted_p[support_sorted_p]
-            support_p = sorted_indices[support_sorted_p]
-            p2 = np.zeros(n)
-            p2[support_p] = restricted_sorted_p
-            p2[sorted_indices[n-1]] = min1
-            s = 1 - p[sorted_indices[n-1]] + min1
-            s2 = s
-            for i, proba in enumerate(restricted_sorted_p):
-                max1 = max(0, 1 - s + proba)
-                s2 += (max1 - proba)
-                p2[support_p[i]] = max1
-                s = s2
-                if s <= 1: break
-        return p2
-
-    def max_proba_bernstein(self, p, n, asc_sorted_indices, beta):
-        new_p = np.zeros(n)
-        delta = 1.
-        for i in range(n):
-            new_p[i] = max(0, p[i] - beta[i])
-            delta -= new_p[i]
-        i = n - 1
-        while delta > 0 and i >= 0:
-            idx = asc_sorted_indices[i]
-            new_delta = min(delta, p[idx] + beta[idx] - new_p[idx])
-            new_p[idx] += new_delta
-            delta -= new_delta
-            i -= 1
-        return new_p
+        return new_span

@@ -6,7 +6,7 @@ import os
 from optparse import OptionParser
 from optparse import Option, OptionValueError
 from UCRL.Ucrl import UcrlMdp, UcrlSmdpBounded
-from UCRL.free_ucrl import FreeUCRL_Alg1
+from UCRL.free_ucrl import FSUCRLv1
 
 class MultipleOption(Option):
     ACTIONS = Option.ACTIONS + ("extend",)

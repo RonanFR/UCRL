@@ -11,7 +11,7 @@ import UCRL.envs.toys.NavigateGrid as NavigateGrid
 import UCRL.envs.toys.OptionGrid as OptionGrid
 import UCRL.envs.toys.OptionGridFree as OptionGridFree
 import UCRL.envs.RewardDistributions as RewardDistributions
-from UCRL.free_ucrl import FreeUCRL_Alg1
+from UCRL.free_ucrl import FSUCRLv1, FSUCRLv2
 from UCRL.envs import OptionEnvironment, MixedEnvironment
 import UCRL.logging as ucrl_logger
 import UCRL.parameters_init as tuning
@@ -30,7 +30,9 @@ parser.add_option("-d", "--dimension", dest="dimension", type="int",
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="duration of the experiment", default=5000000)
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
-                  help="t_max for options", default=3)
+                  help="t_max for options", default=1)
+parser.add_option("-a", "--v_alg", dest="v_alg", type="int",
+                  help="Version of the algorithm", default=2)
 # parser.add_option("-c", dest="c", type="float",
 #                   help="c value", default=0.8)
 parser.add_option("--rmax", dest="r_max", type="float",
@@ -158,15 +160,30 @@ for rep in range(in_options.nb_simulations):
                                               console=not in_options.quiet,
                                               filename=name,
                                               path=folder_results)
-    ucrl = FreeUCRL_Alg1(
-        environment=copy.deepcopy(mixed_environment),
-        r_max=in_options.r_max,
-        range_r=in_options.range_r,
-        range_p=in_options.range_p,
-        range_mu_p=in_options.range_mu_p,
-        verbose=1,
-        logger=ucrl_log,
-        bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
+    if in_options.v_alg == 1:
+        ucrl = FSUCRLv1(
+            environment=copy.deepcopy(mixed_environment),
+            r_max=in_options.r_max,
+            range_r=in_options.range_r,
+            range_p=in_options.range_p,
+            range_mu_p=in_options.range_mu_p,
+            verbose=1,
+            logger=ucrl_log,
+            bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
+    elif in_options.v_alg == 2:
+        ucrl = FSUCRLv2(
+            environment=copy.deepcopy(mixed_environment),
+            r_max=in_options.r_max,
+            range_r=in_options.range_r,
+            range_p=in_options.range_p,
+            range_opt_p=in_options.range_mu_p,
+            verbose=1,
+            logger=ucrl_log,
+            bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
+    else:
+        raise ValueError("Unknown")
+
+
     h = ucrl.learn(in_options.duration, in_options.regret_time_steps)  # learn task
     ucrl.clear_before_pickle()
 

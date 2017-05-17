@@ -11,7 +11,7 @@ cimport numpy as np
 from ._utils cimport DTYPE_t, SIZE_t
 from ._utils cimport IntVectorStruct, DoubleVectorStruct
 
-cdef class FreeEVIAlg1:
+cdef class EVI_FSUCRLv1:
     cdef DTYPE_t *u1
     cdef DTYPE_t *u2
     cdef DTYPE_t *mtx_maxprob
