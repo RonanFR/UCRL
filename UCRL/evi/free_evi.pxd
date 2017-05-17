@@ -80,6 +80,8 @@ cdef class EVI_FSUCRLv2:
     cdef DTYPE_t *mtx_maxprob
     cdef DTYPE_t[:,:] mtx_maxprob_memview
 
+    cdef DTYPE_t *max_opt_p # (|O|x|S|)
+
     # --------------------------------------------------------------------------
     # Model info
     # --------------------------------------------------------------------------

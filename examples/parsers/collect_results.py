@@ -24,7 +24,7 @@ PROG = os.path.basename(os.path.splitext(__file__)[0])
 parser = OptionParser(option_class=MultipleOption,
                       usage='usage: %prog [OPTIONS]')
 parser.add_option("-f", "--folder", dest="folder", type="str",
-                  help="folder containing results", default="../res_20170516")
+                  help="folder containing results", default="../../results/test_20170517_002618")
 parser.add_option('-c', '--categories',
                   action="extend", type="string", default=["c1"],
                   dest='categories', metavar='CATEGORIES',
@@ -34,7 +34,7 @@ parser.add_option('-c', '--categories',
 print("arguments: {}".format(in_args))
 print("options: {}".format(in_options))
 
-algorithms = ["smdp", "mdp", "freesmdp"]
+algorithms = ["smdp", "freesmdp"]#, "mdp"]
 
 eq_config = dict()
 eq_config['mdp'] = {"c1":"c1", "c2":"c1",

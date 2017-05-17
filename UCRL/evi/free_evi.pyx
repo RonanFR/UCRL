@@ -479,3 +479,5 @@ cdef class EVI_FSUCRLv2:
 
         self.sorted_indices_opt_p = <SIZE_t *> malloc(nb_states * max_states_per_option * sizeof(SIZE_t))
         self.max_reachable_states_per_opt = max_states_per_option
+
+        self.max_opt_p = <DTYPE_t*> malloc(nb_states * nb_states * sizeof(DTYPE_t))
