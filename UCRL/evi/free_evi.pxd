@@ -11,6 +11,10 @@ cimport numpy as np
 from ._utils cimport DTYPE_t, SIZE_t
 from ._utils cimport IntVectorStruct, DoubleVectorStruct
 
+
+cdef DTYPE_t check_end_opt_evi(DTYPE_t* x, DTYPE_t* y, SIZE_t dim,
+                               DTYPE_t* add_res) nogil
+
 cdef class EVI_FSUCRLv1:
     cdef DTYPE_t *u1
     cdef DTYPE_t *u2
@@ -71,16 +75,19 @@ cdef class EVI_FSUCRLv2:
     # --------------------------------------------------------------------------
     # Matrix-like structures required by the algorithm
     # --------------------------------------------------------------------------
-    cdef DTYPE_t *u1
-    cdef DTYPE_t *u2
-    cdef DoubleVectorStruct *w1
-    cdef DoubleVectorStruct *w2
+    cdef DTYPE_t *u1             # (|S|)
+    cdef DTYPE_t *u2             # (|S|)
+    cdef DoubleVectorStruct *w1  # (|O|x nb reach states)
+    cdef DoubleVectorStruct *w2  # (|O|x nb reach states)
+    cdef DTYPE_t* span_w_opt     # (|O|)
 
-    cdef SIZE_t *sorted_indices
-    cdef DTYPE_t *mtx_maxprob
+    cdef SIZE_t *sorted_indices  # (|S|)
+    cdef DTYPE_t *mtx_maxprob    # (|S| x |S|)
     cdef DTYPE_t[:,:] mtx_maxprob_memview
 
-    cdef DTYPE_t *max_opt_p # (|O|x|S|)
+
+    cdef DTYPE_t *mtx_maxprob_opt # (|O| x |S|)
+    cdef DTYPE_t[:,:] mtx_maxprob_opt_memview
 
     # --------------------------------------------------------------------------
     # Model info
@@ -90,13 +97,17 @@ cdef class EVI_FSUCRLv2:
     # --------------------------------------------------------------------------
     # Options info
     # --------------------------------------------------------------------------
-    cdef IntVectorStruct* reachable_states_per_option
-    cdef SIZE_t* options_policies
+    cdef IntVectorStruct* reachable_states_per_option # (|O| x nb reach states)
+    cdef SIZE_t* options_policies # (|O| x |S|)
     cdef SIZE_t* options_policies_indices_mdp # index of an action executed by
                                               # an option wrt the original mdp
-    cdef DTYPE_t* options_terminating_conditions
+    cdef DTYPE_t* options_terminating_conditions # (|O| x |S|)
 
-    cdef DoubleVectorStruct* r_tilde_opt
+    cdef DoubleVectorStruct* r_tilde_opt #(|O|x nb reach states)
+    cdef DoubleVectorStruct* beta_opt_p  #(|O|x (nb reach states)^2 )
+    cdef DoubleVectorStruct* p_hat_opt   #(|O|x (nb reach states)^2 )
+
+    cdef IntVectorStruct* sorted_indices_popt #(|O|x nb reach states)
 
     # --------------------------------------------------------------------------
     # Scalar info
@@ -109,4 +120,26 @@ cdef class EVI_FSUCRLv2:
 
     cdef SIZE_t max_reachable_states_per_opt
 
+
+    # --------------------------------------------------------------------------
+    # METHODS
+    # --------------------------------------------------------------------------
+    cpdef compute_mu_info(self,
+                          DTYPE_t[:,:,:] estimated_probabilities_mdp,
+                          DTYPE_t[:,:] estimated_rewards_mdp,
+                          DTYPE_t[:,:] beta_r,
+                          SIZE_t[:,:] nb_observations_mdp,
+                          DTYPE_t range_mu_p,
+                          SIZE_t total_time,
+                          DTYPE_t delta,
+                          SIZE_t max_nb_actions,
+                          DTYPE_t range_opt_p)
+
+    cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
+                     DTYPE_t[:,:,:] p_hat,
+                     DTYPE_t[:,:] r_hat_mdp,
+                     DTYPE_t[:,:,:] beta_p,
+                     DTYPE_t[:,:] beta_r_mdp,
+                     DTYPE_t r_max,
+                     DTYPE_t epsilon)
 

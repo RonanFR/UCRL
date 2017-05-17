@@ -27,3 +27,8 @@ cdef void max_proba_bernstein(DTYPE_t[:] p,
                           SIZE_t* asc_sorted_indices,
                           DTYPE_t[:] beta, DTYPE_t[:] new_p) nogil
 
+cdef void max_proba_bernstein_cin(DTYPE_t* p,
+                          SIZE_t n,
+                          SIZE_t* asc_sorted_indices,
+                          DTYPE_t* beta, DTYPE_t[:] new_p) nogil
+

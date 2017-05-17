@@ -25,9 +25,9 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
-                  help="dimension of the gridworld", default=5)
+                  help="dimension of the gridworld", default=20)
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=5000000)
+                  help="duration of the experiment", default=30000000)
 # parser.add_option("-c", dest="c", type="float",
 #                   help="c value", default=0.8)
 parser.add_option("-b", "--bernstein", action="store_true", dest="use_bernstein",
@@ -47,7 +47,7 @@ parser.add_option("--id", dest="id", type="str",
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
-parser.add_option("--seed", dest="seed_0", default=random.getrandbits(64),
+parser.add_option("--seed", dest="seed_0", default=17400331686329065023,#random.getrandbits(64),
                   help="Seed used to generate the random seed sequence")
 
 (in_options, in_args) = parser.parse_args()
@@ -62,14 +62,14 @@ if in_options.id is None:
 if in_options.range_p < 0:
     if not in_options.use_bernstein:
         in_options.range_p = tuning.range_p_from_hoeffding(
-            nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
+            nb_states=in_options.dimension, nb_actions=4, nb_observations=5)
     else:
         in_options.range_p = tuning.range_p_from_bernstein(
             nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
 
 if in_options.range_r < 0:
     in_options.range_r = tuning.range_r_from_hoeffding(
-        nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
+        nb_states=in_options.dimension, nb_actions=4, nb_observations=40)
 
 config = vars(in_options)
 #config['range_r'] = range_r
@@ -111,6 +111,7 @@ for rep in range(in_options.nb_simulations):
                                               filename=name,
                                               path=folder_results)
 
+    ucrl_log.info("Using Bernstein: {}".format(in_options.use_bernstein))
     ucrl = Ucrl.UcrlMdp(
         grid,
         r_max=in_options.r_max,
@@ -126,12 +127,12 @@ for rep in range(in_options.nb_simulations):
         pickle.dump(ucrl, f)
 
     plt.figure()
-    plt.plot(ucrl.span_values)
+    plt.plot(ucrl.span_values, '-')
     plt.xlabel("Points")
     plt.ylabel("Span")
     plt.savefig(os.path.join(folder_results, "span_{}.png".format(rep)))
     plt.figure()
-    plt.plot(ucrl.regret)
+    plt.plot(ucrl.regret, '-')
     plt.xlabel("Points")
     plt.ylabel("Regret")
     plt.savefig(os.path.join(folder_results, "regret_{}.png".format(rep)))

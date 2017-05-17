@@ -106,3 +106,22 @@ cdef void max_proba_bernstein(DTYPE_t[:] p,
         delta -= new_delta
         i -= 1
 
+cdef void max_proba_bernstein_cin(DTYPE_t* p,
+                          SIZE_t n,
+                          SIZE_t* asc_sorted_indices,
+                          DTYPE_t* beta, DTYPE_t[:] new_p) nogil:
+    cdef SIZE_t i, idx
+    cdef DTYPE_t delta, new_delta
+
+    delta = 1.
+    for i in range(n):
+        new_p[i] = max(0, p[i] - beta[i])
+        delta -= new_p[i]
+    i = n - 1
+    while delta > 0 and i >= 0:
+        idx = asc_sorted_indices[i]
+        new_delta = min(delta, p[idx] + beta[idx] - new_p[idx])
+        new_p[idx] += new_delta
+        delta -= new_delta
+        i -= 1
+
