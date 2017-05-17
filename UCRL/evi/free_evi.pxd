@@ -67,3 +67,44 @@ cdef class EVI_FSUCRLv1:
     cpdef get_r_tilde_opt(self)
 
 
+cdef class EVI_FSUCRLv2:
+    # --------------------------------------------------------------------------
+    # Matrix-like structures required by the algorithm
+    # --------------------------------------------------------------------------
+    cdef DTYPE_t *u1
+    cdef DTYPE_t *u2
+    cdef DoubleVectorStruct *w1
+    cdef DoubleVectorStruct *w2
+
+    cdef SIZE_t *sorted_indices
+    cdef DTYPE_t *mtx_maxprob
+    cdef DTYPE_t[:,:] mtx_maxprob_memview
+
+    # --------------------------------------------------------------------------
+    # Model info
+    # --------------------------------------------------------------------------
+    cdef IntVectorStruct* actions_per_state
+
+    # --------------------------------------------------------------------------
+    # Options info
+    # --------------------------------------------------------------------------
+    cdef IntVectorStruct* reachable_states_per_option
+    cdef SIZE_t* options_policies
+    cdef SIZE_t* options_policies_indices_mdp # index of an action executed by
+                                              # an option wrt the original mdp
+    cdef DTYPE_t* options_terminating_conditions
+
+    cdef DoubleVectorStruct* r_tilde_opt
+
+    # --------------------------------------------------------------------------
+    # Scalar info
+    # --------------------------------------------------------------------------
+    cdef SIZE_t nb_states
+    cdef SIZE_t nb_options
+    cdef SIZE_t threshold
+
+    cdef SIZE_t bernstein_bound
+
+    cdef SIZE_t max_reachable_states_per_opt
+
+

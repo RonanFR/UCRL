@@ -386,3 +386,96 @@ cdef class EVI_FSUCRLv1:
                 L.append(self.r_tilde_opt[i].values[j])
             r.append(L)
         return r
+
+
+cdef class EVI_FSUCRLv2:
+
+    def __init__(self,
+             int nb_states,
+             int nb_options,
+             list macro_actions_per_state,
+             list mdp_actions_per_state,
+             int threshold,
+             list option_policies,
+             list reachable_states_per_option,
+             list options_terminating_conditions,
+             use_bernstein=0):
+        cdef SIZE_t n, m, i, j, idx
+        cdef SIZE_t max_states_per_option = 0
+
+        self.nb_states = nb_states
+        self.nb_options = nb_options
+        self.threshold = threshold
+        self.bernstein_bound = use_bernstein
+
+
+        self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
+        self.u2 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
+
+
+        # allocate indices and memoryview (may slow down)
+        self.sorted_indices = <SIZE_t *> malloc(nb_states * sizeof(SIZE_t))
+        for i in range(nb_states):
+            self.u1[i] = 0
+            self.u2[i] = 0
+            self.sorted_indices[i] = i
+
+        # allocate space for matrix of max probabilities and the associated memory view
+        self.mtx_maxprob = <DTYPE_t *>malloc(nb_states * nb_states * sizeof(DTYPE_t))
+        self.mtx_maxprob_memview = <DTYPE_t[:nb_states, :nb_states]> self.mtx_maxprob
+
+        # ----------------------------------------------------------------------
+        # Copy list of actions per state
+        # ----------------------------------------------------------------------
+        n = len(macro_actions_per_state)
+        assert n == nb_states
+        self.actions_per_state = <IntVectorStruct *> malloc(n * sizeof(IntVectorStruct))
+        for i in range(n):
+            m = len(macro_actions_per_state[i])
+            self.actions_per_state[i].dim = m
+            self.actions_per_state[i].values = <SIZE_t *> malloc(m * sizeof(SIZE_t))
+            for j in range(m):
+                self.actions_per_state[i].values[j] = macro_actions_per_state[i][j]
+
+        # ----------------------------------------------------------------------
+        # Copy
+        #  - option reachable states
+        #  - option terminating condition
+        #  - option policies
+        #  - option policy indices
+        # Create
+        #  - optimistic reward for options (r_tilde_opt)
+        #  -
+        # ----------------------------------------------------------------------
+        n = len(reachable_states_per_option)
+        assert n == nb_options
+        self.reachable_states_per_option = <IntVectorStruct *> malloc(n * sizeof(IntVectorStruct))
+        self.r_tilde_opt = <DoubleVectorStruct *> malloc(nb_options * sizeof(DoubleVectorStruct))
+
+        self.options_policies = <SIZE_t *>malloc(nb_options * nb_states * sizeof(SIZE_t)) # (O x S)
+        self.options_policies_indices_mdp = <SIZE_t *>malloc(nb_options * nb_states * sizeof(SIZE_t)) # (O x S)
+        self.options_terminating_conditions = <DTYPE_t *>malloc(nb_options * nb_states * sizeof(SIZE_t)) # (O x S)
+
+        for i in range(n):
+            m = len(reachable_states_per_option[i])
+            if m > max_states_per_option:
+                max_states_per_option = m
+            self.reachable_states_per_option[i].dim = m
+            self.reachable_states_per_option[i].values = <SIZE_t *> malloc(m * sizeof(SIZE_t))
+            for j in range(m):
+                self.reachable_states_per_option[i].values[j] = reachable_states_per_option[i][j]
+
+            self.r_tilde_opt[i].dim = m
+            self.r_tilde_opt[i].values = <DTYPE_t *> malloc(m * sizeof(DTYPE_t))
+
+            for j in range(nb_states): # index of the state to be considered
+                idx = pos2index_2d(nb_options, nb_states, i, j)
+                self.options_policies[idx] = option_policies[i][j]
+                self.options_terminating_conditions[idx] = options_terminating_conditions[i][j]
+                for kk, kk_v in enumerate(mdp_actions_per_state[j]): # save the index of the primitive action
+                    if kk_v == self.options_policies[idx]:
+                        self.options_policies_indices_mdp[idx] = kk
+                        break
+
+        self.sorted_indices_opt_p = <SIZE_t *> malloc(nb_states * max_states_per_option * sizeof(SIZE_t))
+        self.max_reachable_states_per_opt = max_states_per_option
