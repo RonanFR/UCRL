@@ -107,7 +107,7 @@ class FSUCRLv1(AbstractUCRL):
                 if self.total_time > threshold:
                     curr_regret = self.total_time * self.environment.max_gain - self.total_reward
                     self.regret.append(curr_regret)
-                    if self.verbose > 0:
+                    if self.verbose > 5:
                         self.logger.info("regret: {:.9f}".format(curr_regret))
                     self.unit_duration.append(self.total_time / self.iteration)
                     threshold = self.total_time + regret_time_step
@@ -392,25 +392,27 @@ class FSUCRLv2(FSUCRLv1):
                  bound_type="hoeffding",
                  verbose = 0, logger=default_logger):
 
-        # self.pyevi = PyEVI_FSUCRLv2(nb_states=environment.nb_states,
-        #                             nb_options=environment.nb_options,
-        #                             threshold=environment.threshold_options,
-        #                             macro_actions_per_state=environment.get_state_actions(),
-        #                             reachable_states_per_option=environment.reachable_states_per_option,
-        #                             option_policies=environment.options_policies,
-        #                             options_terminating_conditions=environment.options_terminating_conditions,
-        #                             mdp_actions_per_state=environment.environment.get_state_actions(),
-        #                             use_bernstein=1 if bound_type == "bernstein" else 0)
-
-        evi_solver = EVI_FSUCRLv2(nb_states=environment.nb_states,
-                                  nb_options=environment.nb_options,
-                                  threshold=environment.threshold_options,
-                                  macro_actions_per_state=environment.get_state_actions(),
-                                  reachable_states_per_option=environment.reachable_states_per_option,
-                                  option_policies=environment.options_policies,
-                                  options_terminating_conditions=environment.options_terminating_conditions,
-                                  mdp_actions_per_state=environment.environment.get_state_actions(),
-                                  use_bernstein=1 if bound_type == "bernstein" else 0)
+        py = False
+        if py:
+            evi_solver = self.pyevi = PyEVI_FSUCRLv2(nb_states=environment.nb_states,
+                                    nb_options=environment.nb_options,
+                                    threshold=environment.threshold_options,
+                                    macro_actions_per_state=environment.get_state_actions(),
+                                    reachable_states_per_option=environment.reachable_states_per_option,
+                                    option_policies=environment.options_policies,
+                                    options_terminating_conditions=environment.options_terminating_conditions,
+                                    mdp_actions_per_state=environment.environment.get_state_actions(),
+                                    use_bernstein=1 if bound_type == "bernstein" else 0)
+        else:
+            evi_solver = EVI_FSUCRLv2(nb_states=environment.nb_states,
+                                      nb_options=environment.nb_options,
+                                      threshold=environment.threshold_options,
+                                      macro_actions_per_state=environment.get_state_actions(),
+                                      reachable_states_per_option=environment.reachable_states_per_option,
+                                      option_policies=environment.options_policies,
+                                      options_terminating_conditions=environment.options_terminating_conditions,
+                                      mdp_actions_per_state=environment.environment.get_state_actions(),
+                                      use_bernstein=1 if bound_type == "bernstein" else 0)
 
         super(FSUCRLv2, self).__init__(
             environment=environment,
@@ -485,7 +487,7 @@ class FSUCRLv2(FSUCRLv1):
         # assert np.isclose(new_span, py_span), "{} != {}".format(new_span, py_span)
 
         if new_span < 0:
-            self.logger.info("ERROR")
+            self.logger.info("ERROR {}".format(new_span))
 
         assert new_span > -0.00001, "{}".format(new_span)
 

@@ -12,6 +12,7 @@ from libc.math cimport sqrt, fabs
 from libc.math cimport pow
 from libc.string cimport memcpy
 from libc.string cimport memset
+from libc.stdlib cimport rand
 
 from libc.stdio cimport printf
 from libc.math cimport log
@@ -657,16 +658,24 @@ cdef class EVI_FSUCRLv2:
 
         with nogil:
             for i in range(nb_states):
-                u1[i] = 0 #u1[i] - u1[0]
+                u1[i] = 0.0 #u1[i] - u1[0]
                 sorted_indices[i] = i
+
+            for o in range(nb_options):
+                for i in range(w1[o].dim):
+                    w1[o].values[i] = 0.0
+                    w2[o].values[i] = 0.0
+
 
             outer_evi_it = 0
             while True:
                 outer_evi_it += 1
                 if outer_evi_it > 50000:
+                    printf("%f", max_u1 - min_u1)
                     return -5
 
-                epsilon_opt = 1. / pow(2, outer_evi_it)
+                # epsilon_opt = 1. / pow(2, outer_evi_it)
+                epsilon_opt = 1. / (outer_evi_it * outer_evi_it)
 
                 # --------------------------------------------------------------
                 # Estimate value function of each option
@@ -731,6 +740,10 @@ cdef class EVI_FSUCRLv2:
                             v = r_optimal + v + dot_prod(mtx_maxprob_opt_memview[o], self.w1[o].values, nb_states_per_options)
                             w2[o].values[i] = v
                             if v > 50000:
+                                printf("opt: %d\n", o)
+                                for j in range(nb_states_per_options):
+                                    printf("%.2f ", w1[o].values[j])
+                                printf("\n")
                                 return -4
 
                         # stopping condition
@@ -776,6 +789,9 @@ cdef class EVI_FSUCRLv2:
                             v = span_w_opt[o]
 
                         v = v + u1[s]
+                        # if v > 50000:
+                        #     printf("%f", v)
+                        #     return -60
                         if first_action or v > u2[s] or isclose_c(v, u2[s]):
                             u2[s] = v
                             policy_indices[s] = a_idx

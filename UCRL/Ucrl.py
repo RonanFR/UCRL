@@ -154,7 +154,7 @@ class UcrlMdp(AbstractUCRL):
                 if self.total_time > threshold:
                     curr_regret = self.total_time * self.environment.max_gain - self.total_reward
                     self.regret.append(curr_regret)
-                    if self.verbose > 0:
+                    if self.verbose > 5:
                         self.logger.info("regret: {:.9f}".format(curr_regret))
                     self.unit_duration.append(self.total_time/self.iteration)
                     threshold = self.total_time + regret_time_step

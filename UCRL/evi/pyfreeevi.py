@@ -257,10 +257,19 @@ class PyEVI_FSUCRLv2(object):
         nb_states = self.nb_states
         nb_options = self.nb_options
         sorted_indices_u = np.arange(nb_states)
+
+        for o in range(nb_options):
+            for i in range(len(self.w1[o])):
+                self.w1[o][i] = 0.0
+                self.w2[o][i] = 0.0
+
         self.outer_evi_it = 0
         while True:
             self.outer_evi_it += 1
             # print(self.outer_evi_it)
+            if self.outer_evi_it > 50000:
+                print("{}".format(max(self.u1) - min(self.u1)))
+                return -5
 
             # ------------------------------------------------------------------
             # Estimate value function of each option
@@ -310,6 +319,8 @@ class PyEVI_FSUCRLv2(object):
                         v = r_optimal + v + np.dot(max_p, self.w1[opt])
                         # print(" {:.2f}".format(v), end=" ")
                         self.w2[opt][i] = v
+                        if v > 50000:
+                            return -4
 
                     if max(self.w2[opt] - self.w1[opt]) - min(self.w2[opt] - self.w1[opt]) < epsilon_opt:  # stopping condition
                         continue_flag = False
