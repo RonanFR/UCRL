@@ -8,7 +8,7 @@
 
 from libc.stdlib cimport malloc
 from libc.stdlib cimport free
-from libc.math cimport sqrt
+from libc.math cimport sqrt, fabs
 from libc.math cimport pow
 from libc.string cimport memcpy
 from libc.string cimport memset
@@ -468,11 +468,13 @@ cdef class EVI_FSUCRLv2:
         n = len(reachable_states_per_option)
         assert n == nb_options
 
-        self.reachable_states_per_option = <IntVectorStruct *> malloc(n * sizeof(IntVectorStruct))
+        self.reachable_states_per_option = <IntVectorStruct *> malloc(nb_options * sizeof(IntVectorStruct))
         self.r_tilde_opt = <DoubleVectorStruct *> malloc(nb_options * sizeof(DoubleVectorStruct))
         self.sorted_indices_popt = <IntVectorStruct *> malloc(nb_options * sizeof(IntVectorStruct))
         self.beta_opt_p = <DoubleVectorStruct *> malloc(nb_options * sizeof(DoubleVectorStruct))
         self.p_hat_opt = <DoubleVectorStruct *> malloc(nb_options * sizeof(DoubleVectorStruct))
+        self.w1 = <DoubleVectorStruct *> malloc(nb_options * sizeof(DoubleVectorStruct))
+        self.w2 = <DoubleVectorStruct *> malloc(nb_options * sizeof(DoubleVectorStruct))
 
         self.options_policies = <SIZE_t *>malloc(nb_options * nb_states * sizeof(SIZE_t)) # (O x S)
         self.options_policies_indices_mdp = <SIZE_t *>malloc(nb_options * nb_states * sizeof(SIZE_t)) # (O x S)
@@ -485,7 +487,7 @@ cdef class EVI_FSUCRLv2:
             self.reachable_states_per_option[i].dim = m
             self.reachable_states_per_option[i].values = <SIZE_t *> malloc(m * sizeof(SIZE_t))
             for j in range(m):
-                self.reachable_states_per_option[i].values[j] = reachable_states_per_option[i][j]
+                self.reachable_states_per_option[i].values[j] = int(reachable_states_per_option[i][j])
 
             self.r_tilde_opt[i].dim = m
             self.r_tilde_opt[i].values = <DTYPE_t *> malloc(m * sizeof(DTYPE_t))
@@ -493,11 +495,19 @@ cdef class EVI_FSUCRLv2:
             self.sorted_indices_popt[i].dim = m
             self.sorted_indices_popt[i].values = <SIZE_t *> malloc(m * sizeof(SIZE_t))
 
-            self.p_hat_opt[i].dim = m
-            self.p_hat_opt[i].values = <DTYPE_t *> malloc(m * sizeof(DTYPE_t))
+            self.p_hat_opt[i].dim = m * m
+            self.p_hat_opt[i].values = <DTYPE_t *> malloc(m * m * sizeof(DTYPE_t))
 
-            self.beta_opt_p[i].dim = m
-            self.beta_opt_p[i].values = <DTYPE_t *> malloc(m * sizeof(DTYPE_t))
+            self.beta_opt_p[i].dim = m * m
+            self.beta_opt_p[i].values = <DTYPE_t *> malloc(m * m * sizeof(DTYPE_t))
+
+            self.w1[i].dim = m
+            self.w1[i].values = <DTYPE_t *> malloc(m * sizeof(DTYPE_t))
+            self.w2[i].dim = m
+            self.w2[i].values = <DTYPE_t *> malloc(m * sizeof(DTYPE_t))
+            for j in range(m):
+                self.w1[i].values[j] = 0.
+                self.w2[i].values[j] = 0.
 
             for j in range(nb_states): # index of the state to be considered
                 idx = pos2index_2d(nb_options, nb_states, i, j)
@@ -547,12 +557,10 @@ cdef class EVI_FSUCRLv2:
         free(self.mtx_maxprob_opt)
         free(self.span_w_opt)
 
-    cpdef compute_mu_info(self,
-                          DTYPE_t[:,:,:] estimated_probabilities_mdp,
+    cpdef compute_prerun_info(self, DTYPE_t[:,:,:] estimated_probabilities_mdp,
                           DTYPE_t[:,:] estimated_rewards_mdp,
                           DTYPE_t[:,:] beta_r,
                           SIZE_t[:,:] nb_observations_mdp,
-                          DTYPE_t range_mu_p,
                           SIZE_t total_time,
                           DTYPE_t delta,
                           SIZE_t max_nb_actions,
@@ -568,45 +576,48 @@ cdef class EVI_FSUCRLv2:
         cdef DoubleVectorStruct* beta_opt_p = self.beta_opt_p
         cdef DoubleVectorStruct* p_hat_opt = self.p_hat_opt
 
-        cdef IntVectorStruct* option_reach_states = self.reachable_states_per_option
+        #cdef IntVectorStruct* option_reach_states = self.reachable_states_per_option
         cdef DTYPE_t* term_cond = self.options_terminating_conditions
 
-        for o in range(nb_options):
+        # cdef DTYPE_t* sum_prob_row = <DTYPE_t*> malloc(nb_options * sizeof(DTYPE_t))
 
-            opt_nb_states = option_reach_states[o].dim
-            # compute the reward and the mu
-            r_o = [0] * opt_nb_states
-            bernstein_log = log(6* max_nb_actions / delta)
+        with nogil:
 
-            for i in range(opt_nb_states):
-                s = option_reach_states[o].values[i]
-                # a = self.options_policies[pos2index_2d(nb_options, self.nb_states, o, s)]
-                mdp_index_a = self.options_policies_indices_mdp[pos2index_2d(nb_options, nb_states, o, s)]
+            for o in prange(nb_options):
 
-                r_tilde_opt[o].values[i] = estimated_rewards_mdp[s, mdp_index_a] + beta_r[s,mdp_index_a]
+                opt_nb_states = self.reachable_states_per_option[o].dim
+                bernstein_log = log(6* max_nb_actions / delta)
 
-                sum_prob_row = 0.
-                nb_o = max(1, nb_observations_mdp[s, mdp_index_a])
+                for i in range(opt_nb_states):
+                    s = self.reachable_states_per_option[o].values[i]
+                    # a = self.options_policies[pos2index_2d(nb_options, self.nb_states, o, s)]
+                    mdp_index_a = self.options_policies_indices_mdp[pos2index_2d(nb_options, nb_states, o, s)]
 
-                for j in range(option_reach_states.dim):
-                    nexts = option_reach_states.values[j]
-                    idx = pos2index_2d(nb_options, self.nb_states, o, nexts)
-                    prob = estimated_probabilities_mdp[s][mdp_index_a][nexts]
+                    r_tilde_opt[o].values[i] = estimated_rewards_mdp[s, mdp_index_a] + beta_r[s,mdp_index_a]
 
-                    l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, j)
-                    p_hat_opt[o].values[l_ij] = (1. - term_cond[idx]) * prob
-                    sum_prob_row += p_hat_opt[o].values[l_ij]
+                    sum_prob_row = 0.
+                    nb_o = max(1, nb_observations_mdp[s, mdp_index_a])
 
-                    if self.bernstein_bound == 0:
-                        beta_opt_p[o].values[l_ij] = range_opt_p * sqrt(14 * opt_nb_states * log(2 * max_nb_actions
-                                                                                          * (total_time + 1)/ delta) / nb_o)
-                    else:
-                        beta_opt_p[o].values[l_ij] = range_opt_p * (sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o)
-                                                                   + bernstein_log * 7 / (3 * nb_o))
 
-                # compute transition matrix of option
-                l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, 0)
-                p_hat_opt[o].values[l_ij] = 1. - sum_prob_row
+                    for j in range(opt_nb_states):
+                        nexts = self.reachable_states_per_option[o].values[j]
+                        idx = pos2index_2d(nb_options, nb_states, o, nexts)
+                        prob = estimated_probabilities_mdp[s][mdp_index_a][nexts]
+
+                        l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, j)
+                        p_hat_opt[o].values[l_ij] = (1. - term_cond[idx]) * prob
+                        sum_prob_row = sum_prob_row + p_hat_opt[o].values[l_ij]
+
+                        if self.bernstein_bound == 0:
+                            beta_opt_p[o].values[l_ij] = range_opt_p * sqrt(14 * opt_nb_states * log(2 * max_nb_actions
+                                                                                              * (total_time + 1)/ delta) / nb_o)
+                        else:
+                            beta_opt_p[o].values[l_ij] = range_opt_p * (sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o)
+                                                                       + bernstein_log * 7 / (3 * nb_o))
+                    # compute transition matrix of option
+                    l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, 0)
+                    p_hat_opt[o].values[l_ij] = 1. - sum_prob_row
+        # free(sum_prob_row)
 
     cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
                      DTYPE_t[:,:,:] p_hat,
@@ -621,11 +632,11 @@ cdef class EVI_FSUCRLv2:
         cdef SIZE_t continue_flag, nb_states_per_options
         cdef SIZE_t idx, s, sprime, first_action, action, o, a_idx
         cdef SIZE_t option_act, option_idx
-        cdef SIZE_t outer_evi_it, inner_it_opt
+        cdef SIZE_t outer_evi_it, inner_it_opt, i, j
         cdef DTYPE_t epsilon_opt
         cdef DTYPE_t v, r_optimal
         cdef DTYPE_t min_u1, max_u1
-        cdef DTYPE_t min_w1, max_w1
+        cdef DTYPE_t min_w1, max_w1, cv
 
         cdef DTYPE_t* u1 = self.u1
         cdef DTYPE_t* u2 = self.u2
@@ -640,7 +651,7 @@ cdef class EVI_FSUCRLv2:
         cdef DoubleVectorStruct* r_tilde_opt = self.r_tilde_opt
         cdef DoubleVectorStruct* beta_opt_p = self.beta_opt_p
         cdef DoubleVectorStruct* p_hat_opt = self.p_hat_opt
-        cdef IntVectorStruct* sorted_indices_popt = sorted_indices_popt
+        cdef IntVectorStruct* sorted_indices_popt = self.sorted_indices_popt
 
         cdef DTYPE_t* span_w_opt = self.span_w_opt
 
@@ -651,63 +662,83 @@ cdef class EVI_FSUCRLv2:
 
             outer_evi_it = 0
             while True:
-                continue_flag = 1
                 outer_evi_it += 1
                 epsilon_opt = 1. / pow(2, outer_evi_it)
 
                 # --------------------------------------------------------------
                 # Estimate value function of each option
                 # --------------------------------------------------------------
-                for o in range(nb_options):
+                for o in prange(nb_options):
+                    continue_flag = 1
+
                     nb_states_per_options = reach_states[o].dim
                     for i in range(nb_states_per_options):
                         sorted_indices_popt[o].values[i] = i
-                        w1[o].values[i] = 0.0
+                        w1[o].values[i] = w1[o].values[i]- w1[o].values[0] # 0.0
                         w2[o].values[i] = 0.0
+
                     inner_it_opt = 0
-                    for i in range(nb_states_per_options):
-                        sprime = reach_states[o].values[i]
-                        if i == 0:
-                            # this is the starting state
-                            option_act = o + self.threshold + 1
-                            option_idx = -1
-                            # get index of the option in the current state
-                            for j in range(self.actions_per_state[sprime].dim):
-                                if self.actions_per_state[sprime].values[j] == option_act:
-                                    option_idx = j
-                                    break
-                            if self.bernstein_bound == 0:
-                                max_proba_purec(p_hat[sprime][option_idx], nb_states,
-                                            sorted_indices, beta_p[sprime][option_idx][0],
-                                            mtx_maxprob_opt_memview[o])
-                            else:
-                                max_proba_bernstein(p_hat[sprime][option_idx], nb_states,
-                                            sorted_indices, beta_p[sprime][option_idx],
-                                            mtx_maxprob_opt_memview[o])
+                    while continue_flag:
+                        inner_it_opt = inner_it_opt + 1
+                        if inner_it_opt > 500000:
+                            return -1
+
+                        for i in range(nb_states_per_options):
+                            sprime = reach_states[o].values[i]
+                            if i == 0:
+                                # this is the starting state
+                                option_act = o + self.threshold + 1
+                                option_idx = -1
+                                # get index of the option in the current state
+                                for j in range(self.actions_per_state[sprime].dim):
+                                    if self.actions_per_state[sprime].values[j] == option_act:
+                                        option_idx = j
+                                        break
+                                if option_idx == -1:
+                                    return -2
+                                if self.bernstein_bound == 0:
+                                    max_proba_purec(p_hat[sprime][option_idx], nb_states,
+                                                sorted_indices, beta_p[sprime][option_idx][0],
+                                                mtx_maxprob_opt_memview[o])
+                                else:
+                                    max_proba_bernstein(p_hat[sprime][option_idx], nb_states,
+                                                sorted_indices, beta_p[sprime][option_idx],
+                                                mtx_maxprob_opt_memview[o])
+
                                 mtx_maxprob_opt_memview[o][sprime] = mtx_maxprob_opt_memview[o][sprime] - 1.
                                 v = dot_prod(mtx_maxprob_opt_memview[o], u1, nb_states)
+
+                            else:
+                                v = 0.0
+
+                            r_optimal = min(r_max, r_tilde_opt[o].values[i])
+
+                            idx = pos2index_2d(nb_states_per_options, nb_states_per_options, i, 0)
+                            max_proba_bernstein_cin(
+                                &(p_hat_opt[o].values[idx]),
+                                nb_states_per_options,
+                                sorted_indices_popt[o].values,
+                                &(beta_opt_p[o].values[idx]),
+                                mtx_maxprob_opt_memview[o])
+                            cv = 0.
+                            for j in range(nb_states_per_options):
+                                cv = cv + mtx_maxprob_opt_memview[o][j]
+                            if fabs(cv-1.) > 1e-4:
+                                return -3
+                            v = r_optimal + v + dot_prod(mtx_maxprob_opt_memview[o], self.w1[o].values, nb_states_per_options)
+                            w2[o].values[i] = v
+                            if v > 50000:
+                                return -4
+
+                        # stopping condition
+                        if check_end_opt_evi(w2[o].values, w1[o].values, nb_states_per_options, &span_w_opt[o]) < epsilon_opt:
+                            # printf("-- %d\n", counter)
+                            continue_flag = 0
+                            #printf("[%d, %.2f] - ", inner_it_opt, span_w_opt[o])
                         else:
-                            v = 0.0
+                            memcpy(w1[o].values, w2[o].values, nb_states_per_options * sizeof(DTYPE_t))
+                            get_sorted_indices(w1[o].values, nb_states_per_options, sorted_indices_popt[o].values)
 
-                        r_optimal = min(r_max, r_tilde_opt[o].values[i])
-
-                        idx = pos2index_2d(nb_states_per_options, nb_states_per_options, i, 0)
-                        max_proba_bernstein_cin(
-                            &(p_hat_opt[o].values[idx]),
-                            nb_states_per_options,
-                            sorted_indices_popt[o].values,
-                            &(beta_opt_p[o].values[idx]),
-                            mtx_maxprob_opt_memview[o])
-                        v = r_optimal + v + dot_prod(mtx_maxprob_opt_memview[o], self.w1[o].values, nb_states_per_options)
-                        w2[o].values[i] = v
-
-                    # stopping condition
-                    if check_end_opt_evi(w2[o].values, w1[o].values, nb_states_per_options, &span_w_opt[o]) < epsilon_opt:
-                        # printf("-- %d\n", counter)
-                        continue_flag = 0
-                    else:
-                        memcpy(w1[o].values, w2[o].values, nb_states_per_options * sizeof(DTYPE_t))
-                        get_sorted_indices(w1[o].values, nb_states_per_options, sorted_indices_popt[o].values)
 
                 # --------------------------------------------------------------
                 # Estimate value function of SMDP
@@ -748,10 +779,43 @@ cdef class EVI_FSUCRLv2:
                             policy[s] = action
                         first_action = 0
 
+                # printf("\n")
+                # for i in range(nb_states):
+                #     printf("%.2f[%.2f] ", u1[i], u2[i])
+                # printf("\n")
+
                 # stopping condition
                 if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
-                    # printf("-- %d\n", counter)
                     return max_u1 - min_u1
                 else:
+                    # printf("------------\n")
                     memcpy(u1, u2, nb_states * sizeof(DTYPE_t))
                     get_sorted_indices(u1, nb_states, sorted_indices)
+
+
+    cpdef get_r_tilde_opt(self):
+        r = []
+        for i in range(self.nb_options):
+            L = []
+            for j in range(self.r_tilde_opt[i].dim):
+                L.append(self.r_tilde_opt[i].values[j])
+            r.append(L)
+        return r
+
+    cpdef get_opt_p_and_beta(self):
+        cdef SIZE_t x, y, dim
+        beta = []
+        p = []
+        for i in range(self.nb_options):
+            dim = <SIZE_t>sqrt(self.beta_opt_p[i].dim)
+            L = np.zeros((dim, dim))
+            P = np.zeros((dim, dim))
+            for j in range(self.beta_opt_p[i].dim):
+                x = j // dim
+                y = j % dim
+                L[x,y] = self.beta_opt_p[i].values[j]
+                P[x,y] = self.p_hat_opt[i].values[j]
+            beta.append(L)
+            p.append(P)
+        return p, beta
+

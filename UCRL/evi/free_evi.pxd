@@ -124,12 +124,10 @@ cdef class EVI_FSUCRLv2:
     # --------------------------------------------------------------------------
     # METHODS
     # --------------------------------------------------------------------------
-    cpdef compute_mu_info(self,
-                          DTYPE_t[:,:,:] estimated_probabilities_mdp,
+    cpdef compute_prerun_info(self, DTYPE_t[:,:,:] estimated_probabilities_mdp,
                           DTYPE_t[:,:] estimated_rewards_mdp,
                           DTYPE_t[:,:] beta_r,
                           SIZE_t[:,:] nb_observations_mdp,
-                          DTYPE_t range_mu_p,
                           SIZE_t total_time,
                           DTYPE_t delta,
                           SIZE_t max_nb_actions,
@@ -142,4 +140,7 @@ cdef class EVI_FSUCRLv2:
                      DTYPE_t[:,:] beta_r_mdp,
                      DTYPE_t r_max,
                      DTYPE_t epsilon)
+
+    cpdef get_r_tilde_opt(self)
+    cpdef get_opt_p_and_beta(self)
 

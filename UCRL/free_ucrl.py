@@ -3,7 +3,7 @@ from .envs import MixedEnvironment
 import numpy as np
 import math as m
 from .logging import default_logger
-from .evi import EVI_FSUCRLv1
+from .evi import EVI_FSUCRLv1, EVI_FSUCRLv2
 from .evi.pyfreeevi import PyEVI_FSUCRLv1, PyEVI_FSUCRLv2
 import time
 
@@ -389,15 +389,25 @@ class FSUCRLv2(FSUCRLv1):
                  bound_type="hoeffding",
                  verbose = 0, logger=default_logger):
 
-        evi_solver = PyEVI_FSUCRLv2(nb_states=environment.nb_states,
-                                    nb_options=environment.nb_options,
-                                    threshold=environment.threshold_options,
-                                    macro_actions_per_state=environment.get_state_actions(),
-                                    reachable_states_per_option=environment.reachable_states_per_option,
-                                    option_policies=environment.options_policies,
-                                    options_terminating_conditions=environment.options_terminating_conditions,
-                                    mdp_actions_per_state=environment.environment.get_state_actions(),
-                                    use_bernstein=1 if bound_type == "bernstein" else 0)
+        # self.pyevi = PyEVI_FSUCRLv2(nb_states=environment.nb_states,
+        #                             nb_options=environment.nb_options,
+        #                             threshold=environment.threshold_options,
+        #                             macro_actions_per_state=environment.get_state_actions(),
+        #                             reachable_states_per_option=environment.reachable_states_per_option,
+        #                             option_policies=environment.options_policies,
+        #                             options_terminating_conditions=environment.options_terminating_conditions,
+        #                             mdp_actions_per_state=environment.environment.get_state_actions(),
+        #                             use_bernstein=1 if bound_type == "bernstein" else 0)
+
+        evi_solver = EVI_FSUCRLv2(nb_states=environment.nb_states,
+                                  nb_options=environment.nb_options,
+                                  threshold=environment.threshold_options,
+                                  macro_actions_per_state=environment.get_state_actions(),
+                                  reachable_states_per_option=environment.reachable_states_per_option,
+                                  option_policies=environment.options_policies,
+                                  options_terminating_conditions=environment.options_terminating_conditions,
+                                  mdp_actions_per_state=environment.environment.get_state_actions(),
+                                  use_bernstein=1 if bound_type == "bernstein" else 0)
 
         super(FSUCRLv2, self).__init__(
             environment=environment,
@@ -408,12 +418,22 @@ class FSUCRLv2(FSUCRLv1):
             evi_solver=evi_solver
         )
 
-
     def solve_optimistic_model(self):
         beta_r = self.beta_r()  # confidence bounds on rewards
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
         max_nb_actions = self.estimated_probabilities.shape[1]
 
+        # self.pyevi.compute_prerun_info(
+        #     estimated_probabilities_mdp=self.estimated_probabilities,
+        #     estimated_rewards_mdp=self.estimated_rewards_mdp,
+        #     beta_r=beta_r,
+        #     nb_observations_mdp=self.nb_observations_mdp,
+        #     total_time=self.total_time,
+        #     delta=self.delta,
+        #     max_nb_actions=max_nb_actions,
+        #     range_opt_p=self.range_mu_p)
+
+        t0 = time.perf_counter()
         self.opt_solver.compute_prerun_info(
             estimated_probabilities_mdp=self.estimated_probabilities,
             estimated_rewards_mdp=self.estimated_rewards_mdp,
@@ -423,8 +443,20 @@ class FSUCRLv2(FSUCRLv1):
             delta=self.delta,
             max_nb_actions=max_nb_actions,
             range_opt_p=self.range_mu_p)
+        t1 = time.perf_counter()
 
-        new_span, u1, u2 = self.opt_solver.run(
+        # p, b = self.opt_solver.get_opt_p_and_beta()
+        # rt = self.opt_solver.get_r_tilde_opt()
+        # assert len(p) == len(self.pyevi.p_hat_opt)
+        # assert len(b) == len(self.pyevi.beta_opt_p)
+        # assert len(rt) == len(self.pyevi.r_tilde_opt)
+        # for i in range(len(p)):
+        #     assert np.allclose(p[i],self.pyevi.p_hat_opt[i])
+        #     assert np.allclose(np.sum(p[i], axis=1),1)
+        #     assert np.allclose(b[i],self.pyevi.beta_opt_p[i])
+        #     assert np.allclose(rt[i],self.pyevi.r_tilde_opt[i])
+
+        new_span = self.opt_solver.run(
             policy_indices=self.policy_indices,
             policy=self.policy,
             p_hat=self.estimated_probabilities,
@@ -433,5 +465,22 @@ class FSUCRLv2(FSUCRLv1):
             beta_r_mdp=beta_r,
             r_max=self.r_max,
             epsilon=self.r_max / m.sqrt(self.iteration + 1))
+        t2 = time.perf_counter()
+        self.solver_times.append((t1-t0, t2-t1))
+
+        # py_span = self.pyevi.run(
+        #     policy_indices=self.policy_indices,
+        #     policy=self.policy,
+        #     p_hat=self.estimated_probabilities,
+        #     r_hat_mdp=self.estimated_rewards_mdp,
+        #     beta_p=beta_p,
+        #     beta_r_mdp=beta_r,
+        #     r_max=self.r_max,
+        #     epsilon=self.r_max / m.sqrt(self.iteration + 1))
+
+        # print("{}, {}".format(new_span, py_span))
+        # assert np.isclose(new_span, py_span), "{} != {}".format(new_span, py_span)
+
+        assert new_span > -0.00001, "{}".format(new_span)
 
         return new_span

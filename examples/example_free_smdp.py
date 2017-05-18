@@ -26,13 +26,13 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
-                  help="dimension of the gridworld", default=20)
+                  help="dimension of the gridworld", default=5)
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=30000000)
+                  help="duration of the experiment", default=500000)
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
                   help="t_max for options", default=3)
 parser.add_option("-a", "--v_alg", dest="v_alg", type="int",
-                  help="Version of the algorithm", default=1)
+                  help="Version of the algorithm", default=2)
 # parser.add_option("-c", dest="c", type="float",
 #                   help="c value", default=0.8)
 parser.add_option("--rmax", dest="r_max", type="float",
