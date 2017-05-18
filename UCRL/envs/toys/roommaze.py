@@ -1,5 +1,7 @@
-from ..Environment import Environment
+from .. import Environment, MixedEnvironment
+from ...cython import extended_value_iteration
 import numpy as np
+import copy
 
 def coord2state(row, col, dimension):
     state = row * dimension + col
@@ -17,7 +19,11 @@ class FourRoomsMaze(Environment):
 
     def __init__(self, dimension, initial_position,
                  reward_distribution_states, reward_distribution_target,
-                 target_coordinates, success_probability=0.8):
+                 target_coordinates, success_probability=0.8,
+                 reset_rule="uniform"):
+        assert reset_rule in ["uniform", "brroom"]
+        self.reset_rule = reset_rule
+
         self.tartget_coordinates = target_coordinates
         self.target_state = coord2state(row=target_coordinates[0],
                                         col=target_coordinates[1],
@@ -33,7 +39,7 @@ class FourRoomsMaze(Environment):
         self.prob_kernel = P
 
         initial_state = coord2state(*initial_position, dimension)
-        super().__init__(initial_state, state_actions)  # call parent constructor
+        super(FourRoomsMaze, self).__init__(initial_state, state_actions)  # call parent constructor
         self.holding_time = 1
 
     def construct_transition_matrix(self, dimension, p_succ):
@@ -52,7 +58,12 @@ class FourRoomsMaze(Environment):
                                 dimension*(dimension//2 - 1) + dimension//2 - 1,
                                 dimension*(dimension - 1) + dimension//2 - 1)
 
-        Pkernel = -np.inf * np.ones((nb_states, 4, nb_states))
+        self.top_left_corners = top_left_corners
+        self.top_right_corners = top_right_corners
+        self.bottom_left_corners = bottom_left_corners
+        self.bottom_right_corners = bottom_right_corners
+
+        Pkernel = -9 * np.ones((nb_states, 4, nb_states))
         reachable_states = []
         for s in range(nb_states):
             reset_action = False
@@ -62,7 +73,23 @@ class FourRoomsMaze(Environment):
                 actions = [0]
                 reachable_states = []
                 reset_action = True
-                Pkernel[s][0] = np.ones(nb_states) / nb_states
+                # reset uniformly
+                if self.reset_rule == "uniform":
+                    Pkernel[s][0] = np.ones(nb_states) / nb_states
+                elif self.reset_rule == "brroom":
+                    # reset in bottom right room
+                    room_states = []
+                    for row in range(self.dimension//2, self.dimension):
+                        for col in range(self.dimension//2, self.dimension):
+                            room_states.append(coord2state(row, col, self.dimension))
+                    assert len(room_states) == (self.dimension//2)**2
+                    Pkernel[s][0] = np.zeros(nb_states)
+                    Pkernel[s][0][room_states] = 1/len(room_states)
+                else:
+                    raise ValueError("Unknown reset rule")
+
+                assert np.isclose(np.sum(Pkernel[s][0]), 1.0)
+
             elif s in top_left_corners:  # top left corner of a room
                 actions = [0, 1]
                 reachable_states = [coord2state(row, col + 1, dimension), #right
@@ -133,7 +160,8 @@ class FourRoomsMaze(Environment):
                     n_reach_states = len(reachable_states) - 1
                     for el in reachable_states:
                         if sprime_curr_act != el:
-                            Pkernel[s][action_idx][el] = 1. - p_succ/n_reach_states
+                            Pkernel[s][action_idx][el] = (1. - p_succ)/n_reach_states
+                    assert np.isclose(np.sum(Pkernel[s][action_idx]), 1.0)
                 if 1 in actions:
                     # down action
                     sprime_curr_act = coord2state(row + 1, col, dimension)
@@ -144,7 +172,8 @@ class FourRoomsMaze(Environment):
                     n_reach_states = len(reachable_states) - 1
                     for el in reachable_states:
                         if sprime_curr_act != el:
-                            Pkernel[s][action_idx][el] = 1. - p_succ/n_reach_states
+                            Pkernel[s][action_idx][el] = (1. - p_succ)/n_reach_states
+                    assert np.isclose(np.sum(Pkernel[s][action_idx]), 1.0)
                 if 2 in actions:
                     # left action
                     sprime_curr_act = coord2state(row, col - 1, dimension)
@@ -155,7 +184,8 @@ class FourRoomsMaze(Environment):
                     n_reach_states = len(reachable_states) - 1
                     for el in reachable_states:
                         if sprime_curr_act != el:
-                            Pkernel[s][action_idx][el] = 1. - p_succ/n_reach_states
+                            Pkernel[s][action_idx][el] = (1. - p_succ)/n_reach_states
+                    assert np.isclose(np.sum(Pkernel[s][action_idx]), 1.0)
                 if 3 in actions:
                     # up action
                     sprime_curr_act = coord2state(row - 1, col, dimension)
@@ -166,7 +196,8 @@ class FourRoomsMaze(Environment):
                     n_reach_states = len(reachable_states) - 1
                     for el in reachable_states:
                         if sprime_curr_act != el:
-                            Pkernel[s][action_idx][el] = 1. - p_succ/n_reach_states
+                            Pkernel[s][action_idx][el] = (1. - p_succ)/n_reach_states
+                    assert np.isclose(np.sum(Pkernel[s][action_idx]), 1.0)
 
             # save actions
             state_actions += [actions]
@@ -181,7 +212,7 @@ class FourRoomsMaze(Environment):
             raise ValueError("Action {} cannot be executed in this state {} [{}, {}]".format(action, self.state, row, col))
 
         p = self.prob_kernel[self.state,action_index]
-        next_state = np.random.choice(self.nb_states, 1, p=p)
+        next_state = np.asscalar(np.random.choice(self.nb_states, 1, p=p))
         self.position_coordinates = state2coord(next_state, self.dimension)
         self.state = next_state
         if self.state == self.target_state:  # if current state is the target: restart
@@ -195,10 +226,9 @@ class FourRoomsMaze(Environment):
         :return: value of the optimal average reward
         """
         if not hasattr(self, "max_gain"):
-            from ....cython import extended_value_iteration
-            policy_indices = np.zeros(self.nb_states)
-            policy = np.zeros(self.nb_states)
-            estimated_rewards = -np.inf * np.ones((self.nb_states, 4))
+            policy_indices = np.zeros(self.nb_states, dtype=np.int)
+            policy = np.zeros(self.nb_states, dtype=np.int)
+            estimated_rewards = -9. * np.ones((self.nb_states, 4))
             for s, actions in enumerate(self.state_actions):
                 for a_idx, a_val in enumerate(actions):
                     if s == self.target_state:
@@ -213,11 +243,154 @@ class FourRoomsMaze(Environment):
                 np.zeros((self.nb_states, 4)),
                 np.zeros((self.nb_states, 4)),
                 np.zeros((self.nb_states, 4)),
-                1., self.reward_distribution_target.mean,
-                1., 1., 0.0001)
+                1.0, 50.0,
+                1.0, 1.0, 0.01)
 
+            self.span = span
             self.max_gain = 0.5 * (max(u2 - u1) + min(u2 - u1))
             self.optimal_policy_indices = policy_indices
             self.optimal_policy = policy
 
         return self.max_gain
+
+    def get_rooms_states(self, index=None):
+        """ Return the state (indices) of each room. Rooms are ordered per row and then per column
+        +---+---+
+        | 0 | 2 |
+        +---+---+
+        | 1 | 4 |
+        +---+---+
+        
+        Returns:
+            list
+        """
+        assert index is None or 0<=index<4
+        room_states = [[],[],[],[]]
+        if index is None:
+            loop = range(4)
+        else:
+            loop = [index]
+        dim = self.dimension//2
+        for i in loop:
+            for row in range((i%2)*dim, dim + (i%2)*dim):
+                for col in range(i//2*dim, dim + i//2*dim):
+                    room_states[i].append(coord2state(row, col, self.dimension))
+        return room_states
+
+
+class EscapeRoom(MixedEnvironment):
+
+    def __init__(self, maze, target_states="corner_doors_center"):
+        assert isinstance(maze, FourRoomsMaze)
+        assert target_states in ["corner_doors_center"]
+
+        dim = maze.dimension
+        nb_states = maze.nb_states
+
+        state_options = []
+        options_policies = []
+        options_terminating_conditions = []
+
+        rooms = maze.get_rooms_states()
+
+        option_id = 0
+        for s in range(nb_states):
+            if s == maze.target_state:
+                # target state -> reset (only action 0 available)
+                options_policies.append([0] * nb_states)
+                options_terminating_conditions.append([1] * nb_states)
+                state_options.append([option_id])
+                option_id += 1
+            else:
+                row, col = state2coord(s, dim)
+                row = dim//2 if row >= dim//2 else 0
+                col = dim//2 if col >= dim//2 else 0
+                if row == 0 and col == 0: # top left room
+                    target_states = [
+                        coord2state(dim//4, dim//4, dim), # center
+                        coord2state(dim//2, dim//4, dim), # down door
+                        coord2state(dim//4, dim//2, dim), # right door
+                        coord2state(0, 0, dim) # corner
+                    ]
+                    room_nb = 0
+                elif row > 0 and col == 0: #top right  room
+                    target_states = [
+                        coord2state(row+dim//4, col+dim//4, dim), # center
+                        coord2state(dim//2-1, dim//4, dim), # top door
+                        coord2state(dim//2+dim//4, dim//2, dim), # right door
+                        coord2state(dim-1, 0, dim) # corner
+                    ]
+                    room_nb = 2
+                elif row ==0 and col > 0:  #bottom left room
+                    target_states = [
+                        coord2state(row+dim//4, col+dim//4, dim), # center
+                        coord2state(dim//4, dim//2-1, dim), # left door
+                        coord2state(dim//2, dim//2+dim//4, dim), # bottom door
+                        coord2state(0, dim-1, dim) # corner
+                    ]
+                    room_nb = 1
+                else:  # bottom right room
+                    target_states = [
+                        coord2state(row+dim//4, col+dim//4, dim), # center
+                        coord2state(dim//2+dim//4, dim//2-1, dim), # left door
+                        coord2state(dim//2-1, dim//2+dim//4, dim), # up door
+                        coord2state(dim-1, dim-1, dim) # corner
+                    ]
+                    room_nb = 3
+
+                # set zero in the current room
+                o_tc = [1] * nb_states
+                for x in rooms[room_nb]:
+                    o_tc[x] = 0
+                o_tc[s] = 1 # starting state
+
+                target_states = np.setdiff1d(target_states, [s])
+
+                policies = self.solve_forward_model(maze, target_states)
+                state_options.append([])
+                for i in range(len(target_states)):
+                    options_policies.append(policies[i])
+                    options_terminating_conditions.append(copy.deepcopy(o_tc))
+                    state_options[-1].append(option_id)
+                    option_id += 1
+        assert option_id == nb_states*4 - 8 -2 #starting state has just one option
+
+        super(EscapeRoom, self).__init__(environment=maze,
+                                         state_options=state_options,
+                                         options_policies=options_policies,
+                                         options_terminating_conditions=options_terminating_conditions,
+                                         delete_environment_actions="all",
+                                         is_optimal=False)
+
+    def solve_forward_model(self, maze, targets_states):
+        nb_states = maze.nb_states
+        optimal_policies = []
+        for s_targ in targets_states:
+            policy_indices = np.zeros(nb_states, dtype=np.int)
+            policy = np.zeros(nb_states, dtype=np.int)
+            reward = np.zeros((nb_states, 4))
+            P = maze.prob_kernel.copy()
+            for a in range(4):
+                P[s_targ,a] = np.zeros(nb_states)
+                P[s_targ,a,s_targ] = 1.
+                reward[s_targ, a] = 1
+            span, u1, u2 = extended_value_iteration(
+                policy_indices, policy,
+                nb_states, maze.state_actions,
+                P, reward,
+                np.ones((nb_states, 4)),
+                np.zeros((nb_states, 4)),
+                np.zeros((nb_states, 4)),
+                np.zeros((nb_states, 4)),
+                1.0, maze.dimension,
+                1.0, 1.0, 0.01)
+
+            # for i, a in enumerate(policy):
+            #     row, col = state2coord(i,maze.dimension)
+            #     print("{}".format(a), end=" ")
+            #     if col == maze.dimension-1:
+            #         print("")
+            # print("-"*10)
+
+            optimal_policies.append(policy)
+        return optimal_policies
