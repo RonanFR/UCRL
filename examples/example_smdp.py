@@ -50,7 +50,7 @@ parser.add_option("--id", dest="id", type="str",
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
-parser.add_option("--seed", dest="seed_0", default=17400331686329065023,#random.getrandbits(64),
+parser.add_option("--seed", dest="seed_0", default=random.getrandbits(64),
                   help="Seed used to generate the random seed sequence")
 
 (in_options, in_args) = parser.parse_args()
@@ -157,13 +157,13 @@ for rep in range(in_options.nb_simulations):
     seed = seed_sequence[rep]  # set seed
     np.random.seed(seed)
     random.seed(seed)
+    print("IT: {}".format(rep))
 
     name = "trace_{}".format(rep)
     ucrl_log = ucrl_logger.create_multilogger(logger_name=name,
                                               console=not in_options.quiet,
                                               filename=name,
                                               path=folder_results)
-    ucrl_log.info("Using Bernstein: {}".format(in_options.use_bernstein))
 
     ucrl = Ucrl.UcrlSmdpBounded(
         environment=copy.deepcopy(option_environment),
@@ -175,6 +175,9 @@ for rep in range(in_options.nb_simulations):
         verbose=1,
         logger=ucrl_log,
         bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
+    ucrl_log.info("{}".format(type(ucrl).__name__))
+    ucrl_log.info("Using Bernstein: {}".format(in_options.use_bernstein))
+
     h = ucrl.learn(in_options.duration, in_options.regret_time_steps)  # learn task
     ucrl.clear_before_pickle()
 

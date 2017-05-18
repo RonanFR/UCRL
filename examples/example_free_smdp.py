@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
-                  help="dimension of the gridworld", default=5)
+                  help="dimension of the gridworld", default=20)
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="duration of the experiment", default=500000)
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
@@ -54,7 +54,7 @@ parser.add_option("--id", dest="id", type="str",
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
-parser.add_option("--seed", dest="seed_0", default=17400331686329065023,#random.getrandbits(64),
+parser.add_option("--seed", dest="seed_0", default=random.getrandbits(64),
                   help="Seed used to generate the random seed sequence")
 
 (in_options, in_args) = parser.parse_args()
@@ -68,7 +68,7 @@ if in_options.id is None:
 if in_options.range_p < 0:
     if not in_options.use_bernstein:
         in_options.range_p = tuning.range_p_from_hoeffding(
-            nb_states=in_options.dimension, nb_actions=4, nb_observations=1)
+            nb_states=in_options.dimension, nb_actions=4, nb_observations=5)
     else:
         in_options.range_p = tuning.range_p_from_bernstein(
             nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
@@ -154,13 +154,13 @@ for rep in range(in_options.nb_simulations):
     seed = seed_sequence[rep]  # set seed
     np.random.seed(seed)
     random.seed(seed)
+    print("IT: {}".format(rep))
 
     name = "trace_{}".format(rep)
     ucrl_log = ucrl_logger.create_multilogger(logger_name=name,
                                               console=not in_options.quiet,
                                               filename=name,
                                               path=folder_results)
-    ucrl_log.info("Using Bernstein: {}".format(in_options.use_bernstein))
 
     if in_options.v_alg == 1:
         ucrl = FSUCRLv1(
@@ -184,6 +184,8 @@ for rep in range(in_options.nb_simulations):
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
     else:
         raise ValueError("Unknown")
+    ucrl_log.info("{}".format(type(ucrl).__name__))
+    ucrl_log.info("Using Bernstein: {}".format(in_options.use_bernstein))
 
 
     h = ucrl.learn(in_options.duration, in_options.regret_time_steps)  # learn task

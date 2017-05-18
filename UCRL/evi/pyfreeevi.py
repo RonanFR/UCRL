@@ -184,18 +184,17 @@ class PyEVI_FSUCRLv2(object):
         self.w2 = []
         for o in range(nb_options):
             ns = len(self.reachable_states_per_option[o])
-            self.w1.append(np.empty(ns))
-            self.w2.append(np.empty(ns))
-
+            self.w1.append(np.zeros(ns))
+            self.w2.append(np.zeros(ns))
 
     def compute_prerun_info(self,
                             estimated_probabilities_mdp,
-                          estimated_rewards_mdp,
-                          beta_r,
-                          nb_observations_mdp,
-                          total_time,
-                          delta,
-                          max_nb_actions,
+                            estimated_rewards_mdp,
+                            beta_r,
+                            nb_observations_mdp,
+                            total_time,
+                            delta,
+                            max_nb_actions,
                             range_opt_p):
 
         nb_options = self.nb_options
@@ -270,10 +269,11 @@ class PyEVI_FSUCRLv2(object):
                 continue_flag = True
                 nb_states_per_options = len(self.reachable_states_per_option[opt])
                 epsilon_opt = 1 / (2**self.outer_evi_it)
-                sorted_indices_popt = np.arange(nb_states_per_options)
 
                 #initialize
-                self.w1[opt].fill(0.0)
+                sorted_indices_popt = np.arange(nb_states_per_options)
+                for i in range(nb_states_per_options):
+                    self.w1[opt][i] = self.w1[opt][i] - self.w1[opt][0]  # 0.0
                 self.w2[opt].fill(0.0)
                 inner_it_opt = 0
                 while continue_flag:
@@ -284,6 +284,7 @@ class PyEVI_FSUCRLv2(object):
                             # this is the starting state
                             option_act = opt + self.threshold + 1
                             option_idx = self.actions_per_state[sprime].index(option_act)
+                            # print("({}) ".format(option_idx), end=" ")
                             assert option_idx is not None
                             if self.use_bernstein == 0:
                                 max_p = self.max_proba(p_hat[sprime][option_idx], nb_states,
@@ -307,10 +308,15 @@ class PyEVI_FSUCRLv2(object):
                                                 self.beta_opt_p[opt][i, :])
                         assert np.isclose(np.sum(max_p),1.)
                         v = r_optimal + v + np.dot(max_p, self.w1[opt])
+                        # print(" {:.2f}".format(v), end=" ")
                         self.w2[opt][i] = v
 
                     if max(self.w2[opt] - self.w1[opt]) - min(self.w2[opt] - self.w1[opt]) < epsilon_opt:  # stopping condition
                         continue_flag = False
+
+                        # print("[{}, {:.2f}] -".format(inner_it_opt, 0.5 * (
+                        #     max(self.w2[opt] - self.w1[opt]) + min(
+                        #         self.w2[opt] - self.w1[opt]))), end=" ")
                     else:
                         self.w1[opt] = self.w2[opt]
                         self.w2[opt] = np.empty(len(self.w1[opt]))
@@ -345,22 +351,18 @@ class PyEVI_FSUCRLv2(object):
                         policy_indices[s] = action_idx
                         policy[s] = action
                     first_action = False
-
-            # print("**%d\n" % self.counter)
+            # print()
             # for i in range(nb_states):
-            #     print("{:.2f}[{:.2f}] ".format(self.u1[i], self.u2[i]), end=" ")
-            # print("\n")
+            #     print("{:.2f}[{:.2f}]".format(self.u1[i], self.u2[i]), end=" ")
+            # print()
 
             if max(self.u2-self.u1)-min(self.u2-self.u1) < epsilon:  # stopping condition
-                # print("++ {}\n".format(self.counter))
-                return max(self.u1) - min(self.u1), self.u1, self.u2
+                return max(self.u1) - min(self.u1)
             else:
+                # print("\n+++++++++", end=" ")
                 self.u1 = self.u2
                 self.u2 = np.empty(nb_states)
                 sorted_indices_u = np.argsort(self.u1, kind='mergesort')
-                # for i in range(nb_states):
-                #     printf("%d , ", sorted_indices[i])
-                # printf("\n")
 
     def max_proba(self, p, n, sorted_indices, beta):
         """
