@@ -1,7 +1,9 @@
 from .. import Environment, MixedEnvironment
 from ...cython import extended_value_iteration
+from ...evi import EVI
 import numpy as np
 import copy
+from tqdm import tqdm
 
 
 def coord2state(row, col, dimension):
@@ -232,25 +234,47 @@ class FourRoomsMaze(Environment):
         :return: value of the optimal average reward
         """
         if not hasattr(self, "max_gain"):
-            policy_indices = np.zeros(self.nb_states, dtype=np.int)
-            policy = np.zeros(self.nb_states, dtype=np.int)
-            estimated_rewards = -9. * np.ones((self.nb_states, 4))
+            nb_states = self.nb_states
+            policy_indices = np.zeros(nb_states, dtype=np.int)
+            policy = np.zeros(nb_states, dtype=np.int)
+            estimated_rewards = -9. * np.ones((nb_states, 4))
             for s, actions in enumerate(self.state_actions):
                 for a_idx, a_val in enumerate(actions):
                     if s == self.target_state:
                         estimated_rewards[s,a_idx] = self.reward_distribution_target.mean
                     else:
                         estimated_rewards[s, a_idx] = self.reward_distribution_states.mean
-            span, u1, u2 = extended_value_iteration(
-                policy_indices, policy,
-                self.nb_states, self.state_actions,
-                self.prob_kernel, estimated_rewards,
-                np.ones((self.nb_states, 4)),
-                np.zeros((self.nb_states, 4)),
-                np.zeros((self.nb_states, 4)),
-                np.zeros((self.nb_states, 4)),
-                1.0, 50.0,
-                1.0, 1.0, 0.01)
+
+            evi = EVI(nb_states=nb_states,
+                           actions_per_state=self.state_actions,
+                           use_bernstein=0)
+
+            span = evi.evi(
+                policy_indices=policy_indices,
+                policy=policy,
+                estimated_probabilities=self.prob_kernel,
+                estimated_rewards=estimated_rewards,
+                estimated_holding_times=np.ones((nb_states, 4)),
+                beta_p=np.zeros((nb_states, 4, 1)),
+                beta_r=np.zeros((nb_states, 4)),
+                beta_tau=np.zeros((nb_states, 4)),
+                tau_max=1, tau_min=1, tau=1,
+                r_max=self.dimension,
+                epsilon=0.01
+            )
+
+            u1, u2 = evi.get_uvectors()
+
+            # span, u1, u2 = extended_value_iteration(
+            #     policy_indices, policy,
+            #     self.nb_states, self.state_actions,
+            #     self.prob_kernel, estimated_rewards,
+            #     np.ones((self.nb_states, 4)),
+            #     np.zeros((self.nb_states, 4)),
+            #     np.zeros((self.nb_states, 4)),
+            #     np.zeros((self.nb_states, 4)),
+            #     1.0, 50.0,
+            #     1.0, 1.0, 0.01)
 
             self.span = span
             self.max_gain = 0.5 * (max(u2 - u1) + min(u2 - u1))
@@ -297,7 +321,6 @@ class FourRoomsMaze(Environment):
             return 3
 
 
-
 class EscapeRoom(MixedEnvironment):
 
     def __init__(self, maze, target_states="corner_doors_center"):
@@ -313,8 +336,12 @@ class EscapeRoom(MixedEnvironment):
 
         rooms = maze.get_rooms_states()
 
+        self.evi = EVI(nb_states=maze.nb_states,
+                       actions_per_state=maze.get_state_actions(),
+                       use_bernstein=0)
+
         option_id = 0
-        for s in range(nb_states):
+        for s in tqdm(range(nb_states)):
             if s == maze.target_state:
                 # target state -> reset (only action 0 available)
                 options_policies.append([0] * nb_states)
@@ -399,6 +426,8 @@ class EscapeRoom(MixedEnvironment):
                                          is_optimal=True)
         self.dimension = maze.dimension
 
+        del self.evi
+
     def solve_forward_model(self, maze, targets_states):
         nb_states = maze.nb_states
         optimal_policies = []
@@ -411,16 +440,30 @@ class EscapeRoom(MixedEnvironment):
                 P[s_targ,a] = np.zeros(nb_states)
                 P[s_targ,a,s_targ] = 1.
                 reward[s_targ, a] = 1
-            span, u1, u2 = extended_value_iteration(
-                policy_indices, policy,
-                nb_states, maze.state_actions,
-                P, reward,
-                np.ones((nb_states, 4)),
-                np.zeros((nb_states, 4)),
-                np.zeros((nb_states, 4)),
-                np.zeros((nb_states, 4)),
-                1.0, maze.dimension,
-                1.0, 1.0, 0.01)
+
+            span = self.evi.evi(
+                policy_indices=policy_indices,
+                policy=policy,
+                estimated_probabilities=P,
+                estimated_rewards=reward,
+                estimated_holding_times=np.ones((nb_states, 4)),
+                beta_p=np.zeros((nb_states, 4, 1)),
+                beta_r=np.zeros((nb_states, 4)),
+                beta_tau=np.zeros((nb_states, 4)),
+                tau_max=1, tau_min=1, tau=1,
+                r_max=maze.dimension,
+                epsilon=0.01
+            )
+            # span, u1, u2 = extended_value_iteration(
+            #     policy_indices, policy,
+            #     nb_states, maze.state_actions,
+            #     P, reward,
+            #     np.ones((nb_states, 4)),
+            #     np.zeros((nb_states, 4)),
+            #     np.zeros((nb_states, 4)),
+            #     np.zeros((nb_states, 4)),
+            #     1.0, maze.dimension,
+            #     1.0, 1.0, 0.01)
 
             # for i, a in enumerate(policy):
             #     row, col = state2coord(i,maze.dimension)

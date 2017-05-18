@@ -34,7 +34,7 @@ parser.add_option("-a", "--alg", dest="algorithm", type="str",
 parser.add_option("-c", dest="c", type="float",
                   help="c value", default=0.8)
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
-                  help="t_max for options", default=4)
+                  help="t_max for options", default=-1)
 parser.add_option("-b", "--bernstein", action="store_true", dest="use_bernstein",
                   default=False, help="use Bernstein bound")
 parser.add_option("--rmax", dest="r_max", type="float",
@@ -49,6 +49,8 @@ parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
                   help="Number of repetitions", default=1)
+parser.add_option("--env_file", dest="env_pickle_file", type="str",
+                  help="Pickle file storing the mixed environment", default=None)
 parser.add_option("--id", dest="id", type="str",
                   help="Identifier of the script", default=None)
 parser.add_option("-q", "--quiet",
@@ -60,6 +62,9 @@ parser.add_option("--seed", dest="seed_0", default=random.getrandbits(64),
 (in_options, in_args) = parser.parse_args()
 
 assert in_options.algorithm in ["UCRL", "SUCRL", "FSUCRLv1", "FSUCRLv2"]
+
+if in_options.t_max < 1:
+    in_options.t_max = 1 + in_options.dimension // 2
 
 if in_options.r_max < 0:
     in_options.r_max = in_options.dimension
@@ -100,15 +105,27 @@ if in_options.algorithm == "SUCRL":
 reward_distribution_states = RewardDistributions.ConstantReward(0)
 reward_distribution_target = RewardDistributions.ConstantReward(in_options.dimension)
 
+success_probability = 0.8
+
 env = FourRoomsMaze(dimension=in_options.dimension,
                     initial_position=[in_options.dimension-1, in_options.dimension-1],
                     reward_distribution_states=reward_distribution_states,
                     reward_distribution_target=reward_distribution_target,
                     target_coordinates= [0,0],
-                    success_probability=0.8)
+                    success_probability=success_probability)
 
 if in_options.algorithm != "UCRL":
-    mixed_env = EscapeRoom(env)
+    if in_options.env_pickle_file is not None:
+        mixed_env = pickle.load( open( in_options.env_pickle_file, "rb" ) )
+        assert np.isclose(mixed_env.environment.p_success, success_probability)
+        assert mixed_env.environment.dimension == in_options.dimension
+    else:
+        mixed_env = EscapeRoom(env)
+        fname = "escape_room_{}_{}.pickle".format(in_options.dimension, success_probability)
+        with open(fname, "wb") as f:
+            pickle.dump(mixed_env, f)
+        print("Mixed environment saved in {}".format(fname))
+
 
 # # check optimal policy
 # for i, a in enumerate(env.optimal_policy):

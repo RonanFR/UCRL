@@ -6,8 +6,8 @@ mkdir ${folder}
 N_cpu=16
 N_mem=16G
 
-dim=6
-duration=30000000
+dim=22
+duration=60000000
 repetitions=2
 init_seed=28632376383341475136
 rmax=${dim}
@@ -17,7 +17,7 @@ tmax=$((1+dim/2))
 
 #v1
 i=1
-sname=fsucrlv1_${dim}_${t}.slurm
+sname=fsucrlv1_${dim}.slurm
 fname=${folder}/${sname}
 echo "#!/bin/bash" > ${fname}                                                                                                      
 echo "#SBATCH --nodes=1" >> ${fname}
@@ -44,7 +44,7 @@ sleep 1
 
 #v2
 i=1
-sname=fsucrlv2_${dim}_${t}.slurm
+sname=fsucrlv2_${dim}.slurm
 fname=${folder}/${sname}
 echo "#!/bin/bash" > ${fname}                                                                                                      
 echo "#SBATCH --nodes=1" >> ${fname}
@@ -71,7 +71,7 @@ sleep 1
 
 # CREATE CONFIGURATION FOR SUCRL
 i=1
-sname=sucrl_${dim}_${t}.slurm
+sname=sucrl_${dim}.slurm
 fname=${folder}/${sname}
 echo "#!/bin/bash" > ${fname}                                                                                                      
 echo "#SBATCH --nodes=1" >> ${fname}
@@ -98,14 +98,14 @@ sleep 1
 
 # CREATE CONFIGURATION FOR MDP
 i=1
-sname=ucrl_${dim}_${t}.slurm
+sname=ucrl_${dim}.slurm
 fname=${folder}/${sname}
 echo "#!/bin/bash" > ${fname}                                                                                                      
 echo "#SBATCH --nodes=1" >> ${fname}
 echo "#SBATCH --ntasks-per-node=1" >> ${fname}
 echo "#SBATCH --cpus-per-task=${N_cpu}" >> ${fname}
 echo "#SBATCH --time=24:00:00" >> ${fname}
-echo "#SBATCH --job-name=sucrl_${dim}" >> ${fname}
+echo "#SBATCH --job-name=ucrl_${dim}" >> ${fname}
 echo "#SBATCH --mem=${N_mem}" >> ${fname}
 echo "#SBATCH --output=sucrl_${dim}_%j.out" >> ${fname}
 echo "pwd; hostname; date" >> ${fname}
