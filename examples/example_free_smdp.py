@@ -54,7 +54,7 @@ parser.add_option("--id", dest="id", type="str",
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
-parser.add_option("--seed", dest="seed_0", default=28632376383341475136,#random.getrandbits(64),
+parser.add_option("--seed", dest="seed_0", default=random.getrandbits(64),
                   help="Seed used to generate the random seed sequence")
 
 (in_options, in_args) = parser.parse_args()
@@ -151,7 +151,7 @@ with open(os.path.join(folder_results, 'settings.conf'), 'w') as f:
 
 # Main loop
 for rep in range(in_options.nb_simulations):
-    seed = 923839952#seed_sequence[rep]  # set seed
+    seed = seed_sequence[rep]  # set seed
     np.random.seed(seed)
     random.seed(seed)
     print("rep: {}".format(rep))
