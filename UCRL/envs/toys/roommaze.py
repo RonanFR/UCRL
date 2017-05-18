@@ -326,37 +326,37 @@ class EscapeRoom(MixedEnvironment):
                 room_nb = maze.get_room_number(s)
                 if room_nb==0: # top left room
                     target_states = [
-                        coord2state(dim//4, dim//4, dim), # center
                         coord2state(dim//2, dim//4, dim), # down door
                         coord2state(dim//4, dim//2, dim), # right door
-                        coord2state(0, 0, dim) # corner
+                        coord2state(0, 0, dim), # corner
+                        coord2state(dim//4, dim//4, dim), # center
                     ]
                     if dim == 6:
                         assert np.all([el in [7, 19, 9, 0] for el in target_states])
                 elif room_nb==2: #top right  room
                     target_states = [
-                        coord2state(dim//4, dim//2+dim//4, dim), # center
-                        coord2state(dim//4, dim//2-1, dim), # right door
                         coord2state(dim//2, dim//2+dim//4, dim), # down door
-                        coord2state(0, dim-1, dim) # corner
+                        coord2state(dim//4, dim//2-1, dim), # right door
+                        coord2state(0, dim-1, dim), # corner
+                        coord2state(dim//4, dim//2+dim//4, dim), # center
                     ]
                     if dim == 6:
                         assert np.all([el in [10, 8, 22, 5] for el in target_states])
                 elif room_nb==1:  #bottom left room
                     target_states = [
-                        coord2state(dim//2+dim//4, dim//4, dim), # center
-                        coord2state(dim//2+dim//4, dim//2, dim), # right door
                         coord2state(dim//2-1, dim//4, dim), # up door
-                        coord2state(dim-1, 0, dim) # corner
+                        coord2state(dim//2+dim//4, dim//2, dim), # right door
+                        coord2state(dim-1, 0, dim), # corner
+                        coord2state(dim//2+dim//4, dim//4, dim), # center
                     ]
                     if dim == 6:
                         assert np.all([el in [25,27, 13, 30] for el in target_states])
                 else:  # bottom right room
                     target_states = [
-                        coord2state(dim//2+dim//4, dim//2+dim//4, dim), # center
-                        coord2state(dim//2+dim//4, dim//2-1, dim), # left door
                         coord2state(dim//2-1, dim//2+dim//4, dim), # up door
-                        coord2state(dim-1, dim-1, dim) # corner
+                        coord2state(dim//2+dim//4, dim//2-1, dim), # left door
+                        coord2state(dim-1, dim-1, dim), # corner
+                        coord2state(dim//2+dim//4, dim//2+dim//4, dim), # center
                     ]
                     if dim == 6:
                         assert np.all([el in [28, 26, 16, 35] for el in target_states])
@@ -368,17 +368,28 @@ class EscapeRoom(MixedEnvironment):
                 o_tc[s] = 1 # starting state
                 assert s in rooms[room_nb]
 
-                target_states = np.setdiff1d(target_states, [s])
+                if s in target_states:
+                    target_states.remove(s)
                 assert s not in target_states
 
                 policies = self.solve_forward_model(maze, target_states)
                 state_options.append([])
                 for i in range(len(target_states)):
                     options_policies.append(policies[i])
-                    options_terminating_conditions.append(copy.deepcopy(o_tc))
+                    loc_otc = copy.deepcopy(o_tc)
+                    loc_otc[target_states[i]] = 1 # when i reach the target I stop
+
+                    if target_states[i] in rooms[room_nb]:
+                        assert np.sum(loc_otc) == 3 * (dim / 2) ** 2 + 2
+                    else:
+                        assert np.sum(loc_otc) == 3 * (dim / 2) ** 2 + 1
+
+                    options_terminating_conditions.append(loc_otc)
                     state_options[-1].append(option_id)
                     option_id += 1
         assert option_id == nb_states*4 - 8 -2 #starting state has just one option
+        assert option_id == len(options_policies)
+        assert option_id == len(options_terminating_conditions)
 
         super(EscapeRoom, self).__init__(environment=maze,
                                          state_options=state_options,
@@ -386,6 +397,7 @@ class EscapeRoom(MixedEnvironment):
                                          options_terminating_conditions=options_terminating_conditions,
                                          delete_environment_actions="all",
                                          is_optimal=True)
+        self.dimension = maze.dimension
 
     def solve_forward_model(self, maze, targets_states):
         nb_states = maze.nb_states

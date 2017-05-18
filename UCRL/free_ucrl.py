@@ -90,6 +90,17 @@ class FSUCRLv1(AbstractUCRL):
             t0 = time.time()
             span_value = self.solve_optimistic_model()
             t1 = time.time()
+
+            if self.verbose > 2:
+                for i, a in enumerate(self.policy_indices):
+                    from UCRL.envs.toys.roommaze import state2coord
+                    row, col = state2coord(i,
+                                           self.environment.dimension)
+                    print("{}".format(a), end=" ")
+                    if col == self.environment.dimension - 1:
+                        print("")
+                print("---------------")
+
             span_value /= self.r_max
             alg_trace['span_values'].append(span_value)
             if self.verbose > 0:
@@ -383,6 +394,7 @@ class FSUCRLv1(AbstractUCRL):
         #
         # # assert np.allclose(u1, new_u1, 1e-5), "{}\n{}".format(u1, new_u1)
         # # assert np.allclose(u2, new_u2, 1e-5), "{}\n{}".format(u2, new_u2)
+
         return new_span
 
 

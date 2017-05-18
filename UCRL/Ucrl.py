@@ -123,17 +123,22 @@ class UcrlMdp(AbstractUCRL):
 
             if self.verbose > 0:
                 self.logger.info("{}/{} = {:3.2f}%".format(self.total_time, duration, self.total_time / duration *100))
-                if self.verbose > 2:
-                    self.logger.info("P_hat -> {}:\n{}".format(self.estimated_probabilities.shape, self.estimated_probabilities))
-                    self.logger.info("R_hat -> {}:\n{}".format(self.estimated_rewards.shape, self.estimated_rewards))
-                    self.logger.info("T_hat -> {}:\n{}".format(self.estimated_holding_times.shape, self.estimated_holding_times))
-                    self.logger.info("N -> {}:\n{}".format(self.nb_observations.shape, self.nb_observations))
-                    self.logger.info("nu_k -> {}:\n{}".format(self.nu_k.shape, self.nu_k))
 
             # solve the optimistic (extended) model
             t0 = time.time()
             span_value = self.solve_optimistic_model()
             t1 = time.time()
+
+            if self.verbose > 2:
+                for i, a in enumerate(self.policy_indices):
+                    from UCRL.envs.toys.roommaze import state2coord
+                    row, col = state2coord(i,
+                                           self.environment.dimension)
+                    print("{}".format(a), end=" ")
+                    if col == self.environment.dimension - 1:
+                        print("")
+                print("---------------")
+
             span_value *= self.tau / self.r_max
             alg_trace['span_values'].append(span_value)
             if self.verbose > 0:

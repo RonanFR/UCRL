@@ -34,7 +34,7 @@ parser.add_option("-a", "--alg", dest="algorithm", type="str",
 parser.add_option("-c", dest="c", type="float",
                   help="c value", default=0.8)
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
-                  help="t_max for options", default=3)
+                  help="t_max for options", default=4)
 parser.add_option("-b", "--bernstein", action="store_true", dest="use_bernstein",
                   default=False, help="use Bernstein bound")
 parser.add_option("--rmax", dest="r_max", type="float",
@@ -76,13 +76,16 @@ if in_options.range_p < 0:
     else:
         in_options.range_p = tuning.range_p_from_bernstein(
             nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
+    # in_options.range_p = 1
 
 if in_options.range_mu_p < 0:
     in_options.range_mu_p = tuning.range_p_from_hoeffding(
         nb_states=2, nb_actions=4, nb_observations=10)
+    # in_options.range_mu_p = 1
 if in_options.range_r < 0:
     range_r = tuning.range_r_from_hoeffding(
         nb_states=in_options.dimension, nb_actions=4, nb_observations=40)
+    # range_r = 1
     range_tau = range_r * (in_options.t_max - 1.)
     in_options.range_r = in_options.t_max * range_r
 
@@ -113,7 +116,6 @@ if in_options.algorithm != "UCRL":
 #     print("{}".format(a), end=" ")
 #     if col == dimension-1:
 #         print("")
-
 
 folder_results = os.path.abspath('{}_4rooms_{}'.format(in_options.algorithm,
                                                        in_options.id))
