@@ -3,14 +3,19 @@ from ...cython import extended_value_iteration
 import numpy as np
 import copy
 
+
 def coord2state(row, col, dimension):
+    assert 0<= row < dimension
+    assert 0<= col < dimension
     state = row * dimension + col
     return state
 
 
 def state2coord(state, dimension):
+    assert state < dimension**2
     col, row = state % dimension, state // dimension
     return row, col
+
 
 class FourRoomsMaze(Environment):
     """
@@ -213,6 +218,7 @@ class FourRoomsMaze(Environment):
 
         p = self.prob_kernel[self.state,action_index]
         next_state = np.asscalar(np.random.choice(self.nb_states, 1, p=p))
+        assert p[next_state] > 0.
         self.position_coordinates = state2coord(next_state, self.dimension)
         self.state = next_state
         if self.state == self.target_state:  # if current state is the target: restart
@@ -277,6 +283,20 @@ class FourRoomsMaze(Environment):
                     room_states[i].append(coord2state(row, col, self.dimension))
         return room_states
 
+    def get_room_number(self, state):
+        dim = self.dimension
+        dim_2 = dim//2
+        row, col = state2coord(state, dim)
+        if row < dim_2 and col < dim_2:
+            return 0
+        elif row < dim_2 and col >= dim_2:
+            return 2
+        elif row >= dim_2 and col < dim_2:
+            return 1
+        else:
+            return 3
+
+
 
 class EscapeRoom(MixedEnvironment):
 
@@ -301,50 +321,55 @@ class EscapeRoom(MixedEnvironment):
                 options_terminating_conditions.append([1] * nb_states)
                 state_options.append([option_id])
                 option_id += 1
+                assert sum(map(len,state_options)) == 1
             else:
-                row, col = state2coord(s, dim)
-                row = dim//2 if row >= dim//2 else 0
-                col = dim//2 if col >= dim//2 else 0
-                if row == 0 and col == 0: # top left room
+                room_nb = maze.get_room_number(s)
+                if room_nb==0: # top left room
                     target_states = [
                         coord2state(dim//4, dim//4, dim), # center
                         coord2state(dim//2, dim//4, dim), # down door
                         coord2state(dim//4, dim//2, dim), # right door
                         coord2state(0, 0, dim) # corner
                     ]
-                    room_nb = 0
-                elif row > 0 and col == 0: #top right  room
+                    if dim == 6:
+                        assert np.all([el in [7, 19, 9, 0] for el in target_states])
+                elif room_nb==2: #top right  room
                     target_states = [
-                        coord2state(row+dim//4, col+dim//4, dim), # center
-                        coord2state(dim//2-1, dim//4, dim), # top door
-                        coord2state(dim//2+dim//4, dim//2, dim), # right door
-                        coord2state(dim-1, 0, dim) # corner
-                    ]
-                    room_nb = 2
-                elif row ==0 and col > 0:  #bottom left room
-                    target_states = [
-                        coord2state(row+dim//4, col+dim//4, dim), # center
-                        coord2state(dim//4, dim//2-1, dim), # left door
-                        coord2state(dim//2, dim//2+dim//4, dim), # bottom door
+                        coord2state(dim//4, dim//2+dim//4, dim), # center
+                        coord2state(dim//4, dim//2-1, dim), # right door
+                        coord2state(dim//2, dim//2+dim//4, dim), # down door
                         coord2state(0, dim-1, dim) # corner
                     ]
-                    room_nb = 1
+                    if dim == 6:
+                        assert np.all([el in [10, 8, 22, 5] for el in target_states])
+                elif room_nb==1:  #bottom left room
+                    target_states = [
+                        coord2state(dim//2+dim//4, dim//4, dim), # center
+                        coord2state(dim//2+dim//4, dim//2, dim), # right door
+                        coord2state(dim//2-1, dim//4, dim), # up door
+                        coord2state(dim-1, 0, dim) # corner
+                    ]
+                    if dim == 6:
+                        assert np.all([el in [25,27, 13, 30] for el in target_states])
                 else:  # bottom right room
                     target_states = [
-                        coord2state(row+dim//4, col+dim//4, dim), # center
+                        coord2state(dim//2+dim//4, dim//2+dim//4, dim), # center
                         coord2state(dim//2+dim//4, dim//2-1, dim), # left door
                         coord2state(dim//2-1, dim//2+dim//4, dim), # up door
                         coord2state(dim-1, dim-1, dim) # corner
                     ]
-                    room_nb = 3
+                    if dim == 6:
+                        assert np.all([el in [28, 26, 16, 35] for el in target_states])
 
                 # set zero in the current room
                 o_tc = [1] * nb_states
                 for x in rooms[room_nb]:
                     o_tc[x] = 0
                 o_tc[s] = 1 # starting state
+                assert s in rooms[room_nb]
 
                 target_states = np.setdiff1d(target_states, [s])
+                assert s not in target_states
 
                 policies = self.solve_forward_model(maze, target_states)
                 state_options.append([])
@@ -360,7 +385,7 @@ class EscapeRoom(MixedEnvironment):
                                          options_policies=options_policies,
                                          options_terminating_conditions=options_terminating_conditions,
                                          delete_environment_actions="all",
-                                         is_optimal=False)
+                                         is_optimal=True)
 
     def solve_forward_model(self, maze, targets_states):
         nb_states = maze.nb_states

@@ -30,9 +30,11 @@ parser.add_option("-d", "--dimension", dest="dimension", type="int",
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="duration of the experiment", default=10000000)
 parser.add_option("-a", "--alg", dest="algorithm", type="str",
-                  help="Name of the algorith to execute", default="UCRL") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
+                  help="Name of the algorith to execute", default="FSUCRLv1") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
 parser.add_option("-c", dest="c", type="float",
                   help="c value", default=0.8)
+parser.add_option("-t", "--tmax", dest="t_max", type="int",
+                  help="t_max for options", default=3)
 parser.add_option("-b", "--bernstein", action="store_true", dest="use_bernstein",
                   default=False, help="use Bernstein bound")
 parser.add_option("--rmax", dest="r_max", type="float",
@@ -41,6 +43,8 @@ parser.add_option("--p_range", dest="range_p", type="float",
                   help="range of transition matrix", default=-1)
 parser.add_option("--r_range", dest="range_r", type="float",
                   help="range of reward", default=-1)
+parser.add_option("--mu_range", dest="range_mu_p", type="float",
+                  help="range for stationary distribution", default=-1)
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
@@ -54,6 +58,8 @@ parser.add_option("--seed", dest="seed_0", default=random.getrandbits(64),
                   help="Seed used to generate the random seed sequence")
 
 (in_options, in_args) = parser.parse_args()
+
+assert in_options.algorithm in ["UCRL", "SUCRL", "FSUCRLv1", "FSUCRLv2"]
 
 if in_options.r_max < 0:
     in_options.r_max = in_options.dimension
@@ -84,7 +90,6 @@ config = vars(in_options)
 if in_options.algorithm == "SUCRL":
     config['range_tau'] = range_tau
 
-assert in_options.algorithm in ["UCRL", "SUCRL", "FSUCRLv1", "FSUCRLv2"]
 
 # ------------------------------------------------------------------------------
 # Relevant code
@@ -136,7 +141,7 @@ for rep in range(in_options.nb_simulations):
                                               console=not in_options.quiet,
                                               filename=name,
                                               path=folder_results)
-    if in_options.algorithm != "UCRL":
+    if in_options.algorithm == "UCRL":
         ucrl = Ucrl.UcrlMdp(
             env,
             r_max=in_options.r_max,
@@ -145,7 +150,7 @@ for rep in range(in_options.nb_simulations):
             verbose=1,
             logger=ucrl_log,
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
-    elif in_options.algorithm != "SUCRL":
+    elif in_options.algorithm == "SUCRL":
         ucrl = Ucrl.UcrlSmdpBounded(
             environment=copy.deepcopy(mixed_env),
             r_max=in_options.r_max,
@@ -156,7 +161,7 @@ for rep in range(in_options.nb_simulations):
             verbose=1,
             logger=ucrl_log,
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
-    elif in_options.algorithm != "FSUCRLv1":
+    elif in_options.algorithm == "FSUCRLv1":
         ucrl = FSUCRLv1(
             environment=copy.deepcopy(mixed_env),
             r_max=in_options.r_max,
@@ -166,7 +171,7 @@ for rep in range(in_options.nb_simulations):
             verbose=1,
             logger=ucrl_log,
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
-    elif in_options.algorithm != "FSUCRLv2":
+    elif in_options.algorithm == "FSUCRLv2":
         ucrl = FSUCRLv2(
             environment=copy.deepcopy(mixed_env),
             r_max=in_options.r_max,
