@@ -33,9 +33,9 @@ echo "module load anaconda3/4.1.0" >> ${fname}
 echo "export OMP_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
 echo "export NUMEXPR_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
 
-echo "python ../example_roommaze.py -b --v_alg FSUCRLv1 -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname} #bernstein
+echo "python ../example_roommaze.py -b --alg FSUCRLv1 -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname} #bernstein
 i=$((i+1))
-echo "python ../example_roommaze.py --v_alg FSUCRLv1 -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
+echo "python ../example_roommaze.py --alg FSUCRLv1 -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
 
 cd ${folder}
 sbatch ${sname}
@@ -60,9 +60,9 @@ echo "module load anaconda3/4.1.0" >> ${fname}
 echo "export OMP_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
 echo "export NUMEXPR_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
 
-echo "python ../example_roommaze.py -b --v_alg FSUCRLv2 -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname} #bernstein
+echo "python ../example_roommaze.py -b --alg FSUCRLv2 -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname} #bernstein
 i=$((i+1))
-echo "python ../example_roommaze.py --v_alg FSUCRLv2 -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
+echo "python ../example_roommaze.py --alg FSUCRLv2 -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
 
 cd ${folder}
 sbatch ${sname}
@@ -87,9 +87,9 @@ echo "module load anaconda3/4.1.0" >> ${fname}
 echo "export OMP_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
 echo "export NUMEXPR_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
 
-echo "python ../example_roommaze.py -b --v_alg SUCRL -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname} #bernstein
+echo "python ../example_roommaze.py -b --alg SUCRL -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname} #bernstein
 i=$((i+1))
-echo "python ../example_roommaze.py --v_alg SUCRL -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
+echo "python ../example_roommaze.py --alg SUCRL -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
 
 cd ${folder}
 sbatch ${sname}
@@ -114,9 +114,9 @@ echo "module load anaconda3/4.1.0" >> ${fname}
 echo "export OMP_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
 echo "export NUMEXPR_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
 
-echo "python ../example_roommaze.py -b --v_alg UCRL -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname} #bernstein
+echo "python ../example_roommaze.py -b --alg UCRL -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname} #bernstein
 i=$((i+1))
-echo "python ../example_roommaze.py --v_alg UCRL -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
+echo "python ../example_roommaze.py --alg UCRL -d ${dim} -n ${duration} --tmax ${tmax} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
 
 cd ${folder}
 sbatch ${sname}
