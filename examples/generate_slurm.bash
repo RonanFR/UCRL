@@ -17,16 +17,16 @@ rmax=${dim}
 i=1
 for (( t=1; t<=${tmax}; t++ ))
 do
-    sname=fsucrl1_${dim}_${t}.slurm
+    sname=fsucrlv1_${dim}_${t}.slurm
     fname=${folder}/${sname}
     echo "#!/bin/bash" > ${fname}                                                                                                      
     echo "#SBATCH --nodes=1" >> ${fname}
     echo "#SBATCH --ntasks-per-node=1" >> ${fname}
     echo "#SBATCH --cpus-per-task=24" >> ${fname}
     echo "#SBATCH --time=24:00:00" >> ${fname}
-    echo "#SBATCH --job-name=fsucrl1_${dim}_${t}" >> ${fname}
+    echo "#SBATCH --job-name=fsucrlv1_${dim}_${t}" >> ${fname}
     echo "#SBATCH --mem=24G" >> ${fname}
-    echo "#SBATCH --output=fsucrl1_${dim}_${t}_%j.out" >> ${fname}
+    echo "#SBATCH --output=fsucrlv1_${dim}_${t}_%j.out" >> ${fname}
     echo "pwd; hostname; date" >> ${fname}
     echo "" >> ${fname}
     echo "module load anaconda3/4.1.0" >> ${fname}
@@ -48,16 +48,16 @@ done
 i=1
 for (( t=1; t<=${tmax}; t++ ))
 do
-    sname=fsucrl1_${dim}_${t}.slurm
+    sname=fsucrlv2_${dim}_${t}.slurm
     fname=${folder}/${sname}
     echo "#!/bin/bash" > ${fname}                                                                                                      
     echo "#SBATCH --nodes=1" >> ${fname}
     echo "#SBATCH --ntasks-per-node=1" >> ${fname}
     echo "#SBATCH --cpus-per-task=24" >> ${fname}
     echo "#SBATCH --time=24:00:00" >> ${fname}
-    echo "#SBATCH --job-name=fsucrl1_${dim}_${t}" >> ${fname}
+    echo "#SBATCH --job-name=fsucrlv2_${dim}_${t}" >> ${fname}
     echo "#SBATCH --mem=24G" >> ${fname}
-    echo "#SBATCH --output=fsucrl1_${dim}_${t}_%j.out" >> ${fname}
+    echo "#SBATCH --output=fsucrlv2_${dim}_${t}_%j.out" >> ${fname}
     echo "pwd; hostname; date" >> ${fname}
     echo "" >> ${fname}
     echo "module load anaconda3/4.1.0" >> ${fname}

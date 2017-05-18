@@ -136,7 +136,7 @@ for x, y in zip(mixed_environment.state_options, options.state_options):
                 f = True
     assert f
 
-folder_results = os.path.abspath('freesmdp_{}'.format(in_options.id))
+folder_results = os.path.abspath('fsucrlv{}_{}'.format(in_options.v_alg, in_options.id))
 if os.path.exists(folder_results):
     shutil.rmtree(folder_results)
 os.makedirs(folder_results)
