@@ -12,6 +12,7 @@ from UCRL.envs.toys.roommaze import state2coord, coord2state
 from UCRL.envs.toys.roommaze import EscapeRoom
 import UCRL.envs.RewardDistributions as RewardDistributions
 import UCRL.Ucrl as Ucrl
+from UCRL.free_ucrl import FSUCRLv1, FSUCRLv2
 import UCRL.logging as ucrl_logger
 import UCRL.parameters_init as tuning
 from optparse import OptionParser
@@ -28,8 +29,10 @@ parser.add_option("-d", "--dimension", dest="dimension", type="int",
                   help="dimension of the gridworld", default=6)
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="duration of the experiment", default=10000000)
-# parser.add_option("-c", dest="c", type="float",
-#                   help="c value", default=0.8)
+parser.add_option("-a", "--alg", dest="algorithm", type="str",
+                  help="Name of the algorith to execute", default="UCRL") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
+parser.add_option("-c", dest="c", type="float",
+                  help="c value", default=0.8)
 parser.add_option("-b", "--bernstein", action="store_true", dest="use_bernstein",
                   default=False, help="use Bernstein bound")
 parser.add_option("--rmax", dest="r_max", type="float",
@@ -58,7 +61,8 @@ if in_options.r_max < 0:
 if in_options.id is None:
     in_options.id = '{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now())
 
-# range_r = in_options.c
+range_tau = (in_options.t_max - 1) * in_options.c
+
 if in_options.range_p < 0:
     if not in_options.use_bernstein:
         in_options.range_p = tuning.range_p_from_hoeffding(
@@ -67,12 +71,20 @@ if in_options.range_p < 0:
         in_options.range_p = tuning.range_p_from_bernstein(
             nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
 
+if in_options.range_mu_p < 0:
+    in_options.range_mu_p = tuning.range_p_from_hoeffding(
+        nb_states=2, nb_actions=4, nb_observations=10)
 if in_options.range_r < 0:
-    in_options.range_r = tuning.range_r_from_hoeffding(
+    range_r = tuning.range_r_from_hoeffding(
         nb_states=in_options.dimension, nb_actions=4, nb_observations=40)
+    range_tau = range_r * (in_options.t_max - 1.)
+    in_options.range_r = in_options.t_max * range_r
 
 config = vars(in_options)
-#config['range_r'] = range_r
+if in_options.algorithm == "SUCRL":
+    config['range_tau'] = range_tau
+
+assert in_options.algorithm in ["UCRL", "SUCRL", "FSUCRLv1", "FSUCRLv2"]
 
 # ------------------------------------------------------------------------------
 # Relevant code
@@ -87,7 +99,8 @@ env = FourRoomsMaze(dimension=in_options.dimension,
                     target_coordinates= [0,0],
                     success_probability=0.8)
 
-EscapeRoom(env)
+if in_options.algorithm != "UCRL":
+    mixed_env = EscapeRoom(env)
 
 # # check optimal policy
 # for i, a in enumerate(env.optimal_policy):
@@ -97,7 +110,8 @@ EscapeRoom(env)
 #         print("")
 
 
-folder_results = os.path.abspath('mdp_4rooms_{}'.format(in_options.id))
+folder_results = os.path.abspath('{}_4rooms_{}'.format(in_options.algorithm,
+                                                       in_options.id))
 if os.path.exists(folder_results):
     shutil.rmtree(folder_results)
 os.makedirs(folder_results)
@@ -122,15 +136,47 @@ for rep in range(in_options.nb_simulations):
                                               console=not in_options.quiet,
                                               filename=name,
                                               path=folder_results)
+    if in_options.algorithm != "UCRL":
+        ucrl = Ucrl.UcrlMdp(
+            env,
+            r_max=in_options.r_max,
+            range_r=in_options.range_r,
+            range_p=in_options.range_p,
+            verbose=1,
+            logger=ucrl_log,
+            bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
+    elif in_options.algorithm != "SUCRL":
+        ucrl = Ucrl.UcrlSmdpBounded(
+            environment=copy.deepcopy(mixed_env),
+            r_max=in_options.r_max,
+            t_max=in_options.t_max,
+            range_r=in_options.range_r,
+            range_p=in_options.range_p,
+            range_tau=range_tau,
+            verbose=1,
+            logger=ucrl_log,
+            bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
+    elif in_options.algorithm != "FSUCRLv1":
+        ucrl = FSUCRLv1(
+            environment=copy.deepcopy(mixed_env),
+            r_max=in_options.r_max,
+            range_r=in_options.range_r,
+            range_p=in_options.range_p,
+            range_mu_p=in_options.range_mu_p,
+            verbose=1,
+            logger=ucrl_log,
+            bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
+    elif in_options.algorithm != "FSUCRLv2":
+        ucrl = FSUCRLv2(
+            environment=copy.deepcopy(mixed_env),
+            r_max=in_options.r_max,
+            range_r=in_options.range_r,
+            range_p=in_options.range_p,
+            range_opt_p=in_options.range_mu_p,
+            verbose=1,
+            logger=ucrl_log,
+            bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
 
-    ucrl = Ucrl.UcrlMdp(
-        env,
-        r_max=in_options.r_max,
-        range_r=in_options.range_r,
-        range_p=in_options.range_p,
-        verbose=1,
-        logger=ucrl_log,
-        bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ucrl).__name__))
     ucrl_log.info("seed: {}".format(seed))
     ucrl_log.info("Using Bernstein: {}".format(in_options.use_bernstein))

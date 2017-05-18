@@ -24,9 +24,9 @@ PROG = os.path.basename(os.path.splitext(__file__)[0])
 parser = OptionParser(option_class=MultipleOption,
                       usage='usage: %prog [OPTIONS]')
 parser.add_option("-f", "--folder", dest="folder", type="str",
-                  help="folder containing results", default="../../results/test_20170517_002618")
+                  help="folder containing results", default="../../results/test_20170518")
 parser.add_option('-c', '--categories',
-                  action="extend", type="string", default=["c1"],
+                  action="extend", type="string", default=["c1", "c11"],
                   dest='categories', metavar='CATEGORIES',
                   help='comma separated list of post categories')
 
@@ -34,16 +34,24 @@ parser.add_option('-c', '--categories',
 print("arguments: {}".format(in_args))
 print("options: {}".format(in_options))
 
-algorithms = ["smdp", "freesmdp"]#, "mdp"]
+algorithms = ["smdp", "fsucrlv1", "fsucrlv2", "mdp"]
 
 eq_config = dict()
-eq_config['mdp'] = {"c1":"c1", "c2":"c1",
-                    "c3":"c3", "c4":"c3"}
+eq_config['mdp'] = {}
+for i in range(16):
+    if i%2 == 0:
+        eq_config['mdp']["c{}".format(i)] = "c2"
+    else:
+        eq_config['mdp']["c{}".format(i)] = "c1"
+print(eq_config["mdp"])
 
+plt.figure()
 for conf in in_options.categories:
-    plt.figure()
+
     for alg in algorithms:
         if alg in eq_config.keys():
+            if conf not in ["c1", "c2"]:
+                continue
             conf = eq_config[alg][conf]
         folder = os.path.join(in_options.folder, "{}_{}".format(alg,conf))
         onlyfiles = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)) and ".pickle" in f]
@@ -52,13 +60,16 @@ for conf in in_options.categories:
         for f in onlyfiles:
             model = pickle.load(open(os.path.join(folder, f), "rb"))
             print(model)
+            print(len(model.regret))
             regrets.append(model.regret)
+            break
         regrets = np.array(regrets)
         regret_mean = np.mean(regrets, axis=0)
         regret_std = np.std(regrets, axis=0)
-        plt.plot(regret_mean, label=alg)
+        plt.plot(regret_mean[0:len(regret_mean)], label="{}_{}".format(alg,conf))
     plt.legend()
-    plt.show()
+
+plt.show()
 
 
 
