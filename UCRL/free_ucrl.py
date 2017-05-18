@@ -105,7 +105,10 @@ class FSUCRLv1(AbstractUCRL):
             t0 = time.perf_counter()
             while self.update() and self.total_time < duration:
                 if self.total_time > threshold:
-                    self.regret.append(self.total_time * self.environment.max_gain - self.total_reward)
+                    curr_regret = self.total_time * self.environment.max_gain - self.total_reward
+                    self.regret.append(curr_regret)
+                    if self.verbose > 0:
+                        self.logger.info("regret: {:.9f}".format(curr_regret))
                     self.unit_duration.append(self.total_time / self.iteration)
                     threshold = self.total_time + regret_time_step
             self.nb_observations_mdp += self.nu_k_mdp
@@ -480,6 +483,9 @@ class FSUCRLv2(FSUCRLv1):
 
         # print("{}, {}".format(new_span, py_span))
         # assert np.isclose(new_span, py_span), "{} != {}".format(new_span, py_span)
+
+        if new_span < 0:
+            self.logger.info("ERROR")
 
         assert new_span > -0.00001, "{}".format(new_span)
 

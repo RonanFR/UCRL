@@ -104,7 +104,7 @@ for rep in range(in_options.nb_simulations):
     seed = seed_sequence[rep]  # set seed
     np.random.seed(seed)
     random.seed(seed)
-    print("IT: {}".format(rep))
+    print("rep: {}".format(rep))
 
     name = "trace_{}".format(rep)
     ucrl_log = ucrl_logger.create_multilogger(logger_name=name,
@@ -120,7 +120,8 @@ for rep in range(in_options.nb_simulations):
         verbose=1,
         logger=ucrl_log,
         bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
-    ucrl_log.info("{}".format(type(ucrl).__name__))
+    ucrl_log.info("[id: {}] {}".format(in_options.id, type(ucrl).__name__))
+    ucrl_log.info("seed: {}".format(seed))
     ucrl_log.info("Using Bernstein: {}".format(in_options.use_bernstein))
 
     h = ucrl.learn(in_options.duration, in_options.regret_time_steps)  # learn task

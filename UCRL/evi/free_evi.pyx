@@ -663,6 +663,9 @@ cdef class EVI_FSUCRLv2:
             outer_evi_it = 0
             while True:
                 outer_evi_it += 1
+                if outer_evi_it > 50000:
+                    return -5
+
                 epsilon_opt = 1. / pow(2, outer_evi_it)
 
                 # --------------------------------------------------------------
