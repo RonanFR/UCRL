@@ -688,7 +688,7 @@ cdef class EVI_FSUCRLv2:
                     center_value = w1[o].values[0]
                     for i in range(nb_states_per_options):
                         sorted_indices_popt[o].values[i] = i
-                        w1[o].values[i] = w1[o].values[i] - center_value # 0.0
+                        w1[o].values[i] = 0.0# w1[o].values[i] - center_value # 0.0
                         w2[o].values[i] = 0.0
 
                     inner_it_opt = 0
@@ -830,6 +830,9 @@ cdef class EVI_FSUCRLv2:
                     # center_value = u1[0]
                     # for j in range(nb_states):
                     #     u1[j] = u1[j] - center_value
+
+                if v > 50000:
+                    return -70
 
                 # printf("[%d]u1\n", outer_evi_it)
                 # for j in range(nb_states):
