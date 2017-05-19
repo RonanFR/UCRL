@@ -81,7 +81,7 @@ if in_options.range_p < 0:
     else:
         in_options.range_p = tuning.range_p_from_bernstein(
             nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
-        in_options.range_p = 1. ##############
+        # in_options.range_p = 1. ##############
 
 if in_options.range_mu_p < 0:
     in_options.range_mu_p = tuning.range_p_from_hoeffding(
@@ -152,6 +152,7 @@ with open(os.path.join(folder_results, 'settings.conf'), 'w') as f:
 # Main loop
 for rep in range(in_options.nb_simulations):
     seed = seed_sequence[rep]  # set seed
+    seed = 1011005946
     np.random.seed(seed)
     random.seed(seed)
     print("rep: {}".format(rep))

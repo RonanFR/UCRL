@@ -600,6 +600,7 @@ cdef class EVI_FSUCRLv2:
                     nb_o = max(1, nb_observations_mdp[s, mdp_index_a])
 
 
+
                     for j in range(opt_nb_states):
                         nexts = self.reachable_states_per_option[o].values[j]
                         idx = pos2index_2d(nb_options, nb_states, o, nexts)
@@ -633,11 +634,11 @@ cdef class EVI_FSUCRLv2:
         cdef SIZE_t continue_flag, nb_states_per_options
         cdef SIZE_t idx, s, sprime, first_action, action, o, a_idx
         cdef SIZE_t option_act, option_idx
-        cdef SIZE_t outer_evi_it, inner_it_opt, i, j
+        cdef SIZE_t outer_evi_it, inner_it_opt, i, j,k
         cdef DTYPE_t epsilon_opt
         cdef DTYPE_t v, r_optimal
         cdef DTYPE_t min_u1, max_u1
-        cdef DTYPE_t min_w1, max_w1, cv
+        cdef DTYPE_t min_w1, max_w1, cv, center_value
 
         cdef DTYPE_t* u1 = self.u1
         cdef DTYPE_t* u2 = self.u2
@@ -684,9 +685,10 @@ cdef class EVI_FSUCRLv2:
                     continue_flag = 1
 
                     nb_states_per_options = reach_states[o].dim
+                    center_value = w1[o].values[0]
                     for i in range(nb_states_per_options):
                         sorted_indices_popt[o].values[i] = i
-                        w1[o].values[i] = w1[o].values[i]- w1[o].values[0] # 0.0
+                        w1[o].values[i] = w1[o].values[i] - center_value # 0.0
                         w2[o].values[i] = 0.0
 
                     inner_it_opt = 0
@@ -740,10 +742,25 @@ cdef class EVI_FSUCRLv2:
                             v = r_optimal + v + dot_prod(mtx_maxprob_opt_memview[o], self.w1[o].values, nb_states_per_options)
                             w2[o].values[i] = v
                             if v > 50000:
-                                printf("opt: %d\n", o)
+                                printf("outer: %d, inner: %d\n", outer_evi_it, inner_it_opt)
+                                printf("opt: %d\nw1:\n", o)
                                 for j in range(nb_states_per_options):
                                     printf("%.2f ", w1[o].values[j])
                                 printf("\n")
+                                printf("u1\n")
+                                for j in range(nb_states):
+                                    printf("%.2f ", u1[j])
+                                printf("\n")
+                                printf("beta_p_opt: %d\n", o)
+                                for j in range(nb_states_per_options):
+                                    for k in range(nb_states_per_options):
+                                        idx = pos2index_2d(nb_states_per_options, nb_states_per_options, j, k)
+                                        printf("%.2f +- %.2f ", p_hat_opt[o].values[idx], beta_opt_p[o].values[idx])
+                                    printf("\n")
+                                printf("\n")
+
+                                check_end_opt_evi(w2[o].values, w1[o].values, nb_states_per_options, &span_w_opt[o])
+                                printf("gain: %f", span_w_opt[o])
                                 return -4
 
                         # stopping condition
@@ -789,9 +806,9 @@ cdef class EVI_FSUCRLv2:
                             v = span_w_opt[o]
 
                         v = v + u1[s]
-                        # if v > 50000:
-                        #     printf("%f", v)
-                        #     return -60
+                        if v > 50000:
+                            printf("%f", v)
+                            return -60
                         if first_action or v > u2[s] or isclose_c(v, u2[s]):
                             u2[s] = v
                             policy_indices[s] = a_idx
@@ -810,6 +827,14 @@ cdef class EVI_FSUCRLv2:
                     # printf("------------\n")
                     memcpy(u1, u2, nb_states * sizeof(DTYPE_t))
                     get_sorted_indices(u1, nb_states, sorted_indices)
+                    # center_value = u1[0]
+                    # for j in range(nb_states):
+                    #     u1[j] = u1[j] - center_value
+
+                # printf("[%d]u1\n", outer_evi_it)
+                # for j in range(nb_states):
+                #     printf("%.2f ", u1[j])
+                # printf("\n")
 
 
     cpdef get_r_tilde_opt(self):
