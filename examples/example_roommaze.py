@@ -140,6 +140,7 @@ if os.path.exists(folder_results):
     shutil.rmtree(folder_results)
 os.makedirs(folder_results)
 
+np.random.seed(in_options.seed_0)
 random.seed(in_options.seed_0)
 seed_sequence = [random.randint(0, 2**30) for _ in range(in_options.nb_simulations)]
 

@@ -6,10 +6,10 @@ mkdir ${folder}
 N_cpu=16
 N_mem=16G
 
-dim=22
+dim=6
 duration=60000000
 repetitions=2
-init_seed=28632376383341475136
+init_seed=11684364811143360770
 rmax=${dim}
 tmax=$((1+dim/2))
 
