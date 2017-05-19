@@ -28,9 +28,9 @@ parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
                   help="dimension of the gridworld", default=6)
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=10000000)
+                  help="duration of the experiment", default=30000000)
 parser.add_option("-a", "--alg", dest="algorithm", type="str",
-                  help="Name of the algorith to execute", default="FSUCRLv1") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
+                  help="Name of the algorith to execute", default="FSUCRLv2") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
 parser.add_option("-c", dest="c", type="float",
                   help="c value", default=0.8)
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
@@ -81,7 +81,7 @@ if in_options.range_p < 0:
     else:
         in_options.range_p = tuning.range_p_from_bernstein(
             nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
-    # in_options.range_p = 1
+        in_options.range_p = 1 ##############
 
 if in_options.range_mu_p < 0:
     in_options.range_mu_p = tuning.range_p_from_hoeffding(
