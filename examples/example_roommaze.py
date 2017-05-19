@@ -56,7 +56,7 @@ parser.add_option("--id", dest="id", type="str",
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
-parser.add_option("--seed", dest="seed_0", default=random.getrandbits(64),
+parser.add_option("--seed", dest="seed_0", type=int, default=random.getrandbits(16),
                   help="Seed used to generate the random seed sequence")
 
 (in_options, in_args) = parser.parse_args()
@@ -81,7 +81,7 @@ if in_options.range_p < 0:
     else:
         in_options.range_p = tuning.range_p_from_bernstein(
             nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
-        in_options.range_p = 1 ##############
+        in_options.range_p = 1. ##############
 
 if in_options.range_mu_p < 0:
     in_options.range_mu_p = tuning.range_p_from_hoeffding(

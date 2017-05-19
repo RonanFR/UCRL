@@ -7,9 +7,9 @@ N_cpu=16
 N_mem=16G
 
 dim=6
-duration=60000000
+duration=30000000
 repetitions=2
-init_seed=11684364811143360770
+init_seed=114364114
 rmax=${dim}
 tmax=$((1+dim/2))
 
