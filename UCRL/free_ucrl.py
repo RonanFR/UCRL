@@ -206,6 +206,9 @@ class FSUCRLv1(AbstractUCRL):
         self.estimated_rewards_mdp[s][mdp_index] += 1. / (scale_factor + 1.) * r
         self.estimated_probabilities_mdp[s][mdp_index] *= scale_factor / (scale_factor + 1.)
         self.estimated_probabilities_mdp[s][mdp_index][s2] += 1. / (scale_factor + 1.)
+        if self.estimated_probabilities_mdp[s][mdp_index][s2] > 0:
+            pmdp = self.environment.environment.prob_kernel
+            assert pmdp[s][mdp_index][s2] > 0
         self.nu_k_mdp[s][mdp_index] += 1
         if mdpopt_index is not None:
             # this means that the primitive action is a valid action for
@@ -451,8 +454,8 @@ class FSUCRLv2(FSUCRLv1):
         #     range_opt_p=self.range_mu_p)
 
         t0 = time.perf_counter()
-        self.opt_solver.compute_prerun_info(
-            estimated_probabilities_mdp=self.estimated_probabilities,
+        gg = self.opt_solver.compute_prerun_info(
+            estimated_probabilities_mdp=self.estimated_probabilities_mdp,
             estimated_rewards_mdp=self.estimated_rewards_mdp,
             beta_r=beta_r,
             nb_observations_mdp=self.nb_observations_mdp,
@@ -461,6 +464,9 @@ class FSUCRLv2(FSUCRLv1):
             max_nb_actions=max_nb_actions,
             range_opt_p=self.range_mu_p)
         t1 = time.perf_counter()
+        if np.isclose(gg,-999):
+
+            raise ValueError()
 
         # p, b = self.opt_solver.get_opt_p_and_beta()
         # rt = self.opt_solver.get_r_tilde_opt()

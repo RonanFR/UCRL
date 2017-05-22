@@ -202,6 +202,7 @@ class PyEVI_FSUCRLv2(object):
         self.beta_opt_p = [None] * nb_options
         self.p_hat_opt = [None] * nb_options
 
+        visits = [None] * nb_options
         for o in range(nb_options):
             option_policy = self.option_policies[o]
             option_reach_states = self.reachable_states_per_option[o]
@@ -216,6 +217,8 @@ class PyEVI_FSUCRLv2(object):
             bernstein_log = m.log(6* max_nb_actions / delta)
             self.beta_opt_p[o] = np.empty((opt_nb_states, opt_nb_states))
 
+            visits[o] = [0] * len(option_reach_states)
+
             for i, s in enumerate(option_reach_states):
                 option_action = option_policy[s]
                 option_action_index = self.mdp_actions_per_state[s].index(option_action)
@@ -224,6 +227,8 @@ class PyEVI_FSUCRLv2(object):
 
                 bernstein_bound = 0.
                 nb_o = max(1, nb_observations_mdp[s, option_action_index])
+
+                visits[o][i] = nb_observations_mdp[s, option_action_index]
 
                 for j, sprime in enumerate(option_reach_states):
                     prob = estimated_probabilities_mdp[s][option_action_index][sprime]
@@ -239,12 +244,17 @@ class PyEVI_FSUCRLv2(object):
             e_m = np.ones((opt_nb_states,1))
             q_o = e_m - np.dot(Q_o, e_m)
 
+            if len(option_reach_states) > 1 and np.isclose(q_o[0],1) and visits[o][0]>20:
+                raise ValueError
+
             self.r_tilde_opt[o] = r_o
 
             Pprime_o = np.concatenate((q_o, Q_o[:, 1:]), axis=1)
             if not np.allclose(np.sum(Pprime_o, axis=1), np.ones(opt_nb_states)):
                 print("{}\n{}".format(Pprime_o,Q_o))
             self.p_hat_opt[o] = Pprime_o
+
+        return 0
 
     def run(self, policy_indices, policy,
             p_hat,
@@ -282,7 +292,7 @@ class PyEVI_FSUCRLv2(object):
                 #initialize
                 sorted_indices_popt = np.arange(nb_states_per_options)
                 for i in range(nb_states_per_options):
-                    self.w1[opt][i] = self.w1[opt][i] - self.w1[opt][0]  # 0.0
+                    self.w1[opt][i] = 0.0#self.w1[opt][i] - self.w1[opt][0]  # 0.0
                 self.w2[opt].fill(0.0)
                 inner_it_opt = 0
                 while continue_flag:
