@@ -71,7 +71,7 @@ class FSUCRLv1(AbstractUCRL):
 
         self.solver_times = []
         self.simulation_times = []
-        alg_trace = {'span_values': []}
+        self.regret_unit_time = []
 
         t_star_all = time.perf_counter()
         while self.total_time < duration:
@@ -102,7 +102,6 @@ class FSUCRLv1(AbstractUCRL):
                 print("---------------")
 
             span_value /= self.r_max
-            alg_trace['span_values'].append(span_value)
             if self.verbose > 0:
                 self.logger.info("span({}): {:.9f}".format(self.episode, span_value))
                 self.logger.info("evi time: {:.4f} s".format(t1-t0))
@@ -118,8 +117,7 @@ class FSUCRLv1(AbstractUCRL):
                 if self.total_time > threshold:
                     curr_regret = self.total_time * self.environment.max_gain - self.total_reward
                     self.regret.append(curr_regret)
-                    if self.verbose > 5:
-                        self.logger.info("regret: {:.9f}".format(curr_regret))
+                    self.regret_unit_time.append(self.total_time)
                     self.unit_duration.append(self.total_time / self.iteration)
                     threshold = self.total_time + regret_time_step
             self.nb_observations_mdp += self.nu_k_mdp
@@ -134,7 +132,6 @@ class FSUCRLv1(AbstractUCRL):
         t_end_all = time.perf_counter()
         self.speed = t_end_all - t_star_all
         self.logger.info("TIME: %.5f s" % self.speed)
-        return alg_trace
 
     def beta_r(self):
         nb_states, nb_prim_actions = self.estimated_rewards_mdp.shape

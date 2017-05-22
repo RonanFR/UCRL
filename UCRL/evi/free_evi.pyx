@@ -620,6 +620,7 @@ cdef class EVI_FSUCRLv2:
                     l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, 0)
                     p_hat_opt[o].values[l_ij] = 1. - sum_prob_row
         # free(sum_prob_row)
+        return 0
 
     cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
                      DTYPE_t[:,:,:] p_hat,
@@ -658,9 +659,11 @@ cdef class EVI_FSUCRLv2:
         cdef DTYPE_t* span_w_opt = self.span_w_opt
 
         with nogil:
+            center_value = u1[0]
             for i in range(nb_states):
-                u1[i] = 0.0 #u1[i] - u1[0]
+                u1[i] = u1[i] - center_value
                 sorted_indices[i] = i
+            get_sorted_indices(u1, nb_states, sorted_indices)
 
             for o in range(nb_options):
                 for i in range(w1[o].dim):
@@ -688,8 +691,10 @@ cdef class EVI_FSUCRLv2:
                     center_value = w1[o].values[0]
                     for i in range(nb_states_per_options):
                         sorted_indices_popt[o].values[i] = i
-                        w1[o].values[i] = 0.0# w1[o].values[i] - center_value # 0.0
+                        w1[o].values[i] = w1[o].values[i] - center_value # 0.0
                         w2[o].values[i] = 0.0
+                    # sort indices
+                    get_sorted_indices(w1[o].values, nb_states_per_options, sorted_indices_popt[o].values)
 
                     inner_it_opt = 0
                     while continue_flag:
@@ -739,7 +744,7 @@ cdef class EVI_FSUCRLv2:
                                 cv = cv + mtx_maxprob_opt_memview[o][j]
                             if fabs(cv-1.) > 1e-4:
                                 return -3
-                            v = r_optimal + v + dot_prod(mtx_maxprob_opt_memview[o], self.w1[o].values, nb_states_per_options)
+                            v = r_optimal + v + dot_prod(mtx_maxprob_opt_memview[o], w1[o].values, nb_states_per_options)
                             w2[o].values[i] = v
                             if v > 50000:
                                 printf("outer: %d, inner: %d\n", outer_evi_it, inner_it_opt)
@@ -822,6 +827,7 @@ cdef class EVI_FSUCRLv2:
 
                 # stopping condition
                 if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
+                    # printf("%d\n", outer_evi_it)
                     return max_u1 - min_u1
                 else:
                     # printf("------------\n")

@@ -110,7 +110,7 @@ class UcrlMdp(AbstractUCRL):
 
         self.solver_times = []
         self.simulation_times = []
-        alg_trace = {'span_values': []}
+        self.regret_unit_time = []
 
         t_star_all = time.perf_counter()
         while self.total_time < duration:
@@ -140,7 +140,6 @@ class UcrlMdp(AbstractUCRL):
                 print("---------------")
 
             span_value *= self.tau / self.r_max
-            alg_trace['span_values'].append(span_value)
             if self.verbose > 0:
                 self.logger.info("span({}): {:.9f}".format(self.episode, span_value))
                 self.logger.info("evi time: {:.4f} s".format(t1-t0))
@@ -160,8 +159,6 @@ class UcrlMdp(AbstractUCRL):
                     curr_regret = self.total_time * self.environment.max_gain - self.total_reward
                     self.regret.append(curr_regret)
                     self.regret_unit_time.append(self.total_time)
-                    if self.verbose > 5:
-                        self.logger.info("regret: {:.9f}".format(curr_regret))
                     self.unit_duration.append(self.total_time/self.iteration)
                     threshold = self.total_time + regret_time_step
             self.nb_observations += self.nu_k
@@ -173,7 +170,6 @@ class UcrlMdp(AbstractUCRL):
         t_end_all = time.perf_counter()
         self.speed = t_end_all - t_star_all
         self.logger.info("TIME: %.5f s" % self.speed)
-        return alg_trace
 
     def beta_r(self):
         """ Confidence bounds on the reward
