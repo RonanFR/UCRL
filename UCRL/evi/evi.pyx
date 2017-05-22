@@ -48,8 +48,8 @@ cdef class EVI:
         # allocate indices and memoryview (may slow down)
         self.sorted_indices = <SIZE_t *> malloc(nb_states * sizeof(SIZE_t))
         for i in range(nb_states):
-            self.u1[i] = 0
-            self.u2[i] = 0
+            self.u1[i] = 0.0
+            self.u2[i] = 0.0
             self.sorted_indices[i] = i
 
         # allocate space for matrix of max probabilities and the associated memory view
@@ -102,10 +102,13 @@ cdef class EVI:
         cdef DTYPE_t[:,:] mtx_maxprob_memview = self.mtx_maxprob_memview
 
         with nogil:
+            c1 = u1[0]
             for i in range(nb_states):
-                u1[i] = 0.0
+                u1[i] = u1[i] - c1 # 0.0
                 u2[i] = 0.0
                 sorted_indices[i] = i
+            get_sorted_indices(u1, nb_states, sorted_indices)
+
 
             while True: #counter < 5:
                 for s in prange(nb_states):
