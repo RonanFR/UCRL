@@ -3,15 +3,15 @@ folder=rooms_$(date '+%Y%m%d_%H%M%S')
 echo ${folder}
 mkdir ${folder}
 
-N_cpu=16
-N_mem=16G
+N_cpu=12
+N_mem=24G
 
-dim=6
-duration=30000000
-repetitions=2
+dim=18
+duration=60000000
+repetitions=5
 init_seed=114364114
 rmax=${dim}
-tmax=$((1+dim/2))
+tmax=${dim} #$((1+dim/2))
 
 # CREATE CONFIGURATION FOR FSUCRL
 
@@ -24,7 +24,7 @@ echo "#SBATCH --nodes=1" >> ${fname}
 echo "#SBATCH --ntasks-per-node=1" >> ${fname}
 echo "#SBATCH --cpus-per-task=${N_cpu}" >> ${fname}
 echo "#SBATCH --time=24:00:00" >> ${fname}
-echo "#SBATCH --job-name=fsucrlv1_${dim}" >> ${fname}
+echo "#SBATCH --job-name=r_fv1_${dim}" >> ${fname}
 echo "#SBATCH --mem=${N_mem}" >> ${fname}
 echo "#SBATCH --output=fsucrlv1_${dim}_%j.out" >> ${fname}
 echo "pwd; hostname; date" >> ${fname}
@@ -51,7 +51,7 @@ echo "#SBATCH --nodes=1" >> ${fname}
 echo "#SBATCH --ntasks-per-node=1" >> ${fname}
 echo "#SBATCH --cpus-per-task=${N_cpu}" >> ${fname}
 echo "#SBATCH --time=24:00:00" >> ${fname}
-echo "#SBATCH --job-name=fsucrlv2_${dim}" >> ${fname}
+echo "#SBATCH --job-name=fv2_${dim}" >> ${fname}
 echo "#SBATCH --mem=${N_mem}" >> ${fname}
 echo "#SBATCH --output=fsucrlv2_${dim}_%j.out" >> ${fname}
 echo "pwd; hostname; date" >> ${fname}
@@ -107,7 +107,7 @@ echo "#SBATCH --cpus-per-task=${N_cpu}" >> ${fname}
 echo "#SBATCH --time=24:00:00" >> ${fname}
 echo "#SBATCH --job-name=ucrl_${dim}" >> ${fname}
 echo "#SBATCH --mem=${N_mem}" >> ${fname}
-echo "#SBATCH --output=sucrl_${dim}_%j.out" >> ${fname}
+echo "#SBATCH --output=ucrl_${dim}_%j.out" >> ${fname}
 echo "pwd; hostname; date" >> ${fname}
 echo "" >> ${fname}
 echo "module load anaconda3/4.1.0" >> ${fname}

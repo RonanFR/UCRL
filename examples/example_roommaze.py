@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
-                  help="dimension of the gridworld", default=6)
+                  help="dimension of the gridworld", default=14)
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="duration of the experiment", default=30000000)
 parser.add_option("-a", "--alg", dest="algorithm", type="str",
@@ -50,13 +50,13 @@ parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
                   help="Number of repetitions", default=1)
 parser.add_option("--env_file", dest="env_pickle_file", type="str",
-                  help="Pickle file storing the mixed environment", default=None)
+                  help="Pickle file storing the mixed environment", default=None)#"escape_room_14_0.8.pickle")
 parser.add_option("--id", dest="id", type="str",
                   help="Identifier of the script", default=None)
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
-parser.add_option("--seed", dest="seed_0", type=int, default=random.getrandbits(16),
+parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random.getrandbits(16),
                   help="Seed used to generate the random seed sequence")
 
 (in_options, in_args) = parser.parse_args()
@@ -152,7 +152,7 @@ with open(os.path.join(folder_results, 'settings.conf'), 'w') as f:
 # Main loop
 for rep in range(in_options.nb_simulations):
     seed = seed_sequence[rep]  # set seed
-    seed = 1011005946
+    #seed = 1011005946
     np.random.seed(seed)
     random.seed(seed)
     print("rep: {}".format(rep))
