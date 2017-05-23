@@ -82,13 +82,18 @@ class UcrlMdp(AbstractUCRL):
                                       range_p=range_p, solver=solver,
                                       verbose=verbose,
                                       logger=logger, bound_type=bound_type)
-        self.estimated_probabilities = np.ones((self.environment.nb_states, self.environment.max_nb_actions_per_state,
-                                                 self.environment.nb_states)) * 1/self.environment.nb_states
-        self.estimated_rewards = np.ones((self.environment.nb_states, self.environment.max_nb_actions_per_state)) * (r_max+1)
-        self.estimated_holding_times = np.ones((self.environment.nb_states, self.environment.max_nb_actions_per_state))
+        nb_states = self.environment.nb_states
+        max_nb_actions = self.environment.max_nb_actions_per_state
+        # self.estimated_probabilities = np.ones((nb_states, max_nb_actions, nb_states)) / nb_states
+        self.P_counter = np.zeros((nb_states, max_nb_actions, nb_states), dtype=np.int64)
+        self.P = np.ones((nb_states, max_nb_actions, nb_states)) / nb_states
+        self.visited_sa = set()
 
-        self.nb_observations = np.zeros((self.environment.nb_states, self.environment.max_nb_actions_per_state))
-        self.nu_k = np.zeros((self.environment.nb_states, self.environment.max_nb_actions_per_state))
+        self.estimated_rewards = np.ones((nb_states, max_nb_actions)) * (r_max+1)
+        self.estimated_holding_times = np.ones((nb_states, max_nb_actions))
+
+        self.nb_observations = np.zeros((nb_states, max_nb_actions), dtype=np.int64)
+        self.nu_k = np.zeros((nb_states, max_nb_actions), dtype=np.int64)
         self.tau = 0.9
         self.tau_max = 1
         self.tau_min = 1
@@ -151,6 +156,7 @@ class UcrlMdp(AbstractUCRL):
 
             # execute the recovered policy
             t0 = time.perf_counter()
+            self.visited_sa.clear()
             while self.nu_k[self.environment.state][self.policy_indices[self.environment.state]] \
                     < max(1, self.nb_observations[self.environment.state][self.policy_indices[self.environment.state]]) \
                     and self.total_time < duration:
@@ -162,6 +168,12 @@ class UcrlMdp(AbstractUCRL):
                     self.unit_duration.append(self.total_time/self.iteration)
                     threshold = self.total_time + regret_time_step
             self.nb_observations += self.nu_k
+
+            for (s,a) in self.visited_sa:
+                self.P[s,a]  = self.P_counter[s,a] / self.nb_observations[s,a]
+                # assert np.sum(self.P_counter[s,a]) == self.nb_observations[s,a]
+            # assert np.allclose(self.estimated_probabilities, self.P)
+
             t1 = time.perf_counter()
             self.simulation_times.append(t1-t0)
             if self.verbose > 0:
@@ -204,7 +216,8 @@ class UcrlMdp(AbstractUCRL):
         else:
             Z = m.log(6 * self.environment.max_nb_actions_per_state * (self.iteration + 1) / self.delta)
             n = np.maximum(1, self.nb_observations)
-            A = np.sqrt(2 * self.estimated_probabilities * (1-self.estimated_probabilities) * Z / n[:,:,np.newaxis])
+            # A = np.sqrt(2 * self.estimated_probabilities * (1-self.estimated_probabilities) * Z / n[:,:,np.newaxis])
+            A = np.sqrt(2 * self.P * (1-self.P) * Z / n[:,:,np.newaxis])
             B = Z * 7 / (3 * n)
             return self.range_p * (A + B[:,:,np.newaxis])
 
@@ -215,16 +228,20 @@ class UcrlMdp(AbstractUCRL):
         r = self.environment.reward
         t = self.environment.holding_time
 
-        curr_act = self.policy_indices[s]
-        scale_f = self.nb_observations[s][curr_act] + self.nu_k[s][curr_act]
+        curr_act_idx = self.policy_indices[s]
+        scale_f = self.nb_observations[s][curr_act_idx] + self.nu_k[s][curr_act_idx]
 
-        self.estimated_rewards[s][curr_act] *= scale_f / (scale_f + 1.)
-        self.estimated_rewards[s][curr_act] += 1. / (scale_f + 1.) * r
-        self.estimated_holding_times[s][curr_act] *= scale_f / (scale_f + 1.)
-        self.estimated_holding_times[s][curr_act] += 1. / (scale_f + 1) * t
-        self.estimated_probabilities[s][curr_act] *= scale_f / (scale_f + 1.)
-        self.estimated_probabilities[s][curr_act][s2] += 1. / (scale_f + 1.)
-        self.nu_k[s][curr_act] += 1
+        self.estimated_rewards[s, curr_act_idx] *= scale_f / (scale_f + 1.)
+        self.estimated_rewards[s, curr_act_idx] += r / (scale_f + 1.)
+        self.estimated_holding_times[s, curr_act_idx] *= scale_f / (scale_f + 1.)
+        self.estimated_holding_times[s, curr_act_idx] += t / (scale_f + 1)
+
+        # self.estimated_probabilities[s][curr_act_idx] *= scale_f / (scale_f + 1.)
+        # self.estimated_probabilities[s][curr_act_idx][s2] += 1. / (scale_f + 1.)
+        self.P_counter[s, curr_act_idx, s2] += 1
+        self.visited_sa.add((s,curr_act_idx))
+
+        self.nu_k[s][curr_act_idx] += 1
         self.total_reward += r
         self.total_time += t
         self.iteration += 1
@@ -258,7 +275,7 @@ class UcrlMdp(AbstractUCRL):
         t0 = time.perf_counter()
         span_value_new = self.opt_solver.evi(
             self.policy_indices, self.policy,
-            self.estimated_probabilities,
+            self.P, #self.estimated_probabilities,
             self.estimated_rewards,
             self.estimated_holding_times,
             beta_r, beta_p, beta_tau, self.tau_max,
