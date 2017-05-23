@@ -669,6 +669,7 @@ cdef class EVI_FSUCRLv2:
                 for i in range(w1[o].dim):
                     w1[o].values[i] = 0.0
                     w2[o].values[i] = 0.0
+                    sorted_indices_popt[o].values[i] = i
 
 
             outer_evi_it = 0
@@ -690,7 +691,7 @@ cdef class EVI_FSUCRLv2:
                     nb_states_per_options = reach_states[o].dim
                     center_value = w1[o].values[0]
                     for i in range(nb_states_per_options):
-                        sorted_indices_popt[o].values[i] = i
+                        # sorted_indices_popt[o].values[i] = i
                         w1[o].values[i] = w1[o].values[i] - center_value # 0.0
                         w2[o].values[i] = 0.0
                     # sort indices
