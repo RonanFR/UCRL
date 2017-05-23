@@ -169,7 +169,8 @@ class FSUCRLv1(AbstractUCRL):
         else:
             Z = m.log(6 * nb_actions * (self.iteration + 1) / self.delta)
             n = np.maximum(1, self.nb_observations)
-            A = np.sqrt(2 * self.estimated_probabilities * (1-self.estimated_probabilities) * Z / n[:,:,np.newaxis])
+            # A = np.sqrt(2 * self.estimated_probabilities * (1-self.estimated_probabilities) * Z / n[:,:,np.newaxis])
+            A = np.sqrt(2 * self.P * (1-self.P) * Z / n[:,:,np.newaxis])
             B = Z * 7 / (3 * n)
             return self.range_p * (A + B[:,:,np.newaxis])
 
@@ -400,6 +401,7 @@ class FSUCRLv1(AbstractUCRL):
             r_max=self.r_max,
             epsilon=self.r_max / m.sqrt(self.iteration + 1))
         t2 = time.perf_counter()
+        self.logger.info("{}".format((t1-t0, t2-t1)))
         self.solver_times.append((t1-t0, t2-t1))
 
         # # CHECK WITH PYTHON IMPL
@@ -491,7 +493,8 @@ class FSUCRLv2(FSUCRLv1):
             total_time=self.total_time,
             delta=self.delta,
             max_nb_actions=max_nb_actions,
-            range_opt_p=self.range_mu_p)
+            range_opt_p=self.range_mu_p,
+        r_max=self.r_max)
         t1 = time.perf_counter()
         if np.isclose(gg,-999):
 
@@ -519,6 +522,7 @@ class FSUCRLv2(FSUCRLv1):
             epsilon=self.r_max / m.sqrt(self.iteration + 1))
         t2 = time.perf_counter()
         self.solver_times.append((t1-t0, t2-t1))
+        self.logger.info("{}".format((t1-t0, t2-t1)))
 
         # py_span = self.pyevi.run(
         #     policy_indices=self.policy_indices,

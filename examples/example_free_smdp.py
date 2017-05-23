@@ -192,6 +192,12 @@ for rep in range(in_options.nb_simulations):
     h = ucrl.learn(in_options.duration, in_options.regret_time_steps)  # learn task
     ucrl.clear_before_pickle()
 
+    sim_t = np.sum(ucrl.simulation_times)
+    evi_t = sum(map(sum, ucrl.solver_times))
+
+    ucrl_log.info("sim_t: {}".format(sim_t))
+    ucrl_log.info("evi_t: {}".format(evi_t))
+
     with open(os.path.join(folder_results, 'ucrl_{}.pickle'.format(rep)), 'wb') as f:
         pickle.dump(ucrl, f)
 

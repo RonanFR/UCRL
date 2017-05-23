@@ -217,7 +217,7 @@ cdef class EVI_FSUCRLv1:
                                        / np.maximum(1, visits))
 
             Pprime_o = np.concatenate((q_o, Q_o[:, 1:]), axis=1)
-            assert np.allclose(np.sum(Pprime_o, axis=1), np.ones(opt_nb_states))
+            # assert np.allclose(np.sum(Pprime_o, axis=1), np.ones(opt_nb_states))
 
             Pap = (Pprime_o + np.eye(opt_nb_states)) / 2.
             D, U = np.linalg.eig(np.transpose(Pap))  # eigen decomposition of transpose of P
@@ -270,9 +270,11 @@ cdef class EVI_FSUCRLv1:
 
 
         with nogil:
+            c1 = u1[0]
             for i in range(nb_states):
-                u1[i] = 0 #u1[i] - u1[0]
+                u1[i] = u1[i] - c1
                 sorted_indices[i] = i
+            get_sorted_indices(u1, nb_states, sorted_indices)
 
             while True: #counter < 5:
                 for s in prange(nb_states):
@@ -567,7 +569,8 @@ cdef class EVI_FSUCRLv2:
                           SIZE_t total_time,
                           DTYPE_t delta,
                           SIZE_t max_nb_actions,
-                          DTYPE_t range_opt_p):
+                          DTYPE_t range_opt_p,
+                              DTYPE_t r_max):
         cdef SIZE_t nb_options = self.nb_options
         cdef SIZE_t nb_states = self.nb_states
         cdef SIZE_t o, opt_nb_states, i, j, s, nexts, idx, mdp_index_a
@@ -596,7 +599,7 @@ cdef class EVI_FSUCRLv2:
                     # a = self.options_policies[pos2index_2d(nb_options, self.nb_states, o, s)]
                     mdp_index_a = self.options_policies_indices_mdp[pos2index_2d(nb_options, nb_states, o, s)]
 
-                    r_tilde_opt[o].values[i] = estimated_rewards_mdp[s, mdp_index_a] + beta_r[s,mdp_index_a]
+                    r_tilde_opt[o].values[i] = min(r_max, estimated_rewards_mdp[s, mdp_index_a] + beta_r[s,mdp_index_a])
 
                     sum_prob_row = 0.
                     nb_o = max(1, nb_observations_mdp[s, mdp_index_a])
@@ -640,7 +643,7 @@ cdef class EVI_FSUCRLv2:
         cdef SIZE_t outer_evi_it, inner_it_opt, i, j,k
         cdef DTYPE_t epsilon_opt
         cdef DTYPE_t v, r_optimal
-        cdef DTYPE_t min_u1, max_u1
+        cdef DTYPE_t min_u1=0, max_u1=0, max_prob_opt
         cdef DTYPE_t min_w1, max_w1, cv, center_value
 
         cdef DTYPE_t* u1 = self.u1
@@ -682,7 +685,8 @@ cdef class EVI_FSUCRLv2:
                     return -5
 
                 # epsilon_opt = 1. / pow(2, outer_evi_it)
-                epsilon_opt = 1. / (outer_evi_it * outer_evi_it)
+                # epsilon_opt = 1. / (outer_evi_it * outer_evi_it)
+                epsilon_opt = 1. / (outer_evi_it)
 
                 # --------------------------------------------------------------
                 # Estimate value function of each option
@@ -699,6 +703,31 @@ cdef class EVI_FSUCRLv2:
                     # sort indices
                     get_sorted_indices(w1[o].values, nb_states_per_options, sorted_indices_popt[o].values)
 
+                    #------------------------------------------------------
+                    # compute b*v -v(s)
+                    #------------------------------------------------------
+                    sprime = reach_states[o].values[0]
+                    option_act = o + self.threshold + 1
+                    option_idx = -1
+                    # get index of the option in the current state
+                    for j in range(self.actions_per_state[sprime].dim):
+                        if self.actions_per_state[sprime].values[j] == option_act:
+                            option_idx = j
+                            break
+                    if option_idx == -1:
+                        return -2
+                    if self.bernstein_bound == 0:
+                        max_proba_purec(p_hat[sprime][option_idx], nb_states,
+                                    sorted_indices, beta_p[sprime][option_idx][0],
+                                    mtx_maxprob_opt_memview[o])
+                    else:
+                        max_proba_bernstein(p_hat[sprime][option_idx], nb_states,
+                                    sorted_indices, beta_p[sprime][option_idx],
+                                    mtx_maxprob_opt_memview[o])
+
+                    mtx_maxprob_opt_memview[o][sprime] = mtx_maxprob_opt_memview[o][sprime] - 1.
+                    max_prob_opt = dot_prod(mtx_maxprob_opt_memview[o], u1, nb_states)
+
                     inner_it_opt = 0
                     while continue_flag:
                         inner_it_opt = inner_it_opt + 1
@@ -709,31 +738,33 @@ cdef class EVI_FSUCRLv2:
                             sprime = reach_states[o].values[i]
                             if i == 0:
                                 # this is the starting state
-                                option_act = o + self.threshold + 1
-                                option_idx = -1
-                                # get index of the option in the current state
-                                for j in range(self.actions_per_state[sprime].dim):
-                                    if self.actions_per_state[sprime].values[j] == option_act:
-                                        option_idx = j
-                                        break
-                                if option_idx == -1:
-                                    return -2
-                                if self.bernstein_bound == 0:
-                                    max_proba_purec(p_hat[sprime][option_idx], nb_states,
-                                                sorted_indices, beta_p[sprime][option_idx][0],
-                                                mtx_maxprob_opt_memview[o])
-                                else:
-                                    max_proba_bernstein(p_hat[sprime][option_idx], nb_states,
-                                                sorted_indices, beta_p[sprime][option_idx],
-                                                mtx_maxprob_opt_memview[o])
-
-                                mtx_maxprob_opt_memview[o][sprime] = mtx_maxprob_opt_memview[o][sprime] - 1.
-                                v = dot_prod(mtx_maxprob_opt_memview[o], u1, nb_states)
+                                # option_act = o + self.threshold + 1
+                                # option_idx = -1
+                                # # get index of the option in the current state
+                                # for j in range(self.actions_per_state[sprime].dim):
+                                #     if self.actions_per_state[sprime].values[j] == option_act:
+                                #         option_idx = j
+                                #         break
+                                # if option_idx == -1:
+                                #     return -2
+                                # if self.bernstein_bound == 0:
+                                #     max_proba_purec(p_hat[sprime][option_idx], nb_states,
+                                #                 sorted_indices, beta_p[sprime][option_idx][0],
+                                #                 mtx_maxprob_opt_memview[o])
+                                # else:
+                                #     max_proba_bernstein(p_hat[sprime][option_idx], nb_states,
+                                #                 sorted_indices, beta_p[sprime][option_idx],
+                                #                 mtx_maxprob_opt_memview[o])
+                                #
+                                # mtx_maxprob_opt_memview[o][sprime] = mtx_maxprob_opt_memview[o][sprime] - 1.
+                                # v = dot_prod(mtx_maxprob_opt_memview[o], u1, nb_states)
+                                v = max_prob_opt
 
                             else:
                                 v = 0.0
 
-                            r_optimal = min(r_max, r_tilde_opt[o].values[i])
+                            #r_optimal = min(r_max, r_tilde_opt[o].values[i])
+                            r_optimal = r_tilde_opt[o].values[i]
 
                             idx = pos2index_2d(nb_states_per_options, nb_states_per_options, i, 0)
                             max_proba_bernstein_cin(
@@ -742,38 +773,15 @@ cdef class EVI_FSUCRLv2:
                                 sorted_indices_popt[o].values,
                                 &(beta_opt_p[o].values[idx]),
                                 mtx_maxprob_opt_memview[o])
-                            cv = 0.
-                            for j in range(nb_states_per_options):
-                                cv = cv + mtx_maxprob_opt_memview[o][j]
-                            if fabs(cv-1.) > 1e-4:
-                                return -3
+
                             v = r_optimal + v + dot_prod(mtx_maxprob_opt_memview[o], w1[o].values, nb_states_per_options)
                             w2[o].values[i] = v
                             if v > 50000:
-                                printf("outer: %d, inner: %d\n", outer_evi_it, inner_it_opt)
-                                printf("opt: %d\nw1:\n", o)
-                                for j in range(nb_states_per_options):
-                                    printf("%.2f ", w1[o].values[j])
-                                printf("\n")
-                                printf("u1\n")
-                                for j in range(nb_states):
-                                    printf("%.2f ", u1[j])
-                                printf("\n")
-                                printf("beta_p_opt: %d\n", o)
-                                for j in range(nb_states_per_options):
-                                    for k in range(nb_states_per_options):
-                                        idx = pos2index_2d(nb_states_per_options, nb_states_per_options, j, k)
-                                        printf("%.2f +- %.2f ", p_hat_opt[o].values[idx], beta_opt_p[o].values[idx])
-                                    printf("\n")
-                                printf("\n")
-
-                                check_end_opt_evi(w2[o].values, w1[o].values, nb_states_per_options, &span_w_opt[o])
-                                printf("gain: %f", span_w_opt[o])
                                 return -4
 
                         # stopping condition
                         if check_end_opt_evi(w2[o].values, w1[o].values, nb_states_per_options, &span_w_opt[o]) < epsilon_opt:
-                            # printf("-- %d\n", counter)
+                            # printf("-- %d", inner_it_opt)
                             continue_flag = 0
                             #printf("[%d, %.2f] - ", inner_it_opt, span_w_opt[o])
                         else:
@@ -784,13 +792,12 @@ cdef class EVI_FSUCRLv2:
                 # --------------------------------------------------------------
                 # Estimate value function of SMDP
                 # --------------------------------------------------------------
-                for s in prange(nb_states):
+                for s in range(nb_states):
                     first_action = 1
                     for a_idx in range(self.actions_per_state[s].dim):
                         # printf("action_idx: %d\n", a_idx)
                         action = self.actions_per_state[s].values[a_idx]
                         # printf("action: %d [%d]\n", action, threshold)
-
 
 
                         if action <= threshold:
@@ -830,7 +837,7 @@ cdef class EVI_FSUCRLv2:
 
                 # stopping condition
                 if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
-                    # printf("%d\n", outer_evi_it)
+                    printf("%d\n", outer_evi_it)
                     return max_u1 - min_u1
                 else:
                     # printf("------------\n")

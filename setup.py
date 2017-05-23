@@ -25,40 +25,46 @@ libraries = []
 if os.name == 'posix':
     libraries.append('m')
 
-# extra_compile_args = []
-extra_compile_args = ["-O3"]
+extra_compile_args = ["-O3", "-ffast-math", "-march=native", "-fopenmp"]
+extra_link_args = ['-fopenmp']
 
 extensions = [
     Extension("UCRL.evi.evi",
               ["UCRL/evi/evi.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
-              extra_compile_args=extra_compile_args),
+              extra_compile_args=extra_compile_args,
+              extra_link_args=extra_link_args),
     Extension("UCRL.evi._max_proba",
               ["UCRL/evi/_max_proba.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
-              extra_compile_args=extra_compile_args),
+              extra_compile_args=extra_compile_args,
+              extra_link_args=extra_link_args),
     Extension("UCRL.evi._utils",
               ["UCRL/evi/_utils.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
-              extra_compile_args=extra_compile_args),
+              extra_compile_args=extra_compile_args,
+              extra_link_args=extra_link_args),
     Extension("UCRL.evi.free_evi",
               ["UCRL/evi/free_evi.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
-              extra_compile_args=extra_compile_args),
+              extra_compile_args=extra_compile_args,
+              extra_link_args=extra_link_args),
     Extension("UCRL.cython.ExtendedValueIteration",
               ["UCRL/cython/ExtendedValueIteration.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
-              extra_compile_args=extra_compile_args),
+              extra_compile_args=extra_compile_args,
+              extra_link_args=extra_link_args),
     Extension("UCRL.cython.max_proba",
               ["UCRL/cython/max_proba.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
-              extra_compile_args=extra_compile_args),
+              extra_compile_args=extra_compile_args,
+              extra_link_args=extra_link_args)
 ]
 
 setup(
@@ -68,5 +74,5 @@ setup(
               if package.startswith(name)],
     license='BOOOOO',
     install_requires=requires_list,
-    ext_modules=cythonize(extensions, gdb_debug=True),
+    ext_modules=cythonize(extensions, gdb_debug=False),
 )

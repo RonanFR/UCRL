@@ -131,7 +131,8 @@ cdef class EVI_FSUCRLv2:
                           SIZE_t total_time,
                           DTYPE_t delta,
                           SIZE_t max_nb_actions,
-                          DTYPE_t range_opt_p)
+                          DTYPE_t range_opt_p,
+                              DTYPE_t r_max)
 
     cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
                      DTYPE_t[:,:,:] p_hat,
