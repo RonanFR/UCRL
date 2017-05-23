@@ -46,8 +46,17 @@ class FSUCRLv1(AbstractUCRL):
         max_nb_actions = environment.max_nb_actions_per_state # actions of mdp+opt
 
         # keep track of the transition probabilities for options and actions
-        self.estimated_probabilities = np.ones((nb_states, max_nb_actions, nb_states)) / nb_states # available primitive actions + options
-        self.estimated_probabilities_mdp = np.ones((nb_states, max_nb_mdp_actions, nb_states)) / nb_states # all primitive actions
+        # self.estimated_probabilities = np.ones((nb_states, max_nb_actions, nb_states)) / nb_states # available primitive actions + options
+        # self.estimated_probabilities_mdp = np.ones((nb_states, max_nb_mdp_actions, nb_states)) / nb_states # all primitive actions
+
+        self.P_mdp_counter = np.zeros((nb_states, max_nb_mdp_actions, nb_states), dtype=np.int64)
+        self.P_mdp = np.ones((nb_states, max_nb_mdp_actions, nb_states)) / nb_states
+        self.visited_sa_mdp = set()
+
+        self.P_counter = np.zeros((nb_states, max_nb_actions, nb_states), dtype=np.int64)
+        self.P = np.ones((nb_states, max_nb_actions, nb_states)) / nb_states
+        self.visited_sa = set()
+
 
         # keep track of visits
         self.nb_observations = np.zeros((nb_states, max_nb_actions), dtype=np.int64)
@@ -113,6 +122,8 @@ class FSUCRLv1(AbstractUCRL):
 
             # execute the recovered policy
             t0 = time.perf_counter()
+            self.visited_sa_mdp.clear()
+            self.visited_sa.clear()
             while self.update() and self.total_time < duration:
                 if self.total_time > threshold:
                     curr_regret = self.total_time * self.environment.max_gain - self.total_reward
@@ -123,6 +134,16 @@ class FSUCRLv1(AbstractUCRL):
             self.nb_observations_mdp += self.nu_k_mdp
             #assert np.sum(self.nb_observations_mdp) == self.total_time
             self.nb_observations += self.nu_k
+
+            for (s,a) in self.visited_sa_mdp:
+                self.P_mdp[s,a]  = self.P_mdp_counter[s,a] / (self.nb_observations_mdp[s,a])
+                # assert np.sum(self.P_mdp_counter[s,a]) == self.nb_observations_mdp[s,a]
+            # assert np.allclose(self.estimated_probabilities_mdp, self.P_mdp)
+
+            for (s,a) in self.visited_sa:
+                self.P[s,a]  = self.P_counter[s,a] / (self.nb_observations[s,a])
+                # assert np.sum(self.P_counter[s,a]) == self.nb_observations[s,a]
+            # assert np.allclose(self.estimated_probabilities, self.P)
 
             t1 = time.perf_counter()
             self.simulation_times.append(t1-t0)
@@ -173,10 +194,13 @@ class FSUCRLv1(AbstractUCRL):
         option_index = self.environment.get_index_of_action_state(s, o)
         assert option_index is not None
 
-        scale_factor_opt = self.nb_observations[s][option_index] + self.nu_k[s][option_index]
+        # scale_factor_opt = self.nb_observations[s][option_index] + self.nu_k[s][option_index]
+        # self.estimated_probabilities[s][option_index] *= scale_factor_opt / (scale_factor_opt + 1.)
+        # self.estimated_probabilities[s][option_index][s2] += 1. / (scale_factor_opt + 1.)
 
-        self.estimated_probabilities[s][option_index] *= scale_factor_opt / (scale_factor_opt + 1.)
-        self.estimated_probabilities[s][option_index][s2] += 1. / (scale_factor_opt + 1.)
+        self.P_counter[s,option_index,s2] += 1
+        self.visited_sa.add((s,option_index))
+
         self.nu_k[s][option_index] += 1
 
         # the rest of the actions are for sure primitive actions (1 level hierarchy)
@@ -194,34 +218,42 @@ class FSUCRLv1(AbstractUCRL):
         mdpopt_index = self.environment.get_index_of_action_state(s, a)
         mdp_index = self.environment.get_index_of_action_state_in_mdp(s, a)
 
-        scale_factor = self.nb_observations_mdp[s][mdp_index] + self.nu_k_mdp[s][mdp_index]
-
         # check before to increment the counter
-        iterate_more = (self.nu_k_mdp[s][mdp_index] < max(1, self.nb_observations_mdp[s][mdp_index]))
+        nu_k_mdp_temp = self.nu_k_mdp[s, mdp_index]
+        nb_observations_mdp_temp = self.nb_observations_mdp[s, mdp_index]
 
-        self.estimated_rewards_mdp[s][mdp_index] *= scale_factor / (scale_factor + 1.)
-        self.estimated_rewards_mdp[s][mdp_index] += 1. / (scale_factor + 1.) * r
-        self.estimated_probabilities_mdp[s][mdp_index] *= scale_factor / (scale_factor + 1.)
-        self.estimated_probabilities_mdp[s][mdp_index][s2] += 1. / (scale_factor + 1.)
-        # if self.estimated_probabilities_mdp[s][mdp_index][s2] > 0:
-        #     pmdp = self.environment.environment.prob_kernel
-        #     assert pmdp[s][mdp_index][s2] > 0
-        self.nu_k_mdp[s][mdp_index] += 1
+        #iterate_more = (self.nu_k_mdp[s, mdp_index] < max(1, self.nb_observations_mdp[s, mdp_index]))
+        iterate_more = (nu_k_mdp_temp < max(1, nb_observations_mdp_temp))
+
+        #scale_factor = self.nb_observations_mdp[s, mdp_index] + self.nu_k_mdp[s, mdp_index]
+        scale_factor = nb_observations_mdp_temp + nu_k_mdp_temp
+
+        r_old = self.estimated_rewards_mdp[s, mdp_index]
+        self.estimated_rewards_mdp[s, mdp_index] = ( r_old*scale_factor + r ) / (scale_factor + 1.) #+ r / (scale_factor + 1.)
+        # self.estimated_rewards_mdp[s, mdp_index] *= scale_factor / (scale_factor + 1.)
+        # self.estimated_rewards_mdp[s, mdp_index] += r / (scale_factor + 1.)
+        # self.estimated_probabilities_mdp[s][mdp_index] *= scale_factor / (scale_factor + 1.)
+        # self.estimated_probabilities_mdp[s][mdp_index][s2] += 1. / (scale_factor + 1.)
+        self.P_mdp_counter[s, mdp_index, s2] += 1
+        self.visited_sa_mdp.add((s, mdp_index))
+        self.nu_k_mdp[s, mdp_index] += 1
         if mdpopt_index is not None:
             # this means that the primitive action is a valid action for
             # the environment mdp + opt
-            scale_factor_mdpopt = self.nb_observations[s][mdpopt_index] + self.nu_k[s][mdpopt_index]
 
-            self.estimated_probabilities[s][mdpopt_index] *= scale_factor_mdpopt / (scale_factor_mdpopt + 1.)
-            self.estimated_probabilities[s][mdpopt_index][s2] += 1. / (scale_factor_mdpopt + 1.)
-            self.nu_k[s][mdpopt_index] += 1
+            # scale_factor_mdpopt = self.nb_observations[s][mdpopt_index] + self.nu_k[s][mdpopt_index]
+            # self.estimated_probabilities[s][mdpopt_index] *= scale_factor_mdpopt / (scale_factor_mdpopt + 1.)
+            # self.estimated_probabilities[s][mdpopt_index][s2] += 1. / (scale_factor_mdpopt + 1.)
+            self.P_counter[s, mdpopt_index, s2] += 1
+            self.visited_sa.add((s, mdpopt_index))
+            self.nu_k[s, mdpopt_index] += 1
 
         return iterate_more
 
     def solve_optimistic_model(self):
         beta_r = self.beta_r()  # confidence bounds on rewards
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
-        max_nb_actions = self.estimated_probabilities.shape[1]
+        max_nb_actions = self.nb_observations.shape[1]
 
         #
         # t0 = time.time()
@@ -348,7 +380,7 @@ class FSUCRLv1(AbstractUCRL):
 
         t0 = time.perf_counter()
         self.opt_solver.compute_mu_info(  # environment=self.environment,
-            estimated_probabilities_mdp=self.estimated_probabilities_mdp,
+            estimated_probabilities_mdp=self.P_mdp, #self.estimated_probabilities_mdp,
             estimated_rewards_mdp=self.estimated_rewards_mdp,
             beta_r=beta_r,
             nb_observations_mdp=self.nb_observations_mdp,
@@ -361,7 +393,7 @@ class FSUCRLv1(AbstractUCRL):
         new_span = self.opt_solver.run(
             policy_indices=self.policy_indices,
             policy=self.policy,
-            p_hat=self.estimated_probabilities,
+            p_hat=self.P,#self.estimated_probabilities,
             r_hat_mdp=self.estimated_rewards_mdp,
             beta_p=beta_p,
             beta_r_mdp=beta_r,
@@ -438,7 +470,7 @@ class FSUCRLv2(FSUCRLv1):
     def solve_optimistic_model(self):
         beta_r = self.beta_r()  # confidence bounds on rewards
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
-        max_nb_actions = self.estimated_probabilities.shape[1]
+        max_nb_actions = self.nb_observations.shape[1]
 
         # self.pyevi.compute_prerun_info(
         #     estimated_probabilities_mdp=self.estimated_probabilities,
@@ -452,7 +484,7 @@ class FSUCRLv2(FSUCRLv1):
 
         t0 = time.perf_counter()
         gg = self.opt_solver.compute_prerun_info(
-            estimated_probabilities_mdp=self.estimated_probabilities_mdp,
+            estimated_probabilities_mdp=self.P_mdp, #self.estimated_probabilities_mdp,
             estimated_rewards_mdp=self.estimated_rewards_mdp,
             beta_r=beta_r,
             nb_observations_mdp=self.nb_observations_mdp,
@@ -479,7 +511,7 @@ class FSUCRLv2(FSUCRLv1):
         new_span = self.opt_solver.run(
             policy_indices=self.policy_indices,
             policy=self.policy,
-            p_hat=self.estimated_probabilities,
+            p_hat=self.P, #self.estimated_probabilities,
             r_hat_mdp=self.estimated_rewards_mdp,
             beta_p=beta_p,
             beta_r_mdp=beta_r,

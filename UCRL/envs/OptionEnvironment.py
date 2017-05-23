@@ -88,9 +88,10 @@ class OptionEnvironment(Environment):
         r = 0  # cumulative reward obtained executing current option
         history_data = [self.environment.state, option]
         history = Node(history_data)
+        option_index = option - self.index_min_options
         while not stop:  # continue until stopping condition is met
             s = self.environment.state
-            action = self.options_policies[option - self.index_min_options][self.environment.state]  # execute option policy
+            action = self.options_policies[option_index][self.environment.state]  # execute option policy
             sub_history = self.environment.execute(action)  # update original environment
             t += self.environment.holding_time
             r += self.environment.reward
@@ -98,7 +99,7 @@ class OptionEnvironment(Environment):
                 history.add_child(Node([s, action, self.environment.reward, self.environment.holding_time, self.environment.state]))
             else:
                 history.add_child(sub_history)
-            proba_stop = self.options_terminating_conditions[option - self.index_min_options][self.environment.state]
+            proba_stop = self.options_terminating_conditions[option_index][self.environment.state]
             if 1 > proba_stop > 0:  # Bernouilli trial: stop with probability p=proba_stop
                 stop = np.random.binomial(n=1, p=proba_stop)
             else:

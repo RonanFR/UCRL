@@ -25,8 +25,8 @@ libraries = []
 if os.name == 'posix':
     libraries.append('m')
 
-extra_compile_args = []
-# extra_compile_args = ["-O3"]
+# extra_compile_args = []
+extra_compile_args = ["-O3"]
 
 extensions = [
     Extension("UCRL.evi.evi",
