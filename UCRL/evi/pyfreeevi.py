@@ -1,27 +1,139 @@
 import numpy as np
 import math as m
+from ._free_utils import get_mu_and_ci
 
 class PyEVI_FSUCRLv1(object):
 
-    def __init__(self, nb_states, thr, action_per_state,
-                 reachable_states_per_option, use_bernstein=0):
-        self.mtx_maxprob_memview = np.ones((nb_states, nb_states)) * 99
-        self.threshold = thr
-        self.actions_per_state = action_per_state
+    def __init__(self,
+                 nb_states,
+                 nb_options,
+                 macro_actions_per_state,
+                 mdp_actions_per_state,
+                 threshold,
+                 option_policies,
+                 reachable_states_per_option,
+                 options_terminating_conditions,
+                 use_bernstein=0):
+        self.nb_states = nb_states
+        self.nb_options = nb_options
+        self.threshold = threshold
+        self.actions_per_state = macro_actions_per_state
+        self.mdp_actions_per_state = mdp_actions_per_state
         self.u1 = np.zeros(nb_states)
         self.u2 = np.zeros(nb_states)
+        self.option_policies = option_policies
         self.reachable_states_per_option = reachable_states_per_option
+        self.options_terminating_conditions = options_terminating_conditions
         self.use_bernstein = use_bernstein
+
+    def compute_mu_info(self,
+                        estimated_probabilities_mdp,
+                        estimated_rewards_mdp,
+                        beta_r,
+                        nb_observations_mdp,
+                        range_mu_p,
+                        total_time,
+                        delta,
+                        max_nb_actions,
+                        r_max):
+
+        nb_options = self.nb_options
+        r_tilde_opt = [None] * nb_options
+        mu_opt = [None] * nb_options
+        condition_numbers_opt = np.empty((nb_options,))
+
+        beta_mu_p = np.zeros((nb_options,))
+
+        for o in range(nb_options):
+            option_policy = self.option_policies[o]
+            option_reach_states = self.reachable_states_per_option[o]
+            term_cond = self.options_terminating_conditions[o]
+
+            opt_nb_states = len(option_reach_states)
+
+            Q_o = np.zeros((opt_nb_states, opt_nb_states))
+
+            # compute the reward and the mu
+            r_o = [0] * len(option_reach_states)
+            visits = total_time
+            bernstein_log = m.log(6* max_nb_actions / delta)
+            for i, s in enumerate(option_reach_states):
+                option_action = option_policy[s]
+                option_action_index = self.mdp_actions_per_state[s].index(option_action)
+                r_o[i] = min(r_max, estimated_rewards_mdp[s, option_action_index] + beta_r[s,option_action_index])
+
+                if visits > nb_observations_mdp[s, option_action_index]:
+                    visits = nb_observations_mdp[s, option_action_index]
+
+                bernstein_bound = 0.
+                nb_o = max(1, nb_observations_mdp[s, option_action_index])
+
+                for j, sprime in enumerate(option_reach_states):
+                    prob = estimated_probabilities_mdp[s][option_action_index][sprime]
+                    #q_o[i,0] += term_cond[sprime] * prob
+                    Q_o[i,j] = (1. - term_cond[sprime]) * prob
+                    bernstein_bound += np.sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o) + bernstein_log * 7 / (3 * nb_o)
+
+                if beta_mu_p[o] < bernstein_bound:
+                    beta_mu_p[o] = bernstein_bound
+
+            e_m = np.ones((opt_nb_states,1))
+            q_o = e_m - np.dot(Q_o, e_m)
+
+            r_tilde_opt[o] = r_o
+
+            if self.use_bernstein == 0:
+                beta_mu_p[o] =  range_mu_p * np.sqrt(14 * opt_nb_states * m.log(2 * max_nb_actions
+                    * (total_time + 1)/ delta) / max(1, visits))
+
+            Pprime_o = np.concatenate((q_o, Q_o[:, 1:]), axis=1)
+            if not np.allclose(np.sum(Pprime_o, axis=1), np.ones(opt_nb_states)):
+                print("{}\n{}".format(Pprime_o,Q_o))
+
+
+            Pap = (Pprime_o + np.eye(opt_nb_states)) / 2.
+            D, U = np.linalg.eig(
+                np.transpose(Pap))  # eigen decomposition of transpose of P
+            sorted_indices = np.argsort(np.real(D))
+            mu = np.transpose(np.real(U))[sorted_indices[-1]]
+            mu /= np.sum(mu)  # stationary distribution
+            mu_opt[o] = mu
+
+            assert len(mu_opt[o]) == len(r_tilde_opt[o])
+
+            P_star = np.repeat(np.array(mu, ndmin=2), opt_nb_states,
+                               axis=0)  # limiting matrix
+
+            # Compute deviation matrix
+            I = np.eye(opt_nb_states)  # identity matrix
+            Z = np.linalg.inv(I - Pap + P_star)  # fundamental matrix
+            H = np.dot(Z, I - P_star)  # deviation matrix
+
+            condition_nb = 0  # condition number of deviation matrix
+            for i in range(0, opt_nb_states):  # Seneta's condition number
+                for j in range(i + 1, opt_nb_states):
+                    condition_nb = max(condition_nb,
+                                       0.5 * np.linalg.norm(H[i, :] - H[j, :],
+                                                            ord=1))
+            condition_numbers_opt[o] = condition_nb
+
+            mu_n, cn_n = get_mu_and_ci(Pap)
+
+            assert np.allclose(mu, mu_n)
+            assert np.isclose(condition_nb, cn_n)
+
+        self.r_tilde_opt = r_tilde_opt
+        self.condition_numbers_opt = condition_numbers_opt
+        self.beta_mu_p = beta_mu_p
+        self.mu_opt = mu_opt
+
+        return 0
 
     def run(self, policy_indices, policy,
             p_hat,
             r_hat_mdp,
-            r_tilde_opt,
             beta_p,
             beta_r_mdp,
-            mu_opt,
-            cn_opt,
-            beta_mu_p,
             r_max,
             epsilon):
         self.u1.fill(0.0)
@@ -52,7 +164,7 @@ class PyEVI_FSUCRLv1(object):
 
                         x = np.zeros(len(self.reachable_states_per_option[o]))
                         for kk, kk_v in enumerate(self.reachable_states_per_option[o]):
-                            x[kk] = min(r_max, r_tilde_opt[o][kk])
+                            x[kk] = self.r_tilde_opt[o][kk]
 
                             if s == kk_v:
                                 x[kk] += np.dot(gg, self.u1)
@@ -60,8 +172,8 @@ class PyEVI_FSUCRLv1(object):
                         sorted_indices_mu = np.argsort(x, kind='mergesort')
                         # print(sorted_indices_mu)
 
-                        max_mu = self.max_proba(mu_opt[o], len(mu_opt[o]),
-                                       sorted_indices_mu, cn_opt[o]*beta_mu_p[o])
+                        max_mu = self.max_proba(self.mu_opt[o], len(self.mu_opt[o]),
+                                       sorted_indices_mu, self.condition_numbers_opt[o]*self.beta_mu_p[o])
                         v = np.dot(max_mu, x)
 
                     c1 = v + self.u1[s]
@@ -86,28 +198,6 @@ class PyEVI_FSUCRLv1(object):
                 # for i in range(nb_states):
                 #     printf("%d , ", sorted_indices[i])
                 # printf("\n")
-
-    # def max_proba(self, p, n, asc_sorted_indices, beta):
-    #     new_p = 99 * np.ones(n)
-    #     temp = min(1., p[asc_sorted_indices[n-1]] + beta/2.0)
-    #     new_p[asc_sorted_indices[n-1]] = temp
-    #     sum_p = temp
-    #     if temp < 1.:
-    #         for i in range(0, n-1):
-    #             temp = p[asc_sorted_indices[i]]
-    #             new_p[asc_sorted_indices[i]] = temp
-    #             sum_p += temp
-    #         i = 0
-    #         while sum_p > 1.0 and i < n:
-    #             sum_p -= p[asc_sorted_indices[i]]
-    #             new_p[asc_sorted_indices[i]] = max(0.0, 1. - sum_p)
-    #             sum_p += new_p[asc_sorted_indices[i]]
-    #             i += 1
-    #     else:
-    #         for i in range(0, n):
-    #             new_p[i] = 0
-    #         new_p[asc_sorted_indices[n-1]] = temp
-    #     return new_p
 
     def max_proba(self, p, n, sorted_indices, beta):
         """

@@ -64,6 +64,18 @@ extensions = [
               include_dirs=[numpy.get_include()],
               libraries=libraries,
               extra_compile_args=extra_compile_args,
+              extra_link_args=extra_link_args),
+    Extension("UCRL.evi.prova",
+              ["UCRL/evi/prova.pyx"],
+              include_dirs=[numpy.get_include()],
+              libraries=libraries,
+              extra_compile_args=extra_compile_args,
+              extra_link_args=extra_link_args),
+    Extension("UCRL.evi._free_utils",
+              ["UCRL/evi/_free_utils.pyx"],
+              include_dirs=[numpy.get_include()],
+              libraries=libraries,
+              extra_compile_args=extra_compile_args,
               extra_link_args=extra_link_args)
 ]
 

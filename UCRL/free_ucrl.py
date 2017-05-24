@@ -16,15 +16,21 @@ class FSUCRLv1(AbstractUCRL):
                  evi_solver=None):
 
         assert isinstance(environment, MixedEnvironment)
-
-        # self.pyevi = PyEVI_FSUCRLv1(nb_states=environment.nb_states,
-        #                       thr=environment.threshold_options,
-        #                       action_per_state=environment.get_state_actions(),
-        #                       reachable_states_per_option=environment.reachable_states_per_option,
-        #                       use_bernstein=1 if bound_type == "bernstein" else 0)
+        py = False
 
         if evi_solver is None:
-            evi_solver = EVI_FSUCRLv1(nb_states=environment.nb_states,
+            if py:
+                evi_solver = self.pyevi = PyEVI_FSUCRLv1(nb_states=environment.nb_states,
+                                    nb_options=environment.nb_options,
+                                    threshold=environment.threshold_options,
+                                    macro_actions_per_state=environment.get_state_actions(),
+                                    reachable_states_per_option=environment.reachable_states_per_option,
+                                    option_policies=environment.options_policies,
+                                    options_terminating_conditions=environment.options_terminating_conditions,
+                                    mdp_actions_per_state=environment.environment.get_state_actions(),
+                                    use_bernstein=1 if bound_type == "bernstein" else 0)
+            else:
+                evi_solver = EVI_FSUCRLv1(nb_states=environment.nb_states,
                                   nb_options=environment.nb_options,
                                   threshold=environment.threshold_options,
                                   macro_actions_per_state=environment.get_state_actions(),

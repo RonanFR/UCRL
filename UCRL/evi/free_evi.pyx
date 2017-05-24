@@ -35,6 +35,8 @@ from ._max_proba cimport max_proba_purec2
 from ._max_proba cimport max_proba_bernstein
 from ._max_proba cimport max_proba_bernstein_cin
 
+from ._free_utils cimport get_mu_and_ci_c
+
 from libc.stdio cimport printf
 
 cdef DTYPE_t check_end_opt_evi(DTYPE_t* x, DTYPE_t* y, SIZE_t dim,
@@ -171,7 +173,8 @@ cdef class EVI_FSUCRLv1:
                           DTYPE_t range_mu_p,
                           SIZE_t total_time,
                           DTYPE_t delta,
-                          SIZE_t max_nb_actions):
+                          SIZE_t max_nb_actions,
+                          DTYPE_t r_max):
         cdef SIZE_t nb_options = self.nb_options
         cdef SIZE_t o, opt_nb_states, i, j, s, nexts, idx, mdp_index_a
         cdef DTYPE_t prob, condition_nb, bernstein_bound, bernstein_log
@@ -192,7 +195,7 @@ cdef class EVI_FSUCRLv1:
                 # a = self.options_policies[pos2index_2d(nb_options, self.nb_states, o, s)]
                 mdp_index_a = self.options_policies_indices_mdp[pos2index_2d(nb_options, self.nb_states, o, s)]
 
-                self.r_tilde_opt[o].values[i] = estimated_rewards_mdp[s, mdp_index_a] + beta_r[s,mdp_index_a]
+                self.r_tilde_opt[o].values[i] = min(r_max, estimated_rewards_mdp[s, mdp_index_a] + beta_r[s,mdp_index_a])
 
                 if visits > nb_observations_mdp[s, mdp_index_a]:
                     visits = nb_observations_mdp[s, mdp_index_a]
@@ -240,6 +243,93 @@ cdef class EVI_FSUCRLv1:
                 for j in range(i + 1, opt_nb_states):
                     condition_nb = max(condition_nb, 0.5 * np.linalg.norm(H[i, :] - H[j, :], ord=1))
             self.cn_opt[o] = condition_nb
+
+    cpdef compute_mu_info2(self,
+                      DTYPE_t[:,:,:] estimated_probabilities_mdp,
+                      DTYPE_t[:,:] estimated_rewards_mdp,
+                      DTYPE_t[:,:] beta_r,
+                      SIZE_t[:,:] nb_observations_mdp,
+                      DTYPE_t range_mu_p,
+                      SIZE_t total_time,
+                      DTYPE_t delta,
+                      SIZE_t max_nb_actions,
+                              DTYPE_t r_max):
+        cdef SIZE_t nb_options = self.nb_options
+        cdef SIZE_t nb_states = self.nb_states
+        cdef SIZE_t o, opt_nb_states, i, j, s, nexts, idx, mdp_index_a
+        cdef DTYPE_t prob, bernstein_log, ci
+        cdef DTYPE_t sum_prob_row, bernstein_bound
+        cdef SIZE_t nb_o, l_ij, visits
+
+        cdef DoubleVectorStruct* r_tilde_opt = self.r_tilde_opt
+        cdef DoubleVectorStruct* mu_opt = self.mu_opt
+        cdef DTYPE_t* beta_mu_p = self.beta_mu_p
+        cdef DTYPE_t* term_cond = self.options_terminating_conditions
+
+        cdef DTYPE_t *Popt
+
+        with nogil:
+
+            for o in range(nb_options):
+
+                opt_nb_states = self.reachable_states_per_option[o].dim
+                bernstein_log = log(6* max_nb_actions / delta)
+
+                # note that this should be row-major (c ordering)
+                Popt = <double*>malloc(opt_nb_states * opt_nb_states * sizeof(double))
+
+                visits = total_time
+                beta_mu_p[o] = -1.
+
+                for i in range(opt_nb_states):
+                    s = self.reachable_states_per_option[o].values[i]
+                    # a = self.options_policies[pos2index_2d(nb_options, self.nb_states, o, s)]
+                    mdp_index_a = self.options_policies_indices_mdp[pos2index_2d(nb_options, nb_states, o, s)]
+
+                    r_tilde_opt[o].values[i] = min(r_max, estimated_rewards_mdp[s, mdp_index_a] + beta_r[s,mdp_index_a])
+
+                    bernstein_bound = 0.0
+                    sum_prob_row = 0.0
+                    nb_o = max(1, nb_observations_mdp[s, mdp_index_a])
+                    if visits > nb_o:
+                        visits = nb_o
+
+                    for j in range(opt_nb_states):
+                        nexts = self.reachable_states_per_option[o].values[j]
+                        idx = pos2index_2d(nb_options, nb_states, o, nexts)
+                        prob = estimated_probabilities_mdp[s][mdp_index_a][nexts]
+
+                        l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, j)
+                        Popt[l_ij] = (1. - term_cond[idx]) * prob
+                        sum_prob_row = sum_prob_row + Popt[l_ij]
+                        bernstein_bound += sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o) + bernstein_log * 7 / (3 * nb_o)
+
+                    if beta_mu_p[o] < bernstein_bound:
+                        beta_mu_p[o] = bernstein_bound
+
+                    # compute transition matrix of option
+                    l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, 0)
+                    Popt[l_ij] = 1. - sum_prob_row
+
+                if self.bernstein_bound == 0:
+                    beta_mu_p[o] =  range_mu_p * sqrt(14 * opt_nb_states * log(2 * max_nb_actions
+                        * (total_time + 1)/delta) / visits)
+
+                # --------------------------------------------------------------
+                #  Aperiodic transformation
+                # --------------------------------------------------------------
+                for i in range(opt_nb_states):
+                    for j in range(opt_nb_states):
+                        l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, j)
+                        if i == j:
+                            Popt[l_ij] = Popt[l_ij] + 1.0
+                        Popt[l_ij] = Popt[l_ij] / 2.0
+
+                get_mu_and_ci_c(Popt, opt_nb_states, &ci, mu_opt[o].values)
+
+                free(Popt)
+        # free(sum_prob_row)
+        return 0
 
     cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
                      DTYPE_t[:,:,:] p_hat,
