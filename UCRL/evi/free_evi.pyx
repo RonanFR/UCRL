@@ -188,7 +188,7 @@ cdef class EVI_FSUCRLv1:
             Q_o = np.zeros((opt_nb_states, opt_nb_states))
 
             self.beta_mu_p[o] = 0.
-            visits = total_time
+            visits = total_time + 2
             bernstein_log = log(6 * max_nb_actions / delta)
             for i in range(option_reach_states.dim):
                 s = option_reach_states.values[i]
@@ -257,7 +257,7 @@ cdef class EVI_FSUCRLv1:
         cdef SIZE_t nb_options = self.nb_options
         cdef SIZE_t nb_states = self.nb_states
         cdef SIZE_t o, opt_nb_states, i, j, s, nexts, idx, mdp_index_a
-        cdef DTYPE_t prob, bernstein_log, ci
+        cdef DTYPE_t prob, bernstein_log
         cdef DTYPE_t sum_prob_row, bernstein_bound
         cdef SIZE_t nb_o, l_ij, visits
 
@@ -265,12 +265,13 @@ cdef class EVI_FSUCRLv1:
         cdef DoubleVectorStruct* mu_opt = self.mu_opt
         cdef DTYPE_t* beta_mu_p = self.beta_mu_p
         cdef DTYPE_t* term_cond = self.options_terminating_conditions
+        cdef DTYPE_t* cn_opt = self.cn_opt
 
         cdef DTYPE_t *Popt
 
         with nogil:
 
-            for o in range(nb_options):
+            for o in prange(nb_options):
 
                 opt_nb_states = self.reachable_states_per_option[o].dim
                 bernstein_log = log(6* max_nb_actions / delta)
@@ -278,7 +279,7 @@ cdef class EVI_FSUCRLv1:
                 # note that this should be row-major (c ordering)
                 Popt = <double*>malloc(opt_nb_states * opt_nb_states * sizeof(double))
 
-                visits = total_time
+                visits = total_time + 2
                 beta_mu_p[o] = -1.
 
                 for i in range(opt_nb_states):
@@ -302,7 +303,7 @@ cdef class EVI_FSUCRLv1:
                         l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, j)
                         Popt[l_ij] = (1. - term_cond[idx]) * prob
                         sum_prob_row = sum_prob_row + Popt[l_ij]
-                        bernstein_bound += sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o) + bernstein_log * 7 / (3 * nb_o)
+                        bernstein_bound = bernstein_bound + sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o) + bernstein_log * 7 / (3 * nb_o)
 
                     if beta_mu_p[o] < bernstein_bound:
                         beta_mu_p[o] = bernstein_bound
@@ -325,7 +326,7 @@ cdef class EVI_FSUCRLv1:
                             Popt[l_ij] = Popt[l_ij] + 1.0
                         Popt[l_ij] = Popt[l_ij] / 2.0
 
-                get_mu_and_ci_c(Popt, opt_nb_states, &ci, mu_opt[o].values)
+                get_mu_and_ci_c(Popt, opt_nb_states, &cn_opt[o], mu_opt[o].values)
 
                 free(Popt)
         # free(sum_prob_row)

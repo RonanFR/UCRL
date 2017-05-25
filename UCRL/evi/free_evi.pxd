@@ -20,8 +20,8 @@ cdef class EVI_FSUCRLv1:
     cdef DTYPE_t *u2
     cdef DTYPE_t *mtx_maxprob
     cdef DTYPE_t[:,:] mtx_maxprob_memview
-    cdef SIZE_t *sorted_indices
-    cdef SIZE_t *sorted_indices_mu
+    cdef SIZE_t *sorted_indices                        # (|S| x 1)
+    cdef SIZE_t *sorted_indices_mu                     # (|S| x nb reach states)
     cdef SIZE_t nb_states
     cdef SIZE_t threshold
     cdef SIZE_t nb_options
@@ -30,13 +30,13 @@ cdef class EVI_FSUCRLv1:
     cdef IntVectorStruct* reachable_states_per_option
     # cdef DoubleVectorStruct* x
     cdef DoubleVectorStruct* mu_opt
-    cdef DTYPE_t *cn_opt
-    cdef DoubleVectorStruct* r_tilde_opt
+    cdef DTYPE_t *cn_opt                               # (|O| x 1)
+    cdef DoubleVectorStruct* r_tilde_opt               # (|O| x nb reach states)
     cdef SIZE_t* options_policies
     cdef SIZE_t* options_policies_indices_mdp
     cdef DTYPE_t* options_terminating_conditions
-    cdef DTYPE_t* xx
-    cdef DTYPE_t* beta_mu_p
+    cdef DTYPE_t* xx                                   # (|S| x nb reach states)
+    cdef DTYPE_t* beta_mu_p                            # (|O| x 1)
 
     cdef SIZE_t bernstein_bound
 

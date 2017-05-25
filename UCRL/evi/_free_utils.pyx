@@ -69,7 +69,7 @@ cdef void print_double_vector( char* desc, SIZE_t n, DTYPE_t* a ) nogil:
 # Note that LAPACK interface uses FORTRAN ordering for matrices (column-major)
 
 cdef SIZE_t get_mu_and_ci_c(DTYPE_t* sq_rowmaj_mtx, SIZE_t N,
-                          DTYPE_t* condition_number, DTYPE_t* mu) nogil:
+                          DTYPE_t* condition_number, DTYPE_t* mu, SIZE_t verbose=0) nogil:
 
     # Note that lapack works column-major while c-style matrices are
     # row-major. We need to transpose the matrix
@@ -88,7 +88,6 @@ cdef SIZE_t get_mu_and_ci_c(DTYPE_t* sq_rowmaj_mtx, SIZE_t N,
     cdef double *vl
     cdef double *vr
     cdef double *P
-    cdef double *P_star
     cdef double *A # inverse of the fundamental matrix
     cdef double *B
     cdef int *ipiv
@@ -97,18 +96,18 @@ cdef SIZE_t get_mu_and_ci_c(DTYPE_t* sq_rowmaj_mtx, SIZE_t N,
     P = <double*>malloc(n * n * sizeof(double))
     A = <double*>malloc(n * n * sizeof(double))
     B = <double*>malloc(n * n * sizeof(double))
-    P_star = <double*>malloc(n * n * sizeof(double))
 
+    # create column-view and transpose input matrix
     for i in range(N):
         for j in range(N):
-            P[i + j * n] = sq_rowmaj_mtx[i * n + j]
-    print_matrix(1, "P (column-major)", n, n, P, n)
+            P[i + j * n] = sq_rowmaj_mtx[j * n + i]
+    if verbose == 1:
+        print_matrix(1, "P transpose (column-major)", n, n, P, n)
 
     wr = <double*>malloc(n * sizeof(double))
     wi = <double*>malloc(n * sizeof(double))
     vl = <double*>malloc(n * ldvl * sizeof(double))
     vr = <double*>malloc(n * ldvr * sizeof(double))
-    mu = <double*>malloc(n *sizeof(double))
     ipiv = <int*>malloc(n * n * sizeof(int))
     # /* Query and allocate the optimal workspace */
     lwork = -1
@@ -123,12 +122,14 @@ cdef SIZE_t get_mu_and_ci_c(DTYPE_t* sq_rowmaj_mtx, SIZE_t N,
     if info > 0:
         printf( "The algorithm failed to compute eigenvalues.\n" )
         return 1
-    # /* Print eigenvalues */
-    print_eigenvalues( "Eigenvalues", n, wr, wi )
-    # /* Print left eigenvectors */
-    print_eigenvectors( "Left eigenvectors", n, wi, vl, ldvl )
-    # /* Print right eigenvectors */
-    print_eigenvectors( "Right eigenvectors", n, wi, vr, ldvr )
+
+    if verbose == 1:
+        # /* Print eigenvalues */
+        print_eigenvalues( "Eigenvalues", n, wr, wi )
+        # /* Print left eigenvectors */
+        print_eigenvectors( "Left eigenvectors", n, wi, vl, ldvl )
+        # /* Print right eigenvectors */
+        print_eigenvectors( "Right eigenvectors", n, wi, vr, ldvr )
 
     # get max real eigenvalue
     j = 0
@@ -142,29 +143,30 @@ cdef SIZE_t get_mu_and_ci_c(DTYPE_t* sq_rowmaj_mtx, SIZE_t N,
             j += 1
         else:
             j+=2
-    printf("\n max eig: %d (%f)", x, max_eigval)
+    if verbose == 1:
+        printf("\n max eig: %d (%f)", x, max_eigval)
 
     # mu -> real part of the max eigen value
+    tmp = 0.0
     for j in range(n): #col
         mu[j] = vr[j + x * ldvr]
-        for i in range(n):
-            P_star[i + j * n] = mu[j]
-    for i in range(n):
-        printf( " %6.3f", mu[i])
-    printf("\n")
-    print_matrix(1, "P_star", n, n, P_star, n )
+        tmp += mu[j]
 
     for i in range(n):
         for j in range(n):
+            mu[j] = mu[j] / tmp
             idx = i + j*n
-            A[idx] = - sq_rowmaj_mtx[i * n + j] + P_star[idx]
-            B[idx] = - P_star[idx]
+            A[idx] = - sq_rowmaj_mtx[i * n + j] + mu[j]
+            B[idx] = - mu[j]
             if i == j:
                 A[idx] += 1.
                 B[idx] += 1.
+        tmp = 1.0 # stop division
 
-    print_matrix(1, "A", n, n, A, n )
-    print_matrix(1, "B", n, n, B, n )
+    if verbose == 1:
+        print_double_vector("mu", n, mu)
+        print_matrix(1, "A", n, n, A, n )
+        print_matrix(1, "B", n, n, B, n )
 
     dgesv( &n, &nrhs, A, &lda, ipiv, B, &ldb, &info )
     # /* Check for the exact singularity */
@@ -173,15 +175,17 @@ cdef SIZE_t get_mu_and_ci_c(DTYPE_t* sq_rowmaj_mtx, SIZE_t N,
         printf( "U(%i,%i) is zero, so that A is singular;\n", info, info )
         printf( "the solution could not be computed.\n" )
         return 1
-    # /* Print solution */
-    print_matrix(1, "Solution", n, nrhs, B, ldb )
-    # /* Print details of LU factorization */
-    print_matrix(1, "Details of LU factorization", n, n, A, lda )
-    # /* Print pivot indices */
-    print_int_vector( "Pivot indices", n, ipiv )
+
+    if verbose == 1:
+        # /* Print solution */
+        print_matrix(1, "Solution", n, nrhs, B, ldb )
+        # /* Print details of LU factorization */
+        print_matrix(1, "Details of LU factorization", n, n, A, lda )
+        # /* Print pivot indices */
+        print_int_vector( "Pivot indices", n, ipiv )
 
 
-    condition_number[0] = -1.0  # condition number of deviation matrix
+    condition_number[0] = 0.0  # condition number of deviation matrix
     for i in range(0, n):  # Seneta's condition number
         for j in range(i + 1, n):
             # compute L1-norm
@@ -190,7 +194,8 @@ cdef SIZE_t get_mu_and_ci_c(DTYPE_t* sq_rowmaj_mtx, SIZE_t N,
                 tmp += fabs(B[i+x*n] - B[j+x*n])
             # finally the conditioning number
             condition_number[0] = max(condition_number[0], 0.5 * tmp)
-    printf("condition number: %f\n", condition_number[0])
+    if verbose == 1:
+        printf("condition number: %f\n", condition_number[0])
 
     # /* Free workspace */
     free(work)
@@ -199,7 +204,6 @@ cdef SIZE_t get_mu_and_ci_c(DTYPE_t* sq_rowmaj_mtx, SIZE_t N,
     free(vl)
     free(vr)
     free(P)
-    free(P_star)
     free(A)
     free(B)
     free(ipiv)
@@ -210,8 +214,10 @@ cdef SIZE_t get_mu_and_ci_c(DTYPE_t* sq_rowmaj_mtx, SIZE_t N,
 def get_mu_and_ci(P):
     cdef DTYPE_t ci
     cdef DTYPE_t* mu_ptr
+    cdef DTYPE_t* P_ptr
     cdef SIZE_t n = P.shape[0]
     mu = np.empty((n,), dtype=np.float64)
     mu_ptr = <DTYPE_t*> np.PyArray_DATA(mu)
-    get_mu_and_ci_c(mu_ptr, n, &ci, mu_ptr)
+    P_ptr = <DTYPE_t*> np.PyArray_DATA(P)
+    get_mu_and_ci_c(P_ptr, n, &ci, mu_ptr)
     return mu, ci
