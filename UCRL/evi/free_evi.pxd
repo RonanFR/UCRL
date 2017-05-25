@@ -28,7 +28,7 @@ cdef class EVI_FSUCRLv1:
     cdef SIZE_t max_reachable_states_per_opt
     cdef IntVectorStruct* actions_per_state
     cdef IntVectorStruct* reachable_states_per_option
-    # cdef DoubleVectorStruct* x
+
     cdef DoubleVectorStruct* mu_opt
     cdef DTYPE_t *cn_opt                               # (|O| x 1)
     cdef DoubleVectorStruct* r_tilde_opt               # (|O| x nb reach states)

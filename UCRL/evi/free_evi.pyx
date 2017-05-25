@@ -253,7 +253,7 @@ cdef class EVI_FSUCRLv1:
                       SIZE_t total_time,
                       DTYPE_t delta,
                       SIZE_t max_nb_actions,
-                              DTYPE_t r_max):
+                           DTYPE_t r_max):
         cdef SIZE_t nb_options = self.nb_options
         cdef SIZE_t nb_states = self.nb_states
         cdef SIZE_t o, opt_nb_states, i, j, s, nexts, idx, mdp_index_a
@@ -355,7 +355,6 @@ cdef class EVI_FSUCRLv1:
         cdef DTYPE_t[:,:] mtx_maxprob_memview = self.mtx_maxprob_memview
 
         cdef DoubleVectorStruct* mu_opt = self.mu_opt
-        # cdef DoubleVectorStruct* x = self.x
         cdef DoubleVectorStruct* r_tilde_opt = self.r_tilde_opt
         cdef DTYPE_t* xx = self.xx
 
@@ -499,6 +498,9 @@ cdef class EVI_FSUCRLv1:
             r.append(L)
         return r
 
+# =============================================================================
+# FSUCRLv2
+# =============================================================================
 
 cdef class EVI_FSUCRLv2:
 

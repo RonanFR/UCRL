@@ -16,20 +16,26 @@ class FSUCRLv1(AbstractUCRL):
                  evi_solver=None):
 
         assert isinstance(environment, MixedEnvironment)
-        py = False
+        run_py = False
+        self.check_with_py = False
+        run_py = False if self.check_with_py else run_py
 
         if evi_solver is None:
-            if py:
-                evi_solver = self.pyevi = PyEVI_FSUCRLv1(nb_states=environment.nb_states,
-                                    nb_options=environment.nb_options,
-                                    threshold=environment.threshold_options,
-                                    macro_actions_per_state=environment.get_state_actions(),
-                                    reachable_states_per_option=environment.reachable_states_per_option,
-                                    option_policies=environment.options_policies,
-                                    options_terminating_conditions=environment.options_terminating_conditions,
-                                    mdp_actions_per_state=environment.environment.get_state_actions(),
-                                    use_bernstein=1 if bound_type == "bernstein" else 0)
-            else:
+            if run_py or self.check_with_py:
+                evi_solver = PyEVI_FSUCRLv1(
+                    nb_states=environment.nb_states,
+                    nb_options=environment.nb_options,
+                    threshold=environment.threshold_options,
+                    macro_actions_per_state=environment.get_state_actions(),
+                    reachable_states_per_option=environment.reachable_states_per_option,
+                    option_policies=environment.options_policies,
+                    options_terminating_conditions=environment.options_terminating_conditions,
+                    mdp_actions_per_state=environment.environment.get_state_actions(),
+                    use_bernstein=1 if bound_type == "bernstein" else 0)
+                if self.check_with_py:
+                    self.pyevi = evi_solver
+
+            if not run_py:
                 evi_solver = EVI_FSUCRLv1(nb_states=environment.nb_states,
                                   nb_options=environment.nb_options,
                                   threshold=environment.threshold_options,
@@ -39,6 +45,7 @@ class FSUCRLv1(AbstractUCRL):
                                   options_terminating_conditions=environment.options_terminating_conditions,
                                   mdp_actions_per_state=environment.environment.get_state_actions(),
                                   use_bernstein=1 if bound_type == "bernstein" else 0)
+
 
         super(FSUCRLv1, self).__init__(environment=environment,
                                        r_max=r_max, range_r=range_r,
@@ -262,103 +269,7 @@ class FSUCRLv1(AbstractUCRL):
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
         max_nb_actions = self.nb_observations.shape[1]
 
-        #
-        # t0 = time.time()
-        # nb_options = self.environment.nb_options
-        # r_tilde_opt = [None] * nb_options
-        # mu_opt = [None] * nb_options
-        # condition_numbers_opt = np.empty((nb_options,))
-        #
-        # beta_mu_p = np.zeros((nb_options,))
-        #
-        # for o in range(nb_options):
-        #     option_policy = self.environment.options_policies[o]
-        #     option_reach_states = self.environment.reachable_states_per_option[o]
-        #     term_cond = self.environment.options_terminating_conditions[o]
-        #
-        #     opt_nb_states = len(option_reach_states)
-        #
-        #     Q_o = np.zeros((opt_nb_states, opt_nb_states))
-        #
-        #     # compute the reward and the mu
-        #     r_o = [0] * len(option_reach_states)
-        #     visits = self.total_time
-        #     bernstein_log = m.log(6* max_nb_actions / self.delta)
-        #     for i, s in enumerate(option_reach_states):
-        #         option_action = option_policy[s]
-        #         option_action_index = self.environment.get_index_of_action_state_in_mdp(s, option_action)
-        #         r_o[i] = self.estimated_rewards_mdp[s, option_action_index] + beta_r[s,option_action_index]
-        #
-        #         if visits > self.nb_observations_mdp[s, option_action_index]:
-        #             visits = self.nb_observations_mdp[s, option_action_index]
-        #
-        #         bernstein_bound = 0.
-        #         nb_o = max(1, self.nb_observations_mdp[s, option_action_index])
-        #
-        #         for j, sprime in enumerate(option_reach_states):
-        #             prob = self.estimated_probabilities_mdp[s][option_action_index][sprime]
-        #             #q_o[i,0] += term_cond[sprime] * prob
-        #             Q_o[i,j] = (1. - term_cond[sprime]) * prob
-        #             bernstein_bound += np.sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o) + bernstein_log * 7 / (3 * nb_o)
-        #
-        #         if beta_mu_p[o] < bernstein_bound:
-        #             beta_mu_p[o] = bernstein_bound
-        #
-        #     e_m = np.ones((opt_nb_states,1))
-        #     q_o = e_m - np.dot(Q_o, e_m)
-        #
-        #     r_tilde_opt[o] = r_o
-        #
-        #     if self.bound_type == "hoeffding":
-        #         beta_mu_p[o] =  self.range_mu_p * np.sqrt(14 * opt_nb_states * m.log(2 * max_nb_actions
-        #             * (self.total_time + 1)/self.delta) / max(1, visits))
-        #
-        #     Pprime_o = np.concatenate((q_o, Q_o[:, 1:]), axis=1)
-        #     if not np.allclose(np.sum(Pprime_o, axis=1), np.ones(opt_nb_states)):
-        #         print("{}\n{}".format(Pprime_o,Q_o))
-        #
-        #
-        #     Pap = (Pprime_o + np.eye(opt_nb_states)) / 2.
-        #     D, U = np.linalg.eig(
-        #         np.transpose(Pap))  # eigen decomposition of transpose of P
-        #     sorted_indices = np.argsort(np.real(D))
-        #     mu = np.transpose(np.real(U))[sorted_indices[-1]]
-        #     mu /= np.sum(mu)  # stationary distribution
-        #     mu_opt[o] = mu
-        #
-        #     assert len(mu_opt[o]) == len(r_tilde_opt[o])
-        #
-        #     P_star = np.repeat(np.array(mu, ndmin=2), opt_nb_states,
-        #                        axis=0)  # limiting matrix
-        #
-        #     # Compute deviation matrix
-        #     I = np.eye(opt_nb_states)  # identity matrix
-        #     Z = np.linalg.inv(I - Pap + P_star)  # fundamental matrix
-        #     H = np.dot(Z, I - P_star)  # deviation matrix
-        #
-        #     condition_nb = 0  # condition number of deviation matrix
-        #     for i in range(0, opt_nb_states):  # Seneta's condition number
-        #         for j in range(i + 1, opt_nb_states):
-        #             condition_nb = max(condition_nb,
-        #                                0.5 * np.linalg.norm(H[i, :] - H[j, :],
-        #                                                     ord=1))
-        #     condition_numbers_opt[o] = condition_nb
-        #
-        # span_value, u1, u2 = self.pyevi.run(
-        #     policy_indices=self.policy_indices,
-        #     policy=self.policy,
-        #     p_hat=self.estimated_probabilities,
-        #     r_hat_mdp=self.estimated_rewards_mdp,
-        #     r_tilde_opt=r_tilde_opt,
-        #     beta_p=beta_p,
-        #     beta_r_mdp=beta_r,
-        #     mu_opt=mu_opt,
-        #     cn_opt=condition_numbers_opt,
-        #     beta_mu_p=beta_mu_p,
-        #     r_max=self.r_max,
-        #     epsilon=self.r_max / m.sqrt(self.iteration + 1))
-        # t1 = time.time()
-        # print("OLD_EVI: {} s [{}]".format(t1-t0, span_value / self.r_max))
+
 
         # CHECK WHEN T_MAX=1
         # # # from UCRL.cython import  extended_value_iteration
@@ -386,7 +297,7 @@ class FSUCRLv1(AbstractUCRL):
         # # # assert np.allclose(uuuu.policy_indices, self.policy_indices)
 
         t0 = time.perf_counter()
-        self.opt_solver.compute_mu_info(  # environment=self.environment,
+        check_v = self.opt_solver.compute_mu_info2(  # environment=self.environment,
             estimated_probabilities_mdp=self.P_mdp, #self.estimated_probabilities_mdp,
             estimated_rewards_mdp=self.estimated_rewards_mdp,
             beta_r=beta_r,
@@ -394,8 +305,12 @@ class FSUCRLv1(AbstractUCRL):
             delta=self.delta,
             max_nb_actions=max_nb_actions,
             total_time=self.total_time,
-            range_mu_p=self.range_mu_p)
+            range_mu_p=self.range_mu_p,
+        r_max=self.r_max)
         t1 = time.perf_counter()
+
+        if check_v != 0:
+            raise ValueError("[FSUCRLv1] Error in the computation of mu and ci")
 
         new_span = self.opt_solver.run(
             policy_indices=self.policy_indices,
@@ -411,29 +326,50 @@ class FSUCRLv1(AbstractUCRL):
         self.solver_times.append((t1-t0, t2-t1))
 
         # # CHECK WITH PYTHON IMPL
-        # r = self.opt_solver.get_r_tilde_opt()
-        # assert len(r) == len(r_tilde_opt)
-        # for x, y in zip(r, r_tilde_opt):
-        #     assert np.allclose(x, y)
-        #
-        # mu_e = self.opt_solver.get_mu()
-        # assert len(mu_opt) == len(mu_e)
-        # for x, y in zip(mu_e, mu_opt):
-        #     assert np.allclose(x, y)
-        #
-        # cn_e = self.opt_solver.get_conditioning_numbers()
-        # assert np.allclose(condition_numbers_opt, cn_e)
-        #
-        # b_mu_e = self.opt_solver.get_beta_mu_p()
-        # assert np.allclose(b_mu_e, beta_mu_p)
-        #
-        # print("NEW_EVI: {} s ({} + {})".format(t2-t0, t1-t0, t2-t1))
-        # print(span_value, new_span)
-        # assert np.isclose(span_value, new_span)
-        # #new_u1, new_u2 = self.new_evi.get_uvectors()
-        #
-        # # assert np.allclose(u1, new_u1, 1e-5), "{}\n{}".format(u1, new_u1)
-        # # assert np.allclose(u2, new_u2, 1e-5), "{}\n{}".format(u2, new_u2)
+        if self.check_with_py:
+            self.pyevi.compute_mu_info(  # environment=self.environment,
+                estimated_probabilities_mdp=self.P_mdp, #self.estimated_probabilities_mdp,
+                estimated_rewards_mdp=self.estimated_rewards_mdp,
+                beta_r=beta_r,
+                nb_observations_mdp=self.nb_observations_mdp,
+                delta=self.delta,
+                max_nb_actions=max_nb_actions,
+                total_time=self.total_time,
+                range_mu_p=self.range_mu_p,
+            r_max=self.r_max)
+
+            py_span = self.pyevi.run(
+                policy_indices=self.policy_indices,
+                policy=self.policy,
+                p_hat=self.P,#self.estimated_probabilities,
+                r_hat_mdp=self.estimated_rewards_mdp,
+                beta_p=beta_p,
+                beta_r_mdp=beta_r,
+                r_max=self.r_max,
+                epsilon=self.r_max / m.sqrt(self.iteration + 1))
+
+            r = self.opt_solver.get_r_tilde_opt()
+            assert len(r) == len(self.pyevi.r_tilde_opt)
+            for x, y in zip(r, self.pyevi.r_tilde_opt):
+                assert np.allclose(x, y)
+
+            mu_e = self.opt_solver.get_mu()
+            assert len(self.pyevi.mu_opt) == len(mu_e)
+            for x, y in zip(mu_e, self.pyevi.mu_opt):
+                assert np.allclose(x, y)
+                assert np.isclose(np.sum(x),1)
+
+
+            cn_e = self.opt_solver.get_conditioning_numbers()
+            assert np.allclose(self.pyevi.condition_numbers_opt, cn_e),\
+                "{} != {}".format(cn_e, self.pyevi.condition_numbers_opt)
+
+            b_mu_e = self.opt_solver.get_beta_mu_p()
+            assert np.allclose(b_mu_e, self.pyevi.beta_mu_p),\
+                "{} != {}".format(b_mu_e, self.pyevi.beta_mu_p)
+
+            print(py_span, new_span)
+            assert np.isclose(py_span, new_span)
 
         return new_span
 
