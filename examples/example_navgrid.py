@@ -7,12 +7,13 @@ import datetime
 import shutil
 import json
 import numpy as np
-from UCRL.envs.toys import FourRoomsMaze
-from UCRL.envs.toys.roommaze import state2coord, coord2state
-from UCRL.envs.toys.roommaze import EscapeRoom
+from UCRL.envs.toys import NavigateGrid
+import UCRL.envs.toys.OptionGrid as OptionGrid
+import UCRL.envs.toys.OptionGridFree as OptionGridFree
 import UCRL.envs.RewardDistributions as RewardDistributions
 import UCRL.Ucrl as Ucrl
 from UCRL.free_ucrl import FSUCRLv1, FSUCRLv2
+from UCRL.envs import OptionEnvironment, MixedEnvironment
 import UCRL.logging as ucrl_logger
 import UCRL.parameters_init as tuning
 from optparse import OptionParser
@@ -26,11 +27,11 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
-                  help="dimension of the gridworld", default=14)
+                  help="dimension of the gridworld", default=20)
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=30000000)
+                  help="duration of the experiment", default=80000000)
 parser.add_option("-a", "--alg", dest="algorithm", type="str",
-                  help="Name of the algorith to execute", default="FSUCRLv2") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
+                  help="Name of the algorith to execute", default="UCRL") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
 parser.add_option("-c", dest="c", type="float",
                   help="c value", default=0.8)
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
@@ -43,7 +44,7 @@ parser.add_option("--p_range", dest="range_p", type="float",
                   help="range of transition matrix", default=-1)
 parser.add_option("--r_range", dest="range_r", type="float",
                   help="range of reward", default=-1)
-parser.add_option("--mu_range", dest="range_mc", type="float",
+parser.add_option("--mc_range", dest="range_mc", type="float",
                   help="range for stationary distribution", default=-1)
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
@@ -74,8 +75,8 @@ if in_options.id is None:
 
 range_tau = (in_options.t_max - 1) * in_options.c
 
-nbs = (in_options.dimension // 2) ** 2
-nbs_opt = nbs
+nbs = 2 # in_options.dimension ** 2
+nbs_opt = 2
 nbobs = 1
 if in_options.range_p < 0:
     if not in_options.use_bernstein:
@@ -107,39 +108,42 @@ if in_options.algorithm == "SUCRL":
 # ------------------------------------------------------------------------------
 # Relevant code
 # ------------------------------------------------------------------------------
+# Define environment
+initial_position = [in_options.dimension - 1, in_options.dimension - 1]  # initial state
+nb_target_actions = 1  # number of available actions in the targeted state
+nb_reset_actions = 1  # number of available actions in the reset state
 reward_distribution_states = RewardDistributions.ConstantReward(0)
 reward_distribution_target = RewardDistributions.ConstantReward(in_options.dimension)
+grid = NavigateGrid.NavigateGrid(dimension=in_options.dimension,
+                                 initial_position=initial_position,
+                                 reward_distribution_states=reward_distribution_states,
+                                 reward_distribution_target=reward_distribution_target,
+                                 nb_target_actions=nb_target_actions)
 
-success_probability = 0.8
+# Add options
+if in_options.algorithm != 'UCRL':
+    options = OptionGrid.OptionGrid1(grid, in_options.t_max)
+    # options = OptionGrid.OptionGrid2(grid, t_max)
+    # options = OptionGrid.OptionGrid3(grid=grid, t_max=t_max)
+    options_free = OptionGridFree.OptionGrid1(grid=grid, t_max=in_options.t_max)
+    option_environment = OptionEnvironment(
+        environment=grid,
+        state_options=options.state_options,
+        options_policies=options.options_policies,
+        options_terminating_conditions=options.options_terminating_conditions,
+        is_optimal=True
+    )
 
-env = FourRoomsMaze(dimension=in_options.dimension,
-                    initial_position=[in_options.dimension-1, in_options.dimension-1],
-                    reward_distribution_states=reward_distribution_states,
-                    reward_distribution_target=reward_distribution_target,
-                    target_coordinates= [0,0],
-                    success_probability=success_probability)
+    mixed_environment = MixedEnvironment(
+        environment=grid,
+        state_options=options_free.state_options,
+        options_policies=options_free.options_policies,
+        options_terminating_conditions=options_free.options_terminating_conditions,
+        is_optimal=True,
+        delete_environment_actions="all"
+    )
 
-if in_options.algorithm != "UCRL":
-    if in_options.env_pickle_file is not None:
-        mixed_env = pickle.load( open( in_options.env_pickle_file, "rb" ) )
-        assert np.isclose(mixed_env.environment.p_success, success_probability)
-        assert mixed_env.environment.dimension == in_options.dimension
-    else:
-        mixed_env = EscapeRoom(env)
-        fname = "escape_room_{}_{}.pickle".format(in_options.dimension, success_probability)
-        with open(fname, "wb") as f:
-            pickle.dump(mixed_env, f)
-        print("Mixed environment saved in {}".format(fname))
-
-
-# # check optimal policy
-# for i, a in enumerate(env.optimal_policy):
-#     row, col = state2coord(i,dimension)
-#     print("{}".format(a), end=" ")
-#     if col == dimension-1:
-#         print("")
-
-folder_results = os.path.abspath('{}_4rooms_{}'.format(in_options.algorithm,
+folder_results = os.path.abspath('{}_navgrid_{}'.format(in_options.algorithm,
                                                        in_options.id))
 if os.path.exists(folder_results):
     shutil.rmtree(folder_results)
@@ -169,7 +173,7 @@ for rep in range(in_options.nb_simulations):
                                               path=folder_results)
     if in_options.algorithm == "UCRL":
         ucrl = Ucrl.UcrlMdp(
-            env,
+            grid,
             r_max=in_options.r_max,
             range_r=in_options.range_r,
             range_p=in_options.range_p,
@@ -178,7 +182,7 @@ for rep in range(in_options.nb_simulations):
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
     elif in_options.algorithm == "SUCRL":
         ucrl = Ucrl.UcrlSmdpBounded(
-            environment=copy.deepcopy(mixed_env),
+            environment=copy.deepcopy(mixed_environment),
             r_max=in_options.r_max,
             t_max=in_options.t_max,
             range_r=in_options.range_r,
@@ -189,7 +193,7 @@ for rep in range(in_options.nb_simulations):
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
     elif in_options.algorithm == "FSUCRLv1":
         ucrl = FSUCRLv1(
-            environment=copy.deepcopy(mixed_env),
+            environment=copy.deepcopy(mixed_environment),
             r_max=in_options.r_max,
             range_r=in_options.range_r,
             range_p=in_options.range_p,
@@ -199,7 +203,7 @@ for rep in range(in_options.nb_simulations):
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
     elif in_options.algorithm == "FSUCRLv2":
         ucrl = FSUCRLv2(
-            environment=copy.deepcopy(mixed_env),
+            environment=copy.deepcopy(mixed_environment),
             r_max=in_options.r_max,
             range_r=in_options.range_r,
             range_p=in_options.range_p,
@@ -210,9 +214,7 @@ for rep in range(in_options.nb_simulations):
 
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ucrl).__name__))
     ucrl_log.info("seed: {}".format(seed))
-    ucrl_log.info("Using Bernstein: {}".format(in_options.use_bernstein))
-    ucrl_log.info("max gain: {}".format(env.max_gain))
-    ucrl_log.info("span: {}".format(env.span / in_options.r_max))
+    ucrl_log.info("Config: {}".format(config))
 
     h = ucrl.learn(in_options.duration, in_options.regret_time_steps)  # learn task
     ucrl.clear_before_pickle()

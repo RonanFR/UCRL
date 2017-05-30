@@ -10,7 +10,7 @@ import time
 
 class FSUCRLv1(AbstractUCRL):
     def __init__(self, environment, r_max,
-                 range_r=-1, range_p=-1, range_mu_p=-1,
+                 range_r=-1, range_p=-1, range_mc=-1,
                  bound_type="hoeffding",
                  verbose = 0, logger=default_logger,
                  evi_solver=None):
@@ -80,10 +80,10 @@ class FSUCRLv1(AbstractUCRL):
         # reward info
         self.estimated_rewards_mdp = np.ones((nb_states, max_nb_mdp_actions)) * (r_max + 1)
 
-        if (np.asarray(range_mu_p) < 0).any():
-            self.range_mu_p = 1
+        if (np.asarray(range_mc) < 0).any():
+            self.range_mc = 1
         else:
-            self.range_mu_p = range_mu_p
+            self.range_mc = range_mc
 
     def learn(self, duration, regret_time_step):
         if self.total_time >= duration:
@@ -305,7 +305,7 @@ class FSUCRLv1(AbstractUCRL):
             delta=self.delta,
             max_nb_actions=max_nb_actions,
             total_time=self.total_time,
-            range_mu_p=self.range_mu_p,
+            range_mu_p=self.range_mc,
         r_max=self.r_max)
         t1 = time.perf_counter()
 
@@ -335,7 +335,7 @@ class FSUCRLv1(AbstractUCRL):
                 delta=self.delta,
                 max_nb_actions=max_nb_actions,
                 total_time=self.total_time,
-                range_mu_p=self.range_mu_p,
+                range_mu_p=self.range_mc,
             r_max=self.r_max)
 
             py_span = self.pyevi.run(
@@ -405,7 +405,7 @@ class FSUCRLv2(FSUCRLv1):
         super(FSUCRLv2, self).__init__(
             environment=environment,
             r_max=r_max,
-            range_r=range_r, range_p=range_p, range_mu_p=range_opt_p,
+            range_r=range_r, range_p=range_p, range_mc=range_opt_p,
             bound_type=bound_type,
             verbose=verbose, logger=logger,
             evi_solver=evi_solver
@@ -435,7 +435,7 @@ class FSUCRLv2(FSUCRLv1):
             total_time=self.total_time,
             delta=self.delta,
             max_nb_actions=max_nb_actions,
-            range_opt_p=self.range_mu_p,
+            range_opt_p=self.range_mc,
         r_max=self.r_max)
         t1 = time.perf_counter()
         if np.isclose(gg,-999):
