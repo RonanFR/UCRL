@@ -25,8 +25,13 @@ A_SHORT_NAME=(N-fv1 N-fv2 N-suc N-ucr)
 for (( j=0; j<${#ALGS[@]}; j++ ))
 do
     echo ${j} ${ALGS[$j]}
+    N_t=${tmax}
+    if [ ${ALGS[$j]} == UCRL ]
+    then
+        N_t=1
+    fi
     i=1
-    for (( t=1; t<=${tmax}; t++ ))
+    for (( t=1; t<=${N_t}; t++ ))
     do
         out_name="${ALGS[$j]}_${dim}_${t}_%j.out"
         sname=${ALGS[$j]}_${dim}_${t}.slurm
