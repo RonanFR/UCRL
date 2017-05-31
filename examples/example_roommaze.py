@@ -20,8 +20,8 @@ from optparse import OptionParser
 import matplotlib
 # 'DISPLAY' will be something like this ':0'
 # on your local machine, and None otherwise
-if os.environ.get('DISPLAY') is None:
-    matplotlib.use('Agg')
+#if os.environ.get('DISPLAY') is None:
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 parser = OptionParser()
@@ -30,11 +30,7 @@ parser.add_option("-d", "--dimension", dest="dimension", type="int",
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="duration of the experiment", default=30000000)
 parser.add_option("-a", "--alg", dest="algorithm", type="str",
-                  help="Name of the algorith to execute", default="FSUCRLv2") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
-parser.add_option("-c", dest="c", type="float",
-                  help="c value", default=0.8)
-parser.add_option("-t", "--tmax", dest="t_max", type="int",
-                  help="t_max for options", default=-1)
+                  help="Name of the algorith to execute", default="UCRL") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
 parser.add_option("-b", "--bernstein", action="store_true", dest="use_bernstein",
                   default=False, help="use Bernstein bound")
 parser.add_option("--rmax", dest="r_max", type="float",
@@ -63,52 +59,39 @@ parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random
 
 assert in_options.algorithm in ["UCRL", "SUCRL", "FSUCRLv1", "FSUCRLv2"]
 
-if in_options.t_max < 1:
-    in_options.t_max = 1 + in_options.dimension // 2
-
 if in_options.r_max < 0:
     in_options.r_max = in_options.dimension
 
 if in_options.id is None:
     in_options.id = '{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now())
 
-range_tau = (in_options.t_max - 1) * in_options.c
-
-nbs = (in_options.dimension // 2) ** 2
+nbs = 2 #(in_options.dimension // 2) ** 2
 nbs_opt = nbs
 nbobs = 1
 if in_options.range_p < 0:
     if not in_options.use_bernstein:
         in_options.range_p = tuning.grid_range_p_from_hoeffding(
-            nb_states=nbs, nb_actions=4, nb_observations=nbobs)
+            nb_states=nbs, nb_actions=4, nb_observations=nbobs, desired_ci=0.1)
     else:
         in_options.range_p = tuning.grid_range_p_from_bernstein(
-            nb_states=nbs, nb_actions=4, nb_observations=nbobs)
+            nb_states=nbs, nb_actions=4, nb_observations=nbobs, desired_ci=0.1)
     assert in_options.range_p < 1.
 if in_options.range_mc < 0:
     in_options.range_mc = tuning.grid_range_p_from_hoeffding(
-        nb_states=nbs_opt, nb_actions=4, nb_observations=nbobs)
+        nb_states=nbs_opt, nb_actions=4, nb_observations=nbobs, desired_ci=0.1)
     assert in_options.range_mc < 1.
+
+range_r = in_options.range_r
 if in_options.range_r < 0:
     range_r = tuning.grid_range_r_from_hoeffding(
         nb_states=in_options.dimension, nb_actions=4, nb_observations=40)
     assert range_r < 1.
-    range_tau = range_r * (in_options.t_max - 1.)
-    if in_options.algorithm == 'SUCRL':
-        in_options.range_r = in_options.t_max * range_r
-    else:
-        in_options.range_r = range_r
-
-config = vars(in_options)
-if in_options.algorithm == "SUCRL":
-    config['range_tau'] = range_tau
-
 
 # ------------------------------------------------------------------------------
 # Relevant code
 # ------------------------------------------------------------------------------
 reward_distribution_states = RewardDistributions.ConstantReward(0)
-reward_distribution_target = RewardDistributions.ConstantReward(in_options.dimension)
+reward_distribution_target = RewardDistributions.ConstantReward(in_options.r_max)
 
 success_probability = 0.8
 
@@ -149,12 +132,27 @@ np.random.seed(in_options.seed_0)
 random.seed(in_options.seed_0)
 seed_sequence = [random.randint(0, 2**30) for _ in range(in_options.nb_simulations)]
 
+# ------------------------------------------------------------------------------
+# Define configuration
+# ------------------------------------------------------------------------------
+# update ranges given computed variance
+if in_options.algorithm == 'SUCRL':
+    in_options.range_r = range_r * np.max(mixed_env.tau_options)
+range_tau = np.max(mixed_env.tau_variance_options)
+
+config = vars(in_options)
+if in_options.algorithm == "SUCRL":
+    config['range_tau'] = range_tau
+
 config['seed_sequence'] = seed_sequence
+
 
 with open(os.path.join(folder_results, 'settings.conf'), 'w') as f:
     json.dump(config, f, indent=4, sort_keys=True)
 
+# ------------------------------------------------------------------------------
 # Main loop
+# ------------------------------------------------------------------------------
 for rep in range(in_options.nb_simulations):
     seed = seed_sequence[rep]  # set seed
     #seed = 1011005946
@@ -210,7 +208,8 @@ for rep in range(in_options.nb_simulations):
 
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ucrl).__name__))
     ucrl_log.info("seed: {}".format(seed))
-    ucrl_log.info("Using Bernstein: {}".format(in_options.use_bernstein))
+    ucrl_log.info("Config: {}\n".format(config))
+
     ucrl_log.info("max gain: {}".format(env.max_gain))
     ucrl_log.info("span: {}".format(env.span / in_options.r_max))
 

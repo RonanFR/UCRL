@@ -426,6 +426,8 @@ class EscapeRoom(MixedEnvironment):
                                          is_optimal=True)
         self.dimension = maze.dimension
 
+        self.compute_variance_tau()
+
         del self.evi
 
     def solve_forward_model(self, maze, targets_states):
@@ -474,3 +476,36 @@ class EscapeRoom(MixedEnvironment):
 
             optimal_policies.append(policy)
         return optimal_policies
+
+
+    def compute_variance_tau(self):
+        nb_options = self.nb_options
+        reachable_states = self.reachable_states_per_option
+        self.tau_options = np.empty((nb_options))
+        self.tau_variance_options = np.empty((nb_options))
+        for o in range(nb_options):
+            tau, tau_var = self._tau_var(
+                opt=o,
+                reachable_states=reachable_states[o],
+                option_policy=self.options_policies[o],
+                terminal_condition=np.array(self.options_terminating_conditions[o])
+            )
+            self.tau_options[o] = tau
+            self.tau_variance_options[o] = tau_var
+
+
+    def _tau_var(self, opt, reachable_states,
+                             option_policy, terminal_condition):
+        nb_states_mc = len(reachable_states)
+        Q = np.zeros((nb_states_mc, nb_states_mc))
+        for i, s in enumerate(reachable_states):
+            option_action = option_policy[s]
+            option_action_index = self.environment.get_index_of_action_state(s, option_action)
+            prob = self.environment.prob_kernel[s, option_action_index, reachable_states]
+            Q[i] = (1. - terminal_condition[reachable_states]) * prob
+        A = np.eye(nb_states_mc) - Q
+        N = np.linalg.inv(A)
+        tau = np.dot(N, np.ones((nb_states_mc,)))
+        tau_var = np.dot((2*N - np.eye(nb_states_mc)), tau) - tau * tau
+        return tau[0], tau_var[0]
+
