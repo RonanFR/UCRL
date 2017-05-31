@@ -2,6 +2,7 @@ from .cython.max_proba import maxProba
 from .cython.ExtendedValueIteration import extended_value_iteration
 from .evi.evi import EVI
 from .logging import default_logger
+from . import bounds as bounds
 
 import math as m
 import numpy as np
@@ -11,7 +12,8 @@ import time
 class AbstractUCRL(object):
 
     def __init__(self, environment,
-                 r_max, range_r=-1, range_p=-1,
+                 r_max,
+                 alpha_r=None, alpha_p=None,
                  solver=None,
                  verbose = 0,
                  logger=default_logger,
@@ -20,14 +22,14 @@ class AbstractUCRL(object):
         self.environment = environment
         self.r_max = float(r_max)
 
-        if (np.asarray(range_r) < 0).any():
-            self.range_r = r_max
+        if alpha_r is None:
+            self.alpha_r = 1
         else:
-            self.range_r = range_r
-        if (np.asarray(range_p) < 0).any():
-            self.range_p = 1
+            self.alpha_r = alpha_r
+        if alpha_p is None:
+            self.alpha_p = 1
         else:
-            self.range_p = range_p
+            self.alpha_p = alpha_p
 
         if solver is None:
             # create solver for optimistic model
@@ -68,18 +70,18 @@ class UcrlMdp(AbstractUCRL):
     positive bounded rewards.
     """
 
-    def __init__(self, environment, r_max, range_r=-1, range_p=-1, solver=None,
+    def __init__(self, environment, r_max, alpha_r=None, alpha_p=None, solver=None,
                  bound_type="hoeffding", verbose = 0,
                  logger=default_logger):
         """
         :param environment: an instance of any subclass of abstract class Environment which is an MDP
         :param r_max: upper bound
-        :param range_r: multiplicative factor for the concentration bound on rewards (default is r_max)
-        :param range_p: multiplicative factor for the concentration bound on transition probabilities (default is 1)
+        :param alpha_r: multiplicative factor for the concentration bound on rewards (default is r_max)
+        :param alpha_p: multiplicative factor for the concentration bound on transition probabilities (default is 1)
         """
         super(UcrlMdp, self).__init__(environment=environment,
-                                      r_max=r_max, range_r=range_r,
-                                      range_p=range_p, solver=solver,
+                                      r_max=r_max, alpha_r=alpha_r,
+                                      alpha_p=alpha_p, solver=solver,
                                       verbose=verbose,
                                       logger=logger, bound_type=bound_type)
         nb_states = self.environment.nb_states
@@ -89,7 +91,7 @@ class UcrlMdp(AbstractUCRL):
         self.P = np.ones((nb_states, max_nb_actions, nb_states)) / nb_states
         self.visited_sa = set()
 
-        self.estimated_rewards = np.ones((nb_states, max_nb_actions)) * (r_max+1)
+        self.estimated_rewards = np.ones((nb_states, max_nb_actions)) * (r_max + 99)
         self.estimated_holding_times = np.ones((nb_states, max_nb_actions))
 
         self.nb_observations = np.zeros((nb_states, max_nb_actions), dtype=np.int64)
@@ -134,19 +136,11 @@ class UcrlMdp(AbstractUCRL):
             span_value = self.solve_optimistic_model()
             t1 = time.time()
 
-            if self.verbose > 2:
-                for i, a in enumerate(self.policy_indices):
-                    from UCRL.envs.toys.roommaze import state2coord
-                    row, col = state2coord(i,
-                                           self.environment.dimension)
-                    print("{}".format(a), end=" ")
-                    if col == self.environment.dimension - 1:
-                        print("")
-                print("---------------")
-
             span_value *= self.tau / self.r_max
             if self.verbose > 0:
                 self.logger.info("span({}): {:.9f}".format(self.episode, span_value))
+                curr_regret = self.total_time * self.environment.max_gain - self.total_reward
+                self.logger.info("regret: {}, {:.2f}".format(self.total_time, curr_regret))
                 self.logger.info("evi time: {:.4f} s".format(t1-t0))
 
             if self.total_time > threshold_span:
@@ -190,8 +184,15 @@ class UcrlMdp(AbstractUCRL):
             np.array: the vector of confidence bounds on the reward function (|S| x |A|)
             
         """
-        return np.multiply(self.range_r, np.sqrt(7/2 * m.log(2 * self.environment.nb_states * self.environment.max_nb_actions_per_state *
-                                                (self.iteration+1)/self.delta) / np.maximum(1, self.nb_observations)))
+        S = self.environment.nb_states
+        A = self.environment.max_nb_actions_per_state
+        ci = bounds.chernoff(it=self.iteration, N=self.nb_observations,
+                             range=self.r_max, delta=self.delta,
+                             sqrt_C=3.5, log_C=2*S*A)
+        # beta = self.r_max * np.sqrt(7/2 * m.log(2 * self.environment.nb_states * self.environment.max_nb_actions_per_state *
+        #                                         (self.iteration+1)/self.delta) / np.maximum(1, self.nb_observations))
+        # assert np.allclose(ci, beta)
+        return self.alpha_r * ci
 
     def beta_tau(self):
         """ Confidence bounds on holding times
@@ -209,17 +210,22 @@ class UcrlMdp(AbstractUCRL):
             np.array: the vector of confidence bounds on the transition matrix (|S| x |A|)
             
         """
+        S = self.environment.nb_states
+        A = self.environment.max_nb_actions_per_state
         if self.bound_type == "hoeffding":
-            beta = self.range_p * np.sqrt(14 * self.environment.nb_states * m.log(2 * self.environment.max_nb_actions_per_state
-                    * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))
-            return beta.reshape([self.environment.nb_states, self.environment.max_nb_actions_per_state, 1])
+            beta = bounds.chernoff(it=self.iteration, N=self.nb_observations,
+                                   range=1., delta=self.delta,
+                                   sqrt_C=14*S, log_C=2*A)
+            # ci = np.sqrt(14 * S * m.log(2 * A
+            #         * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))
+            # assert np.allclose(ci, beta)
+            return self.alpha_p * beta.reshape([S, A, 1])
         else:
-            Z = m.log(6 * self.environment.max_nb_actions_per_state * (self.iteration + 1) / self.delta)
+            Z = m.log(6 * A * (self.iteration + 1) / self.delta)
             n = np.maximum(1, self.nb_observations)
-            # A = np.sqrt(2 * self.estimated_probabilities * (1-self.estimated_probabilities) * Z / n[:,:,np.newaxis])
-            A = np.sqrt(2 * self.P * (1-self.P) * Z / n[:,:,np.newaxis])
-            B = Z * 7 / (3 * n)
-            return self.range_p * (A + B[:,:,np.newaxis])
+            Va = np.sqrt(2 * self.P * (1-self.P) * Z / n[:,:,np.newaxis])
+            Vb = Z * 7 / (3 * n)
+            return self.alpha_p * (Va + Vb[:, :, np.newaxis])
 
     def update(self):
         s = self.environment.state  # current state
@@ -375,138 +381,77 @@ class UcrlMdp(AbstractUCRL):
         return p2
 
 
-class UcrlSmdpBounded(UcrlMdp):
-    """
-    UCRL for SMDPs with (almost surely) bounded rewards and holding times.
-    """
-    def __init__(self, environment, r_max, t_max, t_min=1,
-                 range_r=-1, range_tau=-1, range_p=-1,
-                 bound_type="hoeffding",
-                 verbose = 0, logger=default_logger):
-        super().__init__(environment, r_max, range_r, range_p,
-                         verbose=verbose, logger=logger, bound_type=bound_type)
-        self.tau = t_min - 0.1
-        self.tau_max = t_max
-        self.tau_min = t_min
-        self.estimated_rewards = np.ones((self.environment.nb_states, self.environment.max_nb_actions_per_state)) * r_max * t_max
-        self.estimated_holding_times = np.ones((self.environment.nb_states, self.environment.max_nb_actions_per_state)) * t_max
-        if (np.asarray(range_r) < 0).any():
-            self.range_r = r_max * t_max
-        else:
-            self.range_r = range_r
-        if (np.asarray(range_tau) < 0).any():
-            self.range_tau = (t_max - t_min)
-        else:
-            self.range_tau = range_tau
-
-    def beta_r(self):
-        return np.multiply(self.range_r, np.sqrt(7/2 * m.log(2 * self.environment.nb_states * self.environment.max_nb_actions_per_state *
-                                               (self.iteration+1)/self.delta) / np.maximum(1, self.nb_observations)))
-
-    def beta_tau(self):
-        return np.multiply(self.range_tau, np.sqrt(7/2 * m.log(2 * self.environment.nb_states *
-                self.environment.max_nb_actions_per_state * (self.iteration+1)/self.delta) / np.maximum(1, self.nb_observations)))
-
-
-class UcrlMixedBounded(UcrlSmdpBounded):
-    """
-    UCRL for SMDPs with (almost surely) bounded rewards and holding times where some actions are identified as primitive
-    actions and dealt with as such.
-    """
-    def __init__(self, environment, r_max, t_max, t_min=1, range_r=-1,
-                 range_r_actions=-1, range_tau=-1, range_p=-1,
-                 bound_type="hoeffding",
-                 verbose = 0, logger=default_logger):
-        super().__init__(environment, r_max, t_max, t_min,
-                         range_r, range_tau, range_p,
-                         verbose=verbose, logger=logger, bound_type=bound_type)
-        self.options = np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
-        self.primitive_actions = np.zeros((self.environment.nb_states, self.environment.max_nb_actions))
-        for s, actions in enumerate(environment.get_state_actions()):
-            i = 0
-            for action in actions:
-                if action > environment.threshold_options:
-                    self.options[s][i] = 1
-                else:
-                    self.primitive_actions[s][i] = 1
-                    self.estimated_rewards[s][i] = r_max
-                    self.estimated_holding_times[s][i] = 1
-                i += 1
-        if (np.asarray(range_r_actions) < 0).any():
-            self.range_r_actions = np.copy(self.estimated_rewards)
-        else:
-            self.range_r_actions = range_r_actions
-
-    def beta_r(self):
-        normalized_beta = np.sqrt(7/2 * m.log(2 * self.environment.nb_states * self.environment.max_nb_actions *
-                                                (self.iteration+1)/self.delta) / np.maximum(1, self.nb_observations))
-        beta_r = np.multiply(self.range_r, normalized_beta)
-        beta_r_actions = np.multiply(self.range_r_actions, normalized_beta)
-        return np.add(np.multiply(self.options, beta_r), np.multiply(self.primitive_actions, beta_r_actions))
-
-    def beta_tau(self):
-        beta_tau = np.multiply(self.range_tau, np.sqrt(7/2 * m.log(2 * self.environment.nb_states *
-                 self.environment.max_nb_actions * (self.iteration+1)/self.delta) / np.maximum(1, self.nb_observations)))
-        return np.multiply(self.options, beta_tau)
-
-    def update(self):
-        s = self.environment.state  # current state
-        history = self.environment.execute(self.policy[s])
-        s2 = self.environment.state  # new state
-        r = self.environment.reward
-        t = self.environment.holding_time
-        self.total_reward += r
-        self.total_time += t
-        self.iteration += 1
-        if history is None:
-            scale_f = self.nb_observations[s][self.policy_indices[s]] + self.nu_k[s][self.policy_indices[s]]
-
-            self.estimated_rewards[s][self.policy_indices[s]] *= scale_f / (scale_f + 1)
-            self.estimated_rewards[s][self.policy_indices[s]] += 1 / (scale_f + 1) * r
-            self.estimated_holding_times[s][self.policy_indices[s]] *= scale_f / (scale_f + 1)
-            self.estimated_holding_times[s][self.policy_indices[s]] += 1 / (scale_f + 1) * t
-            self.estimated_probabilities[s][self.policy_indices[s]] *= scale_f / (scale_f + 1)
-            self.estimated_probabilities[s][self.policy_indices[s]][s2] += 1 / (scale_f + 1)
-            self.nu_k[s][self.policy_indices[s]] += 1
-        else:
-            self.update_history(history)
-
-    def update_history(self, history):
-        [s, o, r, t, s2] = history.data
-        try:
-            option_index = self.environment.get_available_actions_state(s).index(o)
-            self.estimated_rewards[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
-            self.estimated_rewards[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * r
-            self.estimated_holding_times[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
-            self.estimated_holding_times[s][option_index] += 1 / (self.nb_observations[s][option_index] + 1) * t
-            self.estimated_probabilities[s][option_index] *= self.nb_observations[s][option_index] / (self.nb_observations[s][option_index] + 1)
-            self.estimated_probabilities[s][option_index][s2] += 1 / (self.nb_observations[s][option_index] + 1)
-            self.nu_k[s][option_index] += 1
-        except Exception:
-            pass
-        for sub_history in history.children:
-            self.update_history(sub_history)
-
-
-
-
 class UcrlSmdpExp(UcrlMdp):
     """
     UCRL for SMDPs with sub-Exponential rewards and holding times.
     """
-    def __init__(self, environment, r_max, tau_max, tau_min=1,
-                 verbose = 0, logger=default_logger):
-        super().__init__(environment, r_max,
-                         verbose=verbose, logger=logger)
+
+    def __init__(self, environment, r_max, tau_max,
+                 sigma_r, sigma_tau,
+                 tau_min=1,
+                 alpha_r=None, alpha_tau=None, alpha_p=None,
+                 b_r=0., b_tau=0.,
+                 bound_type="hoeffding",
+                 verbose=0, logger=default_logger):
+        assert tau_min >= 1
+        super(UcrlSmdpExp, self).__init__(
+            environment=environment, r_max=r_max,
+            alpha_r=alpha_r, alpha_p=alpha_p, solver=None,
+            bound_type=bound_type,
+            verbose=verbose, logger=logger)
         self.tau = tau_min - 0.1
         self.tau_max = tau_max
         self.tau_min = tau_min
+        if alpha_tau is None:
+            self.alpha_tau = 1.
+        else:
+            self.alpha_tau = alpha_tau
 
-    # TODO: implement SMDP-UCRL for sub-Exponential random variables
+        self.estimated_rewards.fill(r_max * tau_max)
+        self.estimated_holding_times.fill(tau_max)
+
+        self.sigma_r = sigma_r
+        self.sigma_tau = sigma_tau
+        self.b_r = b_r
+        self.b_tau = b_tau
 
     def beta_r(self):
-        return self.r_max * np.sqrt(7/2 * m.log(2 * self.environment.nb_states * self.environment.max_nb_actions *
-                                                self.iteration/self.delta) / np.maximum(1, self.nb_observations))
+        return self.alpha_r * self._beta_condition(sigma=self.sigma_r, b=self.b_r)
 
     def beta_tau(self):
-        return 0
+        return self.alpha_tau * self._beta_condition(sigma=self.sigma_tau, b=self.b_tau)
+
+    def _beta_condition(self, sigma, b):
+        S = self.environment.nb_states
+        A = self.environment.max_nb_actions_per_state
+        i_k = self.iteration
+        N = np.maximum(1, self.nb_observations)
+        beta = bounds.chernoff(it=self.iteration, N=self.nb_observations,
+                               range=sigma, delta=self.delta,
+                               sqrt_C=3.5, log_C=2*S*A)
+        if b > 0. and sigma > 0.:
+            ci_2 = b * 3.5 * m.log(2 * S * A * (i_k+1) / self.delta) / N
+            mask = (
+                self.nb_observations < 2 * np.power(b / sigma, 2) * m.log(240 * S * A * m.pow(i_k, 7) / self.delta))
+            beta[mask] = ci_2[mask]
+        return beta
+
+
+class UcrlSmdpBounded(UcrlSmdpExp):
+    """
+    UCRL for SMDPs with (almost surely) bounded rewards and holding times.
+    """
+
+    def __init__(self, environment, r_max, t_max, t_min=1,
+                 alpha_r=None, alpha_tau=None, alpha_p=None,
+                 bound_type="hoeffding",
+                 verbose=0, logger=default_logger):
+        super(UcrlSmdpBounded, self).__init__(environment=environment,
+                         r_max=r_max, tau_max=t_max,
+                         sigma_r=t_max* r_max,
+                         sigma_tau=t_max - t_min,
+                         tau_min=t_min,
+                         alpha_r=alpha_r, alpha_tau=alpha_tau, alpha_p=alpha_p,
+                         b_r=0., b_tau=0.,
+                         bound_type=bound_type,
+                         verbose=verbose, logger=logger)

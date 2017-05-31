@@ -2,6 +2,11 @@ import numpy as np
 import math as m
 
 
+def chernoff(it, N, delta, sqrt_C, log_C, range=1.):
+    ci = range * np.sqrt(sqrt_C * m.log(log_C * (it + 1) / delta) / np.maximum(1,N))
+    return ci
+
+
 def grid_range_r_from_hoeffding(nb_states, nb_actions, nb_observations,
                                 iteration=None, delta=1.0, desired_ci=1.):
     if iteration is None:

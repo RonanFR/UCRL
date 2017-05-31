@@ -8,15 +8,15 @@ import time
 
 
 class SMDPUCRL_Mixed(AbstractUCRL):
-    def __init__(self, environment, r_max, t_max, t_min=1, range_r=-1,
-                 range_r_actions=-1, range_tau=-1, range_p=-1,
+    def __init__(self, environment, r_max, t_max, t_min=1, alpha_r=-1,
+                 range_r_actions=-1, range_tau=-1, alpha_p=-1,
                  bound_type="hoeffding",
                  verbose = 0, logger=default_logger):
         assert isinstance(environment, MixedEnvironment)
 
         super(SMDPUCRL_Mixed, self).__init__(environment=environment,
-                                             r_max=r_max, range_r=range_r,
-                                             range_p=range_p, solver=None,
+                                             r_max=r_max, alpha_r=alpha_r,
+                                             alpha_p=alpha_p, solver=None,
                                              verbose=verbose,
                                              logger=logger,
                                              bound_type=bound_type)
@@ -39,10 +39,10 @@ class SMDPUCRL_Mixed(AbstractUCRL):
         # duration
         self.estimated_holding_times = np.ones((nb_states, max_nb_actions)) * t_max
 
-        if (np.asarray(range_r) < 0).any():
+        if (np.asarray(alpha_r) < 0).any():
             self.range_r = r_max * t_max
         else:
-            self.range_r = range_r
+            self.range_r = alpha_r
         if (np.asarray(range_tau) < 0).any():
             self.range_tau = (t_max - t_min)
         else:
@@ -126,15 +126,15 @@ class SMDPUCRL_Mixed(AbstractUCRL):
     def beta_p(self):
         nb_states, nb_actions = self.nb_observations.shape
         if self.bound_type == "hoeffding":
-            beta = self.range_p * np.sqrt(14 * nb_states * m.log(2 * nb_actions
-                    * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))
+            beta = self.alpha_p * np.sqrt(14 * nb_states * m.log(2 * nb_actions
+                                                                 * (self.iteration + 1) / self.delta) / np.maximum(1, self.nb_observations))
             return beta.reshape([nb_states, nb_actions, 1])
         else:
             Z = m.log(6 * nb_actions * (self.iteration + 1) / self.delta)
             n = np.maximum(1, self.nb_observations)
             A = np.sqrt(2 * self.estimated_probabilities * (1-self.estimated_probabilities) * Z / n)
             B = Z * 7 / (3 * n)
-            return self.range_p * (A + B)
+            return self.alpha_p * (A + B)
 
     def beta_r(self):
         nb_states, nb_actions = self.estimated_rewards.shape

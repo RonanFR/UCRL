@@ -4,7 +4,7 @@ N_mem=50g
 N_hours=24
 
 dim=20
-duration=80000000
+duration=40000000
 repetitions=1
 init_seed=114364114
 rmax=${dim}
@@ -21,6 +21,8 @@ ALGS=(FSUCRLv1 FSUCRLv2 SUCRL UCRL)
 A_SHORT_NAME=(N-fv1 N-fv2 N-suc N-ucr)
 
 # CREATE CONFIGURATIONS
+
+ALPHAS=" --p_alpha 0.01 --mc_alpha 0.01 --r_alpha 0.1 --tau_alpha 0.8 "
 
 for (( j=0; j<${#ALGS[@]}; j++ ))
 do
@@ -51,9 +53,9 @@ do
         echo "export OMP_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
         echo "export NUMEXPR_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
 
-        echo "python ${exe_file} --alg ${ALGS[$j]} -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
+        echo "python ${exe_file} --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
         i=$((i+1))
-        echo "python ${exe_file} -b --alg ${ALGS[$j]} -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
+        echo "python ${exe_file} -b --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
 
         cd ${folder}
         sbatch ${sname}

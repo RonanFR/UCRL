@@ -5,12 +5,13 @@ import math as m
 from .logging import default_logger
 from .evi import EVI_FSUCRLv1, EVI_FSUCRLv2
 from .evi.pyfreeevi import PyEVI_FSUCRLv1, PyEVI_FSUCRLv2
+from . import bounds as bounds
 import time
 
 
 class FSUCRLv1(AbstractUCRL):
     def __init__(self, environment, r_max,
-                 range_r=-1, range_p=-1, range_mc=-1,
+                 alpha_r=None, alpha_p=None, alpha_mc=None,
                  bound_type="hoeffding",
                  verbose = 0, logger=default_logger,
                  evi_solver=None):
@@ -48,8 +49,8 @@ class FSUCRLv1(AbstractUCRL):
 
 
         super(FSUCRLv1, self).__init__(environment=environment,
-                                       r_max=r_max, range_r=range_r,
-                                       range_p=range_p, solver=evi_solver,
+                                       r_max=r_max, alpha_r=alpha_r,
+                                       alpha_p=alpha_p, solver=evi_solver,
                                        verbose=verbose,
                                        logger=logger,
                                        bound_type=bound_type)
@@ -78,12 +79,12 @@ class FSUCRLv1(AbstractUCRL):
         self.nu_k_mdp = np.zeros((nb_states, max_nb_mdp_actions), dtype=np.int64) # for reward of mdp actions
 
         # reward info
-        self.estimated_rewards_mdp = np.ones((nb_states, max_nb_mdp_actions)) * (r_max + 1)
+        self.estimated_rewards_mdp = np.ones((nb_states, max_nb_mdp_actions)) * (r_max + 99)
 
-        if (np.asarray(range_mc) < 0).any():
-            self.range_mc = 1
+        if alpha_mc is None:
+            self.alpha_mc = 1.
         else:
-            self.range_mc = range_mc
+            self.alpha_mc = alpha_mc
 
     def learn(self, duration, regret_time_step):
         if self.total_time >= duration:
@@ -113,19 +114,11 @@ class FSUCRLv1(AbstractUCRL):
             span_value = self.solve_optimistic_model()
             t1 = time.time()
 
-            if self.verbose > 2:
-                for i, a in enumerate(self.policy_indices):
-                    from UCRL.envs.toys.roommaze import state2coord
-                    row, col = state2coord(i,
-                                           self.environment.dimension)
-                    print("{}".format(a), end=" ")
-                    if col == self.environment.dimension - 1:
-                        print("")
-                print("---------------")
-
             span_value /= self.r_max
             if self.verbose > 0:
                 self.logger.info("span({}): {:.9f}".format(self.episode, span_value))
+                curr_regret = self.total_time * self.environment.max_gain - self.total_reward
+                self.logger.info("regret: {}, {:.2f}".format(self.total_time, curr_regret))
                 self.logger.info("evi time: {:.4f} s".format(t1-t0))
 
             if self.total_time > threshold_span:
@@ -168,24 +161,32 @@ class FSUCRLv1(AbstractUCRL):
         self.logger.info("TIME: %.5f s" % self.speed)
 
     def beta_r(self):
-        nb_states, nb_prim_actions = self.estimated_rewards_mdp.shape
-        beta_r =  np.multiply(self.range_r, np.sqrt(7/2 * m.log(2 * nb_states * nb_prim_actions *
-                                                (self.total_time + 1)/self.delta) / np.maximum(1, self.nb_observations_mdp)))
+        S, A = self.estimated_rewards_mdp.shape
+        ci = bounds.chernoff(it=self.total_time, N=self.nb_observations_mdp,
+                             range=self.r_max, delta=self.delta,
+                             sqrt_C=3.5, log_C=2*S*A)
+        beta = self.r_max * np.sqrt(7 / 2 * m.log(2 * S * A * (self.total_time + 1) / self.delta) / np.maximum(1, self.nb_observations_mdp))
+        assert np.allclose(ci, beta)
+        beta_r =  np.multiply(self.alpha_r, ci)
         return beta_r
 
     def beta_p(self):
-        nb_states, nb_actions = self.nb_observations.shape
+        S, A = self.nb_observations.shape
         if self.bound_type == "hoeffding":
-            beta = self.range_p * np.sqrt(14 * nb_states * m.log(2 * nb_actions
+            beta = bounds.chernoff(it=self.iteration, N=self.nb_observations,
+                                   range=1., delta=self.delta,
+                                   sqrt_C=14*S, log_C=2*A)
+            ci = np.sqrt(14 * S * m.log(2 * A
                         * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))
-            return beta.reshape([nb_states, nb_actions, 1])
+            assert np.allclose(ci, beta)
+            return self.alpha_p * beta.reshape([S, A, 1])
         else:
-            Z = m.log(6 * nb_actions * (self.iteration + 1) / self.delta)
+            Z = m.log(6 * A * (self.iteration + 1) / self.delta)
             n = np.maximum(1, self.nb_observations)
             # A = np.sqrt(2 * self.estimated_probabilities * (1-self.estimated_probabilities) * Z / n[:,:,np.newaxis])
-            A = np.sqrt(2 * self.P * (1-self.P) * Z / n[:,:,np.newaxis])
-            B = Z * 7 / (3 * n)
-            return self.range_p * (A + B[:,:,np.newaxis])
+            Va = np.sqrt(2 * self.P * (1-self.P) * Z / n[:,:,np.newaxis])
+            Vb = Z * 7 / (3 * n)
+            return self.alpha_p * (Va + Vb[:, :, np.newaxis])
 
     def update(self):
         s = self.environment.state  # current state
@@ -305,7 +306,7 @@ class FSUCRLv1(AbstractUCRL):
             delta=self.delta,
             max_nb_actions=max_nb_actions,
             total_time=self.total_time,
-            range_mu_p=self.range_mc,
+            range_mu_p=self.alpha_mc,
         r_max=self.r_max)
         t1 = time.perf_counter()
 
@@ -335,7 +336,7 @@ class FSUCRLv1(AbstractUCRL):
                 delta=self.delta,
                 max_nb_actions=max_nb_actions,
                 total_time=self.total_time,
-                range_mu_p=self.range_mc,
+                range_mu_p=self.alpha_mc,
             r_max=self.r_max)
 
             py_span = self.pyevi.run(
@@ -376,7 +377,7 @@ class FSUCRLv1(AbstractUCRL):
 
 class FSUCRLv2(FSUCRLv1):
     def __init__(self, environment, r_max,
-                 range_r=-1, range_p=-1, range_opt_p=-1,
+                 alpha_r=-1, alpha_p=-1, alpha_mc=-1,
                  bound_type="hoeffding",
                  verbose = 0, logger=default_logger):
 
@@ -405,7 +406,7 @@ class FSUCRLv2(FSUCRLv1):
         super(FSUCRLv2, self).__init__(
             environment=environment,
             r_max=r_max,
-            range_r=range_r, range_p=range_p, range_mc=range_opt_p,
+            alpha_r=alpha_r, alpha_p=alpha_p, alpha_mc=alpha_mc,
             bound_type=bound_type,
             verbose=verbose, logger=logger,
             evi_solver=evi_solver
@@ -435,7 +436,7 @@ class FSUCRLv2(FSUCRLv1):
             total_time=self.total_time,
             delta=self.delta,
             max_nb_actions=max_nb_actions,
-            range_opt_p=self.range_mc,
+            range_opt_p=self.alpha_mc,
         r_max=self.r_max)
         t1 = time.perf_counter()
         if np.isclose(gg,-999):

@@ -15,7 +15,7 @@ import UCRL.Ucrl as Ucrl
 from UCRL.free_ucrl import FSUCRLv1, FSUCRLv2
 from UCRL.envs import OptionEnvironment, MixedEnvironment
 import UCRL.logging as ucrl_logger
-import UCRL.parameters_init as tuning
+import UCRL.bounds as tuning
 from optparse import OptionParser
 
 import matplotlib
@@ -29,23 +29,23 @@ parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
                   help="dimension of the gridworld", default=20)
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=80000000)
+                  help="duration of the experiment", default=40000000)
 parser.add_option("-a", "--alg", dest="algorithm", type="str",
-                  help="Name of the algorith to execute", default="UCRL") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
-parser.add_option("-c", dest="c", type="float",
-                  help="c value", default=0.8)
+                  help="Name of the algorith to execute", default="FSUCRLv1") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
-                  help="t_max for options", default=-1)
+                  help="t_max for options", default=1)
 parser.add_option("-b", "--bernstein", action="store_true", dest="use_bernstein",
                   default=False, help="use Bernstein bound")
 parser.add_option("--rmax", dest="r_max", type="float",
                   help="maximum reward", default=-1)
-parser.add_option("--p_range", dest="range_p", type="float",
-                  help="range of transition matrix", default=-1)
-parser.add_option("--r_range", dest="range_r", type="float",
-                  help="range of reward", default=-1)
-parser.add_option("--mc_range", dest="range_mc", type="float",
-                  help="range for stationary distribution", default=-1)
+parser.add_option("--p_alpha", dest="alpha_p", type="float",
+                  help="range of transition matrix", default=0.01)
+parser.add_option("--r_alpha", dest="alpha_r", type="float",
+                  help="range of reward", default=0.1)
+parser.add_option("--tau_alpha", dest="alpha_tau", type="float",
+                  help="range of reward", default=0.8)
+parser.add_option("--mc_alpha", dest="alpha_mc", type="float",
+                  help="range for stationary distribution", default=0.01)
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
@@ -65,7 +65,7 @@ parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random
 assert in_options.algorithm in ["UCRL", "SUCRL", "FSUCRLv1", "FSUCRLv2"]
 
 if in_options.t_max < 1:
-    in_options.t_max = 1 + in_options.dimension // 2
+    raise ValueError("t_max should be >= 1")
 
 if in_options.r_max < 0:
     in_options.r_max = in_options.dimension
@@ -73,38 +73,7 @@ if in_options.r_max < 0:
 if in_options.id is None:
     in_options.id = '{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now())
 
-range_tau = (in_options.t_max - 1) * in_options.c
-
-nbs = 2 # in_options.dimension ** 2
-nbs_opt = 2
-nbobs = 1
-if in_options.range_p < 0:
-    if not in_options.use_bernstein:
-        in_options.range_p = tuning.grid_range_p_from_hoeffding(
-            nb_states=nbs, nb_actions=4, nb_observations=nbobs, desired_ci=0.1)
-    else:
-        in_options.range_p = tuning.grid_range_p_from_bernstein(
-            nb_states=nbs, nb_actions=4, nb_observations=nbobs, desired_ci=0.1)
-    assert in_options.range_p < 1.
-if in_options.range_mc < 0:
-    in_options.range_mc = tuning.grid_range_p_from_hoeffding(
-        nb_states=nbs_opt, nb_actions=4, nb_observations=nbobs, desired_ci=0.1)
-    assert in_options.range_mc < 1.
-if in_options.range_r < 0:
-    range_r = tuning.grid_range_r_from_hoeffding(
-        nb_states=2, nb_actions=4,
-        nb_observations=20, desired_ci=1.)
-    assert range_r < 1.
-    range_tau = range_r * (in_options.t_max - 1.)
-    if in_options.algorithm == 'SUCRL':
-        in_options.range_r = in_options.t_max * range_r
-    else:
-        in_options.range_r = range_r
-
 config = vars(in_options)
-if in_options.algorithm == "SUCRL":
-    config['range_tau'] = range_tau
-
 
 # ------------------------------------------------------------------------------
 # Relevant code
@@ -176,8 +145,8 @@ for rep in range(in_options.nb_simulations):
         ucrl = Ucrl.UcrlMdp(
             grid,
             r_max=in_options.r_max,
-            range_r=in_options.range_r,
-            range_p=in_options.range_p,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
             verbose=1,
             logger=ucrl_log,
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
@@ -186,9 +155,9 @@ for rep in range(in_options.nb_simulations):
             environment=copy.deepcopy(mixed_environment),
             r_max=in_options.r_max,
             t_max=in_options.t_max,
-            range_r=in_options.range_r,
-            range_p=in_options.range_p,
-            range_tau=range_tau,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            alpha_tau=in_options.alpha_tau,
             verbose=1,
             logger=ucrl_log,
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
@@ -196,9 +165,9 @@ for rep in range(in_options.nb_simulations):
         ucrl = FSUCRLv1(
             environment=copy.deepcopy(mixed_environment),
             r_max=in_options.r_max,
-            range_r=in_options.range_r,
-            range_p=in_options.range_p,
-            range_mc=in_options.range_mc,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            alpha_mc=in_options.alpha_mc,
             verbose=1,
             logger=ucrl_log,
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
@@ -206,9 +175,9 @@ for rep in range(in_options.nb_simulations):
         ucrl = FSUCRLv2(
             environment=copy.deepcopy(mixed_environment),
             r_max=in_options.r_max,
-            range_r=in_options.range_r,
-            range_p=in_options.range_p,
-            range_opt_p=in_options.range_mc,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            alpha_mc=in_options.alpha_mc,
             verbose=1,
             logger=ucrl_log,
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
