@@ -138,7 +138,7 @@ seed_sequence = [random.randint(0, 2**30) for _ in range(in_options.nb_simulatio
 # update ranges given computed variance
 if in_options.algorithm == 'SUCRL':
     in_options.range_r = range_r * np.max(mixed_env.tau_options)
-range_tau = np.max(mixed_env.tau_variance_options)
+    range_tau = np.max(mixed_env.tau_variance_options)
 
 config = vars(in_options)
 if in_options.algorithm == "SUCRL":
