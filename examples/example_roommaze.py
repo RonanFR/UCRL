@@ -68,23 +68,28 @@ if in_options.id is None:
 nbs = 2 #(in_options.dimension // 2) ** 2
 nbs_opt = nbs
 nbobs = 1
+desired_ci_p = 0.04
 if in_options.range_p < 0:
     if not in_options.use_bernstein:
         in_options.range_p = tuning.grid_range_p_from_hoeffding(
-            nb_states=nbs, nb_actions=4, nb_observations=nbobs, desired_ci=0.1)
+            nb_states=nbs, nb_actions=4, nb_observations=nbobs,
+            desired_ci=desired_ci_p)
     else:
         in_options.range_p = tuning.grid_range_p_from_bernstein(
-            nb_states=nbs, nb_actions=4, nb_observations=nbobs, desired_ci=0.1)
+            nb_states=nbs, nb_actions=4,
+            nb_observations=nbobs, desired_ci=desired_ci_p)
     assert in_options.range_p < 1.
 if in_options.range_mc < 0:
     in_options.range_mc = tuning.grid_range_p_from_hoeffding(
-        nb_states=nbs_opt, nb_actions=4, nb_observations=nbobs, desired_ci=0.1)
+        nb_states=nbs_opt, nb_actions=4,
+        nb_observations=nbobs, desired_ci=desired_ci_p)
     assert in_options.range_mc < 1.
 
 range_r = in_options.range_r
 if in_options.range_r < 0:
     range_r = tuning.grid_range_r_from_hoeffding(
-        nb_states=in_options.dimension, nb_actions=4, nb_observations=40)
+        nb_states=2, nb_actions=4,
+        nb_observations=20, desired_ci=1.)
     assert range_r < 1.
 
 # ------------------------------------------------------------------------------

@@ -92,7 +92,8 @@ if in_options.range_mc < 0:
     assert in_options.range_mc < 1.
 if in_options.range_r < 0:
     range_r = tuning.grid_range_r_from_hoeffding(
-        nb_states=in_options.dimension, nb_actions=4, nb_observations=40)
+        nb_states=2, nb_actions=4,
+        nb_observations=20, desired_ci=1.)
     assert range_r < 1.
     range_tau = range_r * (in_options.t_max - 1.)
     if in_options.algorithm == 'SUCRL':
@@ -113,7 +114,7 @@ initial_position = [in_options.dimension - 1, in_options.dimension - 1]  # initi
 nb_target_actions = 1  # number of available actions in the targeted state
 nb_reset_actions = 1  # number of available actions in the reset state
 reward_distribution_states = RewardDistributions.ConstantReward(0)
-reward_distribution_target = RewardDistributions.ConstantReward(in_options.dimension)
+reward_distribution_target = RewardDistributions.ConstantReward(in_options.r_max)
 grid = NavigateGrid.NavigateGrid(dimension=in_options.dimension,
                                  initial_position=initial_position,
                                  reward_distribution_states=reward_distribution_states,
