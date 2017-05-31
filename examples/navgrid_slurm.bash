@@ -51,9 +51,9 @@ do
         echo "export OMP_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
         echo "export NUMEXPR_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
 
-        echo "python ${exe_file} --alg FSUCRLv1 -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
+        echo "python ${exe_file} --alg ${ALGS[$j]} -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
         i=$((i+1))
-        echo "python ${exe_file} -b --alg FSUCRLv1 -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
+        echo "python ${exe_file} -b --alg ${ALGS[$j]} -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
 
         cd ${folder}
         sbatch ${sname}
