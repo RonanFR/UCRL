@@ -21,8 +21,8 @@ from optparse import OptionParser
 import matplotlib
 # 'DISPLAY' will be something like this ':0'
 # on your local machine, and None otherwise
-if os.environ.get('DISPLAY') is None:
-    matplotlib.use('Agg')
+# if os.environ.get('DISPLAY') is None:
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 parser = OptionParser()
