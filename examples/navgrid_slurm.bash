@@ -7,7 +7,7 @@ dim=20
 duration=40000000
 repetitions=1
 init_seed=114364114
-rmax=${dim}
+rmax=1 #${dim}
 tmax=$((dim/2))
 exe_file=../example_navgrid.py 
 
@@ -22,7 +22,7 @@ A_SHORT_NAME=(N-fv1 N-fv2 N-suc N-ucr)
 
 # CREATE CONFIGURATIONS
 
-ALPHAS=" --p_alpha 0.02 --mc_alpha 0.02 --r_alpha 0.8/20 --tau_alpha 0.8 "
+ALPHAS=" --p_alpha 0.02 --mc_alpha 0.02 --r_alpha 0.8 --tau_alpha 0.8 "
 
 for (( j=0; j<${#ALGS[@]}; j++ ))
 do
@@ -56,6 +56,7 @@ do
         echo "python ${exe_file} --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
         i=$((i+1))
         echo "python ${exe_file} -b --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
+        i=$((i+1))
 
         cd ${folder}
         sbatch ${sname}

@@ -393,6 +393,7 @@ class EscapeRoom(MixedEnvironment):
                 for x in rooms[room_nb]:
                     o_tc[x] = 0
                 o_tc[s] = 1 # starting state
+                o_tc[maze.target_state] = 1 # target state
                 assert s in rooms[room_nb]
 
                 if s in target_states:
@@ -406,10 +407,11 @@ class EscapeRoom(MixedEnvironment):
                     loc_otc = copy.deepcopy(o_tc)
                     loc_otc[target_states[i]] = 1 # when i reach the target I stop
 
-                    if target_states[i] in rooms[room_nb]:
-                        assert np.sum(loc_otc) == 3 * (dim / 2) ** 2 + 2
-                    else:
-                        assert np.sum(loc_otc) == 3 * (dim / 2) ** 2 + 1
+
+                    # if target_states[i] in rooms[room_nb]:
+                    #     assert np.sum(loc_otc) == 3 * (dim / 2) ** 2 + 2 + offset
+                    # else:
+                    #     assert np.sum(loc_otc) == 3 * (dim / 2) ** 2 + 1 + offset
 
                     options_terminating_conditions.append(loc_otc)
                     state_options[-1].append(option_id)
@@ -493,7 +495,6 @@ class EscapeRoom(MixedEnvironment):
             self.tau_options[o] = tau
             self.tau_variance_options[o] = tau_var
 
-
     def _tau_var(self, opt, reachable_states,
                              option_policy, terminal_condition):
         nb_states_mc = len(reachable_states)
@@ -508,4 +509,14 @@ class EscapeRoom(MixedEnvironment):
         tau = np.dot(N, np.ones((nb_states_mc,)))
         tau_var = np.dot((2*N - np.eye(nb_states_mc)), tau) - tau * tau
         return tau[0], tau_var[0]
+
+    def reshaped_sigma_tau(self):
+        sigmas = np.sqrt(self.tau_variance_options)
+        nb_states = self.nb_states
+        sigma_tau = np.zeros((nb_states, self.max_nb_actions_per_state))
+        for i in range(nb_states):
+            for j, opt in enumerate(self.get_available_actions_state(i)):
+                zerob_opt = opt - self.threshold_options - 1
+                sigma_tau[i,j] = sigmas[zerob_opt]
+        return sigma_tau
 

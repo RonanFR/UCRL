@@ -14,7 +14,7 @@ import UCRL.envs.RewardDistributions as RewardDistributions
 import UCRL.Ucrl as Ucrl
 from UCRL.free_ucrl import FSUCRLv1, FSUCRLv2
 import UCRL.logging as ucrl_logger
-import UCRL.parameters_init as tuning
+import UCRL.bounds as tuning
 from optparse import OptionParser
 
 import matplotlib
@@ -26,21 +26,23 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
-                  help="dimension of the gridworld", default=14)
+                  help="dimension of the gridworld", default=6)
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="duration of the experiment", default=30000000)
 parser.add_option("-a", "--alg", dest="algorithm", type="str",
-                  help="Name of the algorith to execute", default="UCRL") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
+                  help="Name of the algorith to execute", default="FSUCRLv2") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
 parser.add_option("-b", "--bernstein", action="store_true", dest="use_bernstein",
                   default=False, help="use Bernstein bound")
 parser.add_option("--rmax", dest="r_max", type="float",
-                  help="maximum reward", default=-1)
-parser.add_option("--p_range", dest="range_p", type="float",
-                  help="range of transition matrix", default=-1)
-parser.add_option("--r_range", dest="range_r", type="float",
-                  help="range of reward", default=-1)
-parser.add_option("--mu_range", dest="range_mc", type="float",
-                  help="range for stationary distribution", default=-1)
+                  help="maximum reward", default=1)
+parser.add_option("--p_alpha", dest="alpha_p", type="float",
+                  help="range of transition matrix", default=0.02)
+parser.add_option("--r_alpha", dest="alpha_r", type="float",
+                  help="range of reward", default=0.8)
+parser.add_option("--tau_alpha", dest="alpha_tau", type="float",
+                  help="range of reward", default=0.5)
+parser.add_option("--mc_alpha", dest="alpha_mc", type="float",
+                  help="range for stationary distribution", default=0.02)
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
@@ -54,6 +56,8 @@ parser.add_option("-q", "--quiet",
                   help="don't print status messages to stdout")
 parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random.getrandbits(16),
                   help="Seed used to generate the random seed sequence")
+parser.add_option("--succ_prob", dest="success_probability", type="float",
+                  help="Success probability of an action", default=0.8)
 
 (in_options, in_args) = parser.parse_args()
 
@@ -65,32 +69,7 @@ if in_options.r_max < 0:
 if in_options.id is None:
     in_options.id = '{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now())
 
-nbs = 2 #(in_options.dimension // 2) ** 2
-nbs_opt = nbs
-nbobs = 1
-desired_ci_p = 0.04
-if in_options.range_p < 0:
-    if not in_options.use_bernstein:
-        in_options.range_p = tuning.grid_range_p_from_hoeffding(
-            nb_states=nbs, nb_actions=4, nb_observations=nbobs,
-            desired_ci=desired_ci_p)
-    else:
-        in_options.range_p = tuning.grid_range_p_from_bernstein(
-            nb_states=nbs, nb_actions=4,
-            nb_observations=nbobs, desired_ci=desired_ci_p)
-    assert in_options.range_p < 1.
-if in_options.range_mc < 0:
-    in_options.range_mc = tuning.grid_range_p_from_hoeffding(
-        nb_states=nbs_opt, nb_actions=4,
-        nb_observations=nbobs, desired_ci=desired_ci_p)
-    assert in_options.range_mc < 1.
-
-range_r = in_options.range_r
-if in_options.range_r < 0:
-    range_r = tuning.grid_range_r_from_hoeffding(
-        nb_states=2, nb_actions=4,
-        nb_observations=20, desired_ci=1.)
-    assert range_r < 1.
+config = vars(in_options)
 
 # ------------------------------------------------------------------------------
 # Relevant code
@@ -98,7 +77,7 @@ if in_options.range_r < 0:
 reward_distribution_states = RewardDistributions.ConstantReward(0)
 reward_distribution_target = RewardDistributions.ConstantReward(in_options.r_max)
 
-success_probability = 0.8
+success_probability = in_options.success_probability
 
 env = FourRoomsMaze(dimension=in_options.dimension,
                     initial_position=[in_options.dimension-1, in_options.dimension-1],
@@ -137,20 +116,7 @@ np.random.seed(in_options.seed_0)
 random.seed(in_options.seed_0)
 seed_sequence = [random.randint(0, 2**30) for _ in range(in_options.nb_simulations)]
 
-# ------------------------------------------------------------------------------
-# Define configuration
-# ------------------------------------------------------------------------------
-# update ranges given computed variance
-if in_options.algorithm == 'SUCRL':
-    in_options.range_r = range_r * np.max(mixed_env.tau_options)
-    range_tau = np.max(mixed_env.tau_variance_options)
-
-config = vars(in_options)
-if in_options.algorithm == "SUCRL":
-    config['range_tau'] = range_tau
-
 config['seed_sequence'] = seed_sequence
-
 
 with open(os.path.join(folder_results, 'settings.conf'), 'w') as f:
     json.dump(config, f, indent=4, sort_keys=True)
@@ -172,21 +138,26 @@ for rep in range(in_options.nb_simulations):
                                               path=folder_results)
     if in_options.algorithm == "UCRL":
         ucrl = Ucrl.UcrlMdp(
-            env,
+            copy.deepcopy(env),
             r_max=in_options.r_max,
-            range_r=in_options.range_r,
-            range_p=in_options.range_p,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
             verbose=1,
             logger=ucrl_log,
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
     elif in_options.algorithm == "SUCRL":
-        ucrl = Ucrl.UcrlSmdpBounded(
+
+        sigma_tau = mixed_env.reshaped_sigma_tau()
+
+        ucrl = Ucrl.UcrlSmdpExp(
             environment=copy.deepcopy(mixed_env),
             r_max=in_options.r_max,
-            t_max=in_options.t_max,
-            range_r=in_options.range_r,
-            range_p=in_options.range_p,
-            range_tau=range_tau,
+            tau_min=np.min(mixed_env.tau_options),
+            tau_max=np.max(mixed_env.tau_options),
+            sigma_tau=sigma_tau,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            alpha_tau=in_options.alpha_tau,
             verbose=1,
             logger=ucrl_log,
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
@@ -194,9 +165,9 @@ for rep in range(in_options.nb_simulations):
         ucrl = FSUCRLv1(
             environment=copy.deepcopy(mixed_env),
             r_max=in_options.r_max,
-            range_r=in_options.range_r,
-            range_p=in_options.range_p,
-            range_mc=in_options.range_mc,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            alpha_mc=in_options.alpha_mc,
             verbose=1,
             logger=ucrl_log,
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
@@ -204,9 +175,9 @@ for rep in range(in_options.nb_simulations):
         ucrl = FSUCRLv2(
             environment=copy.deepcopy(mixed_env),
             r_max=in_options.r_max,
-            range_r=in_options.range_r,
-            range_p=in_options.range_p,
-            range_opt_p=in_options.range_mc,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            alpha_mc=in_options.alpha_mc,
             verbose=1,
             logger=ucrl_log,
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm

@@ -387,13 +387,16 @@ class UcrlSmdpExp(UcrlMdp):
     """
 
     def __init__(self, environment, r_max, tau_max,
-                 sigma_r, sigma_tau,
+                 sigma_tau, sigma_r=None,
                  tau_min=1,
                  alpha_r=None, alpha_tau=None, alpha_p=None,
                  b_r=0., b_tau=0.,
                  bound_type="hoeffding",
                  verbose=0, logger=default_logger):
         assert tau_min >= 1
+        if sigma_r is None:
+            sigma_r = sigma_tau * r_max
+
         super(UcrlSmdpExp, self).__init__(
             environment=environment, r_max=r_max,
             alpha_r=alpha_r, alpha_p=alpha_p, solver=None,
