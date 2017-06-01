@@ -1,7 +1,7 @@
 PYTHON ?= python
 CYTHON ?= cython
 
-all: inplace
+all: clean inplace
 
 clean:
 	$(PYTHON) setup.py clean

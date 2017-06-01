@@ -1,3 +1,7 @@
+# cython: cdivision=True
+# cython: boundscheck=False
+# cython: wraparound=False
+
 from cython.parallel import prange
 
 from libc.stdio cimport printf

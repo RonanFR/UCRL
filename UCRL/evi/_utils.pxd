@@ -13,6 +13,7 @@ ctypedef np.npy_intp SIZE_t              # Type for indices and counters
 ctypedef np.npy_int32 INT32_t            # Signed 32 bit integer
 ctypedef np.npy_uint32 UINT32_t          # Unsigned 32 bit integer
 
+cimport cython
 
 cdef struct IntVectorStruct:
     SIZE_t* values
@@ -22,6 +23,7 @@ cdef struct DoubleVectorStruct:
     DTYPE_t* values
     SIZE_t dim
 
+@cython.boundscheck(False)
 cdef inline DTYPE_t dot_prod(DTYPE_t[:] x, DTYPE_t* y, SIZE_t dim) nogil:
     cdef SIZE_t i
     cdef DTYPE_t total = 0.
