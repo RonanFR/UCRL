@@ -22,7 +22,7 @@ A_SHORT_NAME=(N-fv1 N-fv2 N-suc N-ucr)
 
 # CREATE CONFIGURATIONS
 
-ALPHAS=" --p_alpha 0.01 --mc_alpha 0.01 --r_alpha 0.1 --tau_alpha 0.8 "
+ALPHAS=" --p_alpha 0.02 --mc_alpha 0.02 --r_alpha 0.8/20 --tau_alpha 0.8 "
 
 for (( j=0; j<${#ALGS[@]}; j++ ))
 do

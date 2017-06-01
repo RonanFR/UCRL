@@ -70,7 +70,7 @@ cdef class EVI_FSUCRLv1:
                       DTYPE_t[:,:] estimated_rewards_mdp,
                       DTYPE_t[:,:] beta_r,
                       SIZE_t[:,:] nb_observations_mdp,
-                      DTYPE_t range_mu_p,
+                      DTYPE_t alpha_mc,
                       SIZE_t total_time,
                       DTYPE_t delta,
                       SIZE_t max_nb_actions,
@@ -143,7 +143,7 @@ cdef class EVI_FSUCRLv2:
                           SIZE_t total_time,
                           DTYPE_t delta,
                           SIZE_t max_nb_actions,
-                          DTYPE_t range_opt_p,
+                          DTYPE_t alpha_mc,
                               DTYPE_t r_max)
 
     cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,

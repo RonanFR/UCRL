@@ -416,20 +416,28 @@ class UcrlSmdpExp(UcrlMdp):
         self.b_tau = b_tau
 
     def beta_r(self):
-        return self.alpha_r * self._beta_condition(sigma=self.sigma_r, b=self.b_r)
+        beta = self.alpha_r * self._beta_condition(sigma=self.sigma_r, b=self.b_r)
+        # ci = np.multiply(self.alpha_r, self.tau_max * self.r_max * np.sqrt(7/2 * m.log(2 * self.environment.nb_states * self.environment.max_nb_actions_per_state *
+        #                                        (self.iteration+1)/self.delta) / np.maximum(1, self.nb_observations)))
+        # assert np.allclose(beta, ci)
+        return beta
 
     def beta_tau(self):
-        return self.alpha_tau * self._beta_condition(sigma=self.sigma_tau, b=self.b_tau)
+        beta = self.alpha_tau * self._beta_condition(sigma=self.sigma_tau, b=self.b_tau)
+        # ci = np.multiply(self.alpha_tau, (self.tau_max- self.tau_min) * np.sqrt(7/2 * m.log(2 * self.environment.nb_states *
+        #         self.environment.max_nb_actions_per_state * (self.iteration+1)/self.delta) / np.maximum(1, self.nb_observations)))
+        # assert np.allclose(beta, ci)
+        return beta
 
     def _beta_condition(self, sigma, b):
         S = self.environment.nb_states
         A = self.environment.max_nb_actions_per_state
         i_k = self.iteration
-        N = np.maximum(1, self.nb_observations)
         beta = bounds.chernoff(it=self.iteration, N=self.nb_observations,
                                range=sigma, delta=self.delta,
                                sqrt_C=3.5, log_C=2*S*A)
         if b > 0. and sigma > 0.:
+            N = np.maximum(1, self.nb_observations)
             ci_2 = b * 3.5 * m.log(2 * S * A * (i_k+1) / self.delta) / N
             mask = (
                 self.nb_observations < 2 * np.power(b / sigma, 2) * m.log(240 * S * A * m.pow(i_k, 7) / self.delta))
@@ -448,7 +456,7 @@ class UcrlSmdpBounded(UcrlSmdpExp):
                  verbose=0, logger=default_logger):
         super(UcrlSmdpBounded, self).__init__(environment=environment,
                          r_max=r_max, tau_max=t_max,
-                         sigma_r=t_max* r_max,
+                         sigma_r=t_max * r_max,
                          sigma_tau=t_max - t_min,
                          tau_min=t_min,
                          alpha_r=alpha_r, alpha_tau=alpha_tau, alpha_p=alpha_p,

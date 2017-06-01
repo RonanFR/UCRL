@@ -31,21 +31,21 @@ parser.add_option("-d", "--dimension", dest="dimension", type="int",
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="duration of the experiment", default=40000000)
 parser.add_option("-a", "--alg", dest="algorithm", type="str",
-                  help="Name of the algorith to execute", default="FSUCRLv1") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
+                  help="Name of the algorith to execute", default="FSUCRLv2") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
-                  help="t_max for options", default=1)
+                  help="t_max for options", default=5)
 parser.add_option("-b", "--bernstein", action="store_true", dest="use_bernstein",
                   default=False, help="use Bernstein bound")
 parser.add_option("--rmax", dest="r_max", type="float",
                   help="maximum reward", default=-1)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
-                  help="range of transition matrix", default=0.01)
+                  help="range of transition matrix", default=0.02)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
-                  help="range of reward", default=0.1)
+                  help="range of reward", default=0.5/20)
 parser.add_option("--tau_alpha", dest="alpha_tau", type="float",
-                  help="range of reward", default=0.8)
+                  help="range of reward", default=0.5)
 parser.add_option("--mc_alpha", dest="alpha_mc", type="float",
-                  help="range for stationary distribution", default=0.01)
+                  help="range for stationary distribution", default=0.02)
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
@@ -152,7 +152,7 @@ for rep in range(in_options.nb_simulations):
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
     elif in_options.algorithm == "SUCRL":
         ucrl = Ucrl.UcrlSmdpBounded(
-            environment=copy.deepcopy(mixed_environment),
+            environment=copy.deepcopy(option_environment),
             r_max=in_options.r_max,
             t_max=in_options.t_max,
             alpha_r=in_options.alpha_r,
