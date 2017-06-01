@@ -165,8 +165,8 @@ class FSUCRLv1(AbstractUCRL):
         ci = bounds.chernoff(it=self.total_time, N=self.nb_observations_mdp,
                              range=self.r_max, delta=self.delta,
                              sqrt_C=3.5, log_C=2*S*A)
-        beta = self.r_max * np.sqrt(7 / 2 * m.log(2 * S * A * (self.total_time + 1) / self.delta) / np.maximum(1, self.nb_observations_mdp))
-        assert np.allclose(ci, beta)
+        # beta = self.r_max * np.sqrt(7 / 2 * m.log(2 * S * A * (self.total_time + 1) / self.delta) / np.maximum(1, self.nb_observations_mdp))
+        # assert np.allclose(ci, beta)
         beta_r =  np.multiply(self.alpha_r, ci)
         return beta_r
 
@@ -176,9 +176,9 @@ class FSUCRLv1(AbstractUCRL):
             beta = bounds.chernoff(it=self.iteration, N=self.nb_observations,
                                    range=1., delta=self.delta,
                                    sqrt_C=14*S, log_C=2*A)
-            ci = np.sqrt(14 * S * m.log(2 * A
-                        * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))
-            assert np.allclose(ci, beta)
+            # ci = np.sqrt(14 * S * m.log(2 * A
+            #             * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))
+            # assert np.allclose(ci, beta)
             return self.alpha_p * beta.reshape([S, A, 1])
         else:
             Z = m.log(6 * A * (self.iteration + 1) / self.delta)
@@ -306,7 +306,7 @@ class FSUCRLv1(AbstractUCRL):
             delta=self.delta,
             max_nb_actions=max_nb_actions,
             total_time=self.total_time,
-            range_mu_p=self.alpha_mc,
+            alpha_mc=self.alpha_mc,
         r_max=self.r_max)
         t1 = time.perf_counter()
 
@@ -436,7 +436,7 @@ class FSUCRLv2(FSUCRLv1):
             total_time=self.total_time,
             delta=self.delta,
             max_nb_actions=max_nb_actions,
-            range_opt_p=self.alpha_mc,
+            alpha_mc=self.alpha_mc,
         r_max=self.r_max)
         t1 = time.perf_counter()
         if np.isclose(gg,-999):
