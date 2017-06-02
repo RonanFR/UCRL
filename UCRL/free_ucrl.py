@@ -46,7 +46,7 @@ class FSUCRLv1(AbstractUCRL):
                                   option_policies=environment.options_policies,
                                   options_terminating_conditions=environment.options_terminating_conditions,
                                   mdp_actions_per_state=environment.environment.get_state_actions(),
-                                  use_bernstein=1 if bound_type == "bernstein" else 0)
+                                  bound_type=bound_type)
 
 
         super(FSUCRLv1, self).__init__(environment=environment,
@@ -392,7 +392,7 @@ class FSUCRLv2(FSUCRLv1):
                                     option_policies=environment.options_policies,
                                     options_terminating_conditions=environment.options_terminating_conditions,
                                     mdp_actions_per_state=environment.environment.get_state_actions(),
-                                    use_bernstein=1 if bound_type == "bernstein" else 0)
+                                    bound_type=bound_type)
         else:
             evi_solver = EVI_FSUCRLv2(nb_states=environment.nb_states,
                                       nb_options=environment.nb_options,
@@ -402,7 +402,7 @@ class FSUCRLv2(FSUCRLv1):
                                       option_policies=environment.options_policies,
                                       options_terminating_conditions=environment.options_terminating_conditions,
                                       mdp_actions_per_state=environment.environment.get_state_actions(),
-                                      use_bernstein=1 if bound_type == "bernstein" else 0)
+                                      bound_type=bound_type)
 
         super(FSUCRLv2, self).__init__(
             environment=environment,
