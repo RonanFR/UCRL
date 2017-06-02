@@ -14,9 +14,9 @@ N_PARALLEL="10"
 COMMAND="python ../example_roommaze.py"
 ALGS="FSUCRLv1 FSUCRLv2 SUCRL UCRL"
 opt_alpha=" --p_alpha 0.02 --mc_alpha 0.02 --r_alpha 0.8 --tau_alpha 0.8 "
-fix_options=" -d ${dim} -n ${duration} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} -id c1"
+fix_options=" -d ${dim} -n ${duration} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c1"
 
 cd $folder
 export OMP_NUM_THREADS=12
 export NUMEXPR_NUM_THREADS=12
-parallel -j $N_PARALLEL echo $COMMAND --alg ${1} ${opt_alpha} ${fix_options} ::: ${ALGS}
+parallel -j $N_PARALLEL $COMMAND --alg ${1} ${opt_alpha} ${fix_options} ::: ${ALGS}
