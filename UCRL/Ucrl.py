@@ -17,8 +17,7 @@ class AbstractUCRL(object):
                  solver=None,
                  verbose = 0,
                  logger=default_logger,
-                 bound_type="hoeffding"):
-        assert bound_type in ["hoeffding",  "bernstein"]
+                 bound_type="chernoff"):
         self.environment = environment
         self.r_max = float(r_max)
 
@@ -71,7 +70,7 @@ class UcrlMdp(AbstractUCRL):
     """
 
     def __init__(self, environment, r_max, alpha_r=None, alpha_p=None, solver=None,
-                 bound_type="hoeffding", verbose = 0,
+                 bound_type="chernoff", verbose = 0,
                  logger=default_logger):
         """
         :param environment: an instance of any subclass of abstract class Environment which is an MDP
@@ -79,6 +78,9 @@ class UcrlMdp(AbstractUCRL):
         :param alpha_r: multiplicative factor for the concentration bound on rewards (default is r_max)
         :param alpha_p: multiplicative factor for the concentration bound on transition probabilities (default is 1)
         """
+
+        assert bound_type in ["chernoff",  "bernstein"]
+
         super(UcrlMdp, self).__init__(environment=environment,
                                       r_max=r_max, alpha_r=alpha_r,
                                       alpha_p=alpha_p, solver=solver,
@@ -212,7 +214,7 @@ class UcrlMdp(AbstractUCRL):
         """
         S = self.environment.nb_states
         A = self.environment.max_nb_actions_per_state
-        if self.bound_type == "hoeffding":
+        if self.bound_type == "chernoff":
             beta = bounds.chernoff(it=self.iteration, N=self.nb_observations,
                                    range=1., delta=self.delta,
                                    sqrt_C=14*S, log_C=2*A)
@@ -391,8 +393,9 @@ class UcrlSmdpExp(UcrlMdp):
                  tau_min=1,
                  alpha_r=None, alpha_tau=None, alpha_p=None,
                  b_r=0., b_tau=0.,
-                 bound_type="hoeffding",
+                 bound_type="chernoff",
                  verbose=0, logger=default_logger):
+        assert bound_type in ["chernoff",  "bernstein"]
         assert tau_min >= 1
         if sigma_r is None:
             sigma_r = sigma_tau * r_max
@@ -455,7 +458,7 @@ class UcrlSmdpBounded(UcrlSmdpExp):
 
     def __init__(self, environment, r_max, t_max, t_min=1,
                  alpha_r=None, alpha_tau=None, alpha_p=None,
-                 bound_type="hoeffding",
+                 bound_type="chernoff",
                  verbose=0, logger=default_logger):
         super(UcrlSmdpBounded, self).__init__(environment=environment,
                          r_max=r_max, tau_max=t_max,

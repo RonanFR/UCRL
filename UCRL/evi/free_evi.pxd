@@ -15,6 +15,11 @@ from ._utils cimport IntVectorStruct, DoubleVectorStruct
 cdef DTYPE_t check_end_opt_evi(DTYPE_t* x, DTYPE_t* y, SIZE_t dim,
                                DTYPE_t* add_res) nogil
 
+cdef enum BoundType:
+    CHERNOFF=0
+    CHERNOFF_STATEDIM=1
+    BERNSTEIN=2
+
 cdef class EVI_FSUCRLv1:
     cdef DTYPE_t *u1
     cdef DTYPE_t *u2
@@ -38,7 +43,7 @@ cdef class EVI_FSUCRLv1:
     cdef DTYPE_t* xx                                   # (|S| x nb reach states)
     cdef DTYPE_t* beta_mu_p                            # (|O| x 1)
 
-    cdef SIZE_t bernstein_bound
+    cdef BoundType bound_type
 
     # Methods
     cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
@@ -128,7 +133,7 @@ cdef class EVI_FSUCRLv2:
     cdef SIZE_t nb_options
     cdef SIZE_t threshold
 
-    cdef SIZE_t bernstein_bound
+    cdef BoundType bound_type
 
     cdef SIZE_t max_reachable_states_per_opt
 

@@ -12,10 +12,11 @@ import time
 class FSUCRLv1(AbstractUCRL):
     def __init__(self, environment, r_max,
                  alpha_r=None, alpha_p=None, alpha_mc=None,
-                 bound_type="hoeffding",
+                 bound_type="chernoff",
                  verbose = 0, logger=default_logger,
                  evi_solver=None):
 
+        assert bound_type in ["chernoff",  "chernoff_statedim", "bernstein"]
         assert isinstance(environment, MixedEnvironment)
         run_py = False
         self.check_with_py = False
@@ -32,7 +33,7 @@ class FSUCRLv1(AbstractUCRL):
                     option_policies=environment.options_policies,
                     options_terminating_conditions=environment.options_terminating_conditions,
                     mdp_actions_per_state=environment.environment.get_state_actions(),
-                    use_bernstein=1 if bound_type == "bernstein" else 0)
+                    bound_type=bound_type)
                 if self.check_with_py:
                     self.pyevi = evi_solver
 
@@ -378,7 +379,7 @@ class FSUCRLv1(AbstractUCRL):
 class FSUCRLv2(FSUCRLv1):
     def __init__(self, environment, r_max,
                  alpha_r=-1, alpha_p=-1, alpha_mc=-1,
-                 bound_type="hoeffding",
+                 bound_type="chernoff",
                  verbose = 0, logger=default_logger):
 
         py = False

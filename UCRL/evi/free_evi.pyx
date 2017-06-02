@@ -68,7 +68,7 @@ cdef class EVI_FSUCRLv1:
                  list option_policies,
                  list reachable_states_per_option,
                  list options_terminating_conditions,
-                 use_bernstein=0):
+                 str bound_type):
         cdef SIZE_t n, m, i, j, idx
         cdef SIZE_t max_states_per_option = 0
         self.nb_states = nb_states
@@ -77,7 +77,14 @@ cdef class EVI_FSUCRLv1:
         self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
         self.u2 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
 
-        self.bernstein_bound = use_bernstein
+        if bound_type == "chernoff":
+            self.bound_type = CHERNOFF
+        elif bound_type == "chernoff_statedim":
+            self.bound_type = CHERNOFF_STATEDIM
+        elif bound_type == "bernstein":
+            self.bound_type = BERNSTEIN
+        else:
+            raise ValueError("Unknown bound type")
 
         # allocate indices and memoryview (may slow down)
         self.sorted_indices = <SIZE_t *> malloc(nb_states * sizeof(SIZE_t))
@@ -176,6 +183,7 @@ cdef class EVI_FSUCRLv1:
                           SIZE_t max_nb_actions,
                           DTYPE_t r_max):
         cdef SIZE_t nb_options = self.nb_options
+        cdef SIZE_t nb_states = self.nb_states
         cdef SIZE_t o, opt_nb_states, i, j, s, nexts, idx, mdp_index_a
         cdef DTYPE_t prob, condition_nb, bernstein_bound, bernstein_log
         cdef SIZE_t visits = 0, nb_o
@@ -214,8 +222,12 @@ cdef class EVI_FSUCRLv1:
             e_m = np.ones((opt_nb_states,1))
             q_o = e_m - np.dot(Q_o, e_m)
 
-            if self.bernstein_bound == 0:
+            if self.bound_type == CHERNOFF:
                 self.beta_mu_p[o] =  alpha_mc * np.sqrt(14 * opt_nb_states * log(2 * max_nb_actions
+                    * (total_time + 1)/delta)
+                                       / np.maximum(1, visits))
+            elif self.bound_type == CHERNOFF_STATEDIM:
+                self.beta_mu_p[o] =  alpha_mc * np.sqrt(14 * nb_states * log(2 * max_nb_actions
                     * (total_time + 1)/delta)
                                        / np.maximum(1, visits))
 
@@ -312,8 +324,11 @@ cdef class EVI_FSUCRLv1:
                     l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, 0)
                     Popt[l_ij] = 1. - sum_prob_row
 
-                if self.bernstein_bound == 0:
+                if self.bound_type == CHERNOFF:
                     beta_mu_p[o] =  alpha_mc * sqrt(14 * opt_nb_states * log(2 * max_nb_actions
+                        * (total_time + 1)/delta) / visits)
+                elif self.bound_type == CHERNOFF_STATEDIM:
+                    beta_mu_p[o] =  alpha_mc * sqrt(14 * nb_states * log(2 * max_nb_actions
                         * (total_time + 1)/delta) / visits)
 
                 # --------------------------------------------------------------
@@ -377,7 +392,7 @@ cdef class EVI_FSUCRLv1:
 
                         # max_proba_purec
                         # max_proba_reduced
-                        if self.bernstein_bound == 0:
+                        if self.bound_type != BERNSTEIN:
                             max_proba_purec(p_hat[s][a_idx], nb_states,
                                         sorted_indices, beta_p[s][a_idx][0],
                                         mtx_maxprob_memview[s])
@@ -513,14 +528,22 @@ cdef class EVI_FSUCRLv2:
              list option_policies,
              list reachable_states_per_option,
              list options_terminating_conditions,
-             use_bernstein=0):
+             str bound_type):
         cdef SIZE_t n, m, i, j, idx
         cdef SIZE_t max_states_per_option = 0
 
         self.nb_states = nb_states
         self.nb_options = nb_options
         self.threshold = threshold
-        self.bernstein_bound = use_bernstein
+
+        if bound_type == "chernoff":
+            self.bound_type = CHERNOFF
+        elif bound_type == "chernoff_statedim":
+            self.bound_type = CHERNOFF_STATEDIM
+        elif bound_type == "bernstein":
+            self.bound_type = BERNSTEIN
+        else:
+            raise ValueError("Unknown bound type")
 
 
         self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
@@ -708,8 +731,11 @@ cdef class EVI_FSUCRLv2:
                         p_hat_opt[o].values[l_ij] = (1. - term_cond[idx]) * prob
                         sum_prob_row = sum_prob_row + p_hat_opt[o].values[l_ij]
 
-                        if self.bernstein_bound == 0:
+                        if self.bound_type == CHERNOFF:
                             beta_opt_p[o].values[l_ij] = alpha_mc * sqrt(14 * opt_nb_states * log(2 * max_nb_actions
+                                                                                              * (total_time + 1)/ delta) / nb_o)
+                        elif self.bound_type == CHERNOFF_STATEDIM:
+                            beta_opt_p[o].values[l_ij] = alpha_mc * sqrt(14 * nb_states * log(2 * max_nb_actions
                                                                                               * (total_time + 1)/ delta) / nb_o)
                         else:
                             beta_opt_p[o].values[l_ij] = alpha_mc * (sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o)
@@ -809,7 +835,8 @@ cdef class EVI_FSUCRLv2:
                             break
                     if option_idx == -1:
                         return -2
-                    if self.bernstein_bound == 0:
+                    if self.bound_type != BERNSTEIN:
+                        # chernoff bound
                         max_proba_purec(p_hat[sprime][option_idx], nb_states,
                                     sorted_indices, beta_p[sprime][option_idx][0],
                                     mtx_maxprob_opt_memview[o])
@@ -830,29 +857,7 @@ cdef class EVI_FSUCRLv2:
                         for i in range(nb_states_per_options):
                             sprime = reach_states[o].values[i]
                             if i == 0:
-                                # this is the starting state
-                                # option_act = o + self.threshold + 1
-                                # option_idx = -1
-                                # # get index of the option in the current state
-                                # for j in range(self.actions_per_state[sprime].dim):
-                                #     if self.actions_per_state[sprime].values[j] == option_act:
-                                #         option_idx = j
-                                #         break
-                                # if option_idx == -1:
-                                #     return -2
-                                # if self.bernstein_bound == 0:
-                                #     max_proba_purec(p_hat[sprime][option_idx], nb_states,
-                                #                 sorted_indices, beta_p[sprime][option_idx][0],
-                                #                 mtx_maxprob_opt_memview[o])
-                                # else:
-                                #     max_proba_bernstein(p_hat[sprime][option_idx], nb_states,
-                                #                 sorted_indices, beta_p[sprime][option_idx],
-                                #                 mtx_maxprob_opt_memview[o])
-                                #
-                                # mtx_maxprob_opt_memview[o][sprime] = mtx_maxprob_opt_memview[o][sprime] - 1.
-                                # v = dot_prod(mtx_maxprob_opt_memview[o], u1, nb_states)
                                 v = max_prob_opt
-
                             else:
                                 v = 0.0
 
@@ -896,11 +901,13 @@ cdef class EVI_FSUCRLv2:
                         if action <= threshold:
                             # max_proba_purec
                             # max_proba_reduced
-                            if self.bernstein_bound == 0:
+                            if self.bound_type != BERNSTEIN:
+                                # chernoff bound
                                 max_proba_purec(p_hat[s][a_idx], nb_states,
                                             sorted_indices, beta_p[s][a_idx][0],
                                             mtx_maxprob_memview[s])
                             else:
+                                # bernstein bound
                                 max_proba_bernstein(p_hat[s][a_idx], nb_states,
                                             sorted_indices, beta_p[s][a_idx],
                                             mtx_maxprob_memview[s])

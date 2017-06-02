@@ -11,7 +11,7 @@ echo ${folder}
 mkdir ${folder}
 
 N_PARALLEL="10"
-COMMAND="python ../example_roommaze.py"
+COMMAND="python ../example_navgrid.py"
 ALGS="FSUCRLv1 FSUCRLv2 SUCRL UCRL"
 opt_alpha=" --p_alpha 0.02 --mc_alpha 0.02 --r_alpha 0.8 --tau_alpha 0.8 "
 fix_options=" -d ${dim} -n ${duration} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c1"

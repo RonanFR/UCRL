@@ -14,7 +14,7 @@ import UCRL.envs.RewardDistributions as RewardDistributions
 from UCRL.free_ucrl import FSUCRLv1, FSUCRLv2
 from UCRL.envs import OptionEnvironment, MixedEnvironment
 import UCRL.logging as ucrl_logger
-import UCRL.parameters_init as tuning
+import UCRL.bounds as tuning
 from optparse import OptionParser
 
 import matplotlib
@@ -77,7 +77,7 @@ if in_options.range_mu_p < 0:
     in_options.range_mu_p = tuning.range_p_from_hoeffding(
         nb_states=2, nb_actions=4, nb_observations=10)
 if in_options.range_r < 0:
-    range_r = tuning.range_r_from_hoeffding(
+    range_r = tuning.grid_range_r_from_hoeffding(
         nb_states=in_options.dimension, nb_actions=4, nb_observations=40)
     in_options.range_r = in_options.t_max * range_r
 
@@ -166,8 +166,8 @@ for rep in range(in_options.nb_simulations):
         ucrl = FSUCRLv1(
             environment=copy.deepcopy(mixed_environment),
             r_max=in_options.r_max,
-            range_r=in_options.range_r,
-            range_p=in_options.range_p,
+            alpha_r=in_options.range_r,
+            alpha_p=in_options.range_p,
             range_mu_p=in_options.range_mu_p,
             verbose=1,
             logger=ucrl_log,
@@ -176,9 +176,9 @@ for rep in range(in_options.nb_simulations):
         ucrl = FSUCRLv2(
             environment=copy.deepcopy(mixed_environment),
             r_max=in_options.r_max,
-            range_r=in_options.range_r,
-            range_p=in_options.range_p,
-            range_opt_p=in_options.range_mu_p,
+            alpha_r=in_options.range_r,
+            alpha_p=in_options.range_p,
+            alpha_mc=in_options.range_mu_p,
             verbose=1,
             logger=ucrl_log,
             bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm

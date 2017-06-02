@@ -5,7 +5,7 @@ N_hours=24
 
 dim=14
 duration=60000000
-repetitions=5
+repetitions=2
 init_seed=114364114
 rmax=1 #${dim}
 exe_file=../example_roommaze.py 
@@ -51,9 +51,9 @@ do
     # echo "python ${exe_file} -b --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
     i=$((i+1))
 
-    cd ${folder}
-    sbatch ${sname}
-    cd ..
-    sleep 1
+#    cd ${folder}
+#    sbatch ${sname}
+#    cd ..
+#    sleep 1
 
 done

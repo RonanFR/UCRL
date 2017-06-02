@@ -13,7 +13,7 @@ import UCRL.envs.toys.OptionGridFree as OptionGridFree
 import UCRL.envs.RewardDistributions as RewardDistributions
 import UCRL.Ucrl as Ucrl
 import UCRL.logging as ucrl_logger
-import UCRL.parameters_init as tuning
+import UCRL.bounds as tuning
 from optparse import OptionParser
 
 import matplotlib
@@ -58,21 +58,20 @@ if in_options.r_max < 0:
 if in_options.id is None:
     in_options.id = '{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now())
 
-# range_r = in_options.c
 if in_options.range_p < 0:
+    nbs = 2 #in_options.dimension**2
     if not in_options.use_bernstein:
         in_options.range_p = tuning.range_p_from_hoeffding(
-            nb_states=in_options.dimension, nb_actions=4, nb_observations=5)
+            nb_states=nbs, nb_actions=4, nb_observations=10)
     else:
         in_options.range_p = tuning.range_p_from_bernstein(
-            nb_states=in_options.dimension, nb_actions=4, nb_observations=10)
+            nb_states=nbs, nb_actions=4, nb_observations=10)
 
 if in_options.range_r < 0:
-    in_options.range_r = tuning.range_r_from_hoeffding(
-        nb_states=in_options.dimension, nb_actions=4, nb_observations=40)
+    in_options.range_r = tuning.grid_range_r_from_hoeffding(
+        nb_states=in_options.dimension, nb_actions=4, nb_observations=20)
 
 config = vars(in_options)
-#config['range_r'] = range_r
 
 # Define environment
 initial_position = [in_options.dimension - 1, in_options.dimension - 1]  # initial state
@@ -115,8 +114,8 @@ for rep in range(in_options.nb_simulations):
     ucrl = Ucrl.UcrlMdp(
         grid,
         r_max=in_options.r_max,
-        range_r=in_options.range_r,
-        range_p=in_options.range_p,
+        alpha_r=in_options.range_r,
+        alpha_p=in_options.range_p,
         verbose=1,
         logger=ucrl_log,
         bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm

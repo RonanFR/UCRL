@@ -13,7 +13,7 @@ class PyEVI_FSUCRLv1(object):
                  option_policies,
                  reachable_states_per_option,
                  options_terminating_conditions,
-                 use_bernstein=0):
+                 bound_type="chernoff"):
         self.nb_states = nb_states
         self.nb_options = nb_options
         self.threshold = threshold
@@ -24,7 +24,14 @@ class PyEVI_FSUCRLv1(object):
         self.option_policies = option_policies
         self.reachable_states_per_option = reachable_states_per_option
         self.options_terminating_conditions = options_terminating_conditions
-        self.use_bernstein = use_bernstein
+        if bound_type == "chernoff":
+            self.bound_type = 0
+        elif bound_type == "chernoff_statedim":
+            self.bound_type = 1
+        elif bound_type == "bernstein":
+            self.bound_type = 2
+        else:
+            raise ValueError("Unknown bound type")
 
     def compute_mu_info(self,
                         estimated_probabilities_mdp,
@@ -37,6 +44,7 @@ class PyEVI_FSUCRLv1(object):
                         max_nb_actions,
                         r_max):
 
+        nb_states = self.nb_states
         nb_options = self.nb_options
         r_tilde_opt = [None] * nb_options
         mu_opt = [None] * nb_options
@@ -82,9 +90,13 @@ class PyEVI_FSUCRLv1(object):
 
             r_tilde_opt[o] = r_o
 
-            if self.use_bernstein == 0:
+            if self.bound_type == 0:
                 beta_mu_p[o] =  range_mu_p * np.sqrt(14 * opt_nb_states * m.log(2 * max_nb_actions
                     * (total_time + 1)/ delta) / max(1, visits))
+            elif self.bound_type == 1:
+                beta_mu_p[o] =  range_mu_p * np.sqrt(14 * nb_states * m.log(2 * max_nb_actions
+                    * (total_time + 1)/ delta) / max(1, visits))
+
 
             Pprime_o = np.concatenate((q_o, Q_o[:, 1:]), axis=1)
             if not np.allclose(np.sum(Pprime_o, axis=1), np.ones(opt_nb_states)):
@@ -152,11 +164,13 @@ class PyEVI_FSUCRLv1(object):
             for s in range(nb_states):
                 first_action = True
                 for action_idx, action in enumerate(self.actions_per_state[s]):
-                    if self.use_bernstein == 0:
+                    if self.bound_type != 2:
+                        # chernoff bound
                         gg = self.max_proba(p_hat[s][action_idx], nb_states,
                                        sorted_indices_u, beta_p[s][action_idx][0])
                         assert len(beta_p[s][action_idx]) == 1
                     else:
+                        # bernstein bound
                         gg = self.max_proba_bernstein(p_hat[s][action_idx], nb_states,
                                        sorted_indices_u, beta_p[s][action_idx])
                     gg[s] = gg[s] - 1.
