@@ -19,4 +19,4 @@ fix_options=" -d ${dim} -n ${duration} --rmax ${rmax} -r ${repetitions} --seed $
 cd $folder
 export OMP_NUM_THREADS=12
 export NUMEXPR_NUM_THREADS=12
-parallel -j $N_PARALLEL $COMMAND --alg ${1} ${ALPHAS}  --id c${i} ::: ${ALGS}
+parallel -j $N_PARALLEL echo $COMMAND --alg ${1} ${opt_alpha} ${fix_options} ::: ${ALGS}
