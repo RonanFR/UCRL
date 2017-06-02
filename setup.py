@@ -23,6 +23,9 @@ import os
 import numpy
 import shutil
 
+import UCRL
+VERSION = UCRL.__version__
+
 # Custom clean command to remove build artifacts
 class CleanCommand(Clean):
     description = "Remove build artifacts from the source tree"
@@ -113,7 +116,7 @@ extensions = [
 
 setup(
     name=name,
-    version='0.1.dev0',
+    version=VERSION,
     packages=[package for package in find_packages()
               if package.startswith(name)],
     license='BOOOOO',

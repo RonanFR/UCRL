@@ -3,6 +3,7 @@ from .cython.ExtendedValueIteration import extended_value_iteration
 from .evi.evi import EVI
 from .logging import default_logger
 from . import bounds as bounds
+from . import __version__ as ucrl_version
 
 import math as m
 import numpy as np
@@ -57,6 +58,7 @@ class AbstractUCRL(object):
 
         self.verbose = verbose
         self.logger = logger
+        self.version = ucrl_version
 
     def clear_before_pickle(self):
         del self.opt_solver
