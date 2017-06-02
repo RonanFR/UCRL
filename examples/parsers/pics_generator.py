@@ -9,11 +9,11 @@ from matplotlib2tikz import save as tikz_save
 
 orig_folder = "../../results/test_20170519/test_20170519_125715"
 orig_folder = "../../results/test_20170525_125320"
-orig_folder = "../../results/navgrid_20_20170531_213748"
+orig_folder = "../../results/navgrid_20_20170602_120209"
 domain = 'navgrid'
 
 configurations = ["c{}".format(i) for i in range(1,16,2)]
-configurations = ["c{}".format(i) for i in range(1,10)]
+configurations = ["c{}".format(i) for i in range(1,9)]
 
 
 algorithms = ["SUCRL", "FSUCRLv1", "FSUCRLv2"]
@@ -155,7 +155,7 @@ for k in ['UCRL'] + algorithms:
     prop = copy.deepcopy(graph_properties[k])
     del prop['marker']
     del prop['markersize']
-    if k != "UCRL":
+    if k != "UCRL" and domain=='navgrid':
         assert el['t_max'] == tmax, '{}: {} {}'.format(k, tmax, el['t_max'])
     plt.plot(el['x'][t], el['y'][t], **prop)
 plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))

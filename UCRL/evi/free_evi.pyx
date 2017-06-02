@@ -68,7 +68,7 @@ cdef class EVI_FSUCRLv1:
                  list option_policies,
                  list reachable_states_per_option,
                  list options_terminating_conditions,
-                 str bound_type):
+                 bound_type):
         cdef SIZE_t n, m, i, j, idx
         cdef SIZE_t max_states_per_option = 0
         self.nb_states = nb_states
@@ -528,7 +528,7 @@ cdef class EVI_FSUCRLv2:
              list option_policies,
              list reachable_states_per_option,
              list options_terminating_conditions,
-             str bound_type):
+             bound_type):
         cdef SIZE_t n, m, i, j, idx
         cdef SIZE_t max_states_per_option = 0
 
