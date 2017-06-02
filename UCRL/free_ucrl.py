@@ -173,7 +173,7 @@ class FSUCRLv1(AbstractUCRL):
 
     def beta_p(self):
         S, A = self.nb_observations.shape
-        if self.bound_type == "hoeffding":
+        if self.bound_type != "bernstein":
             beta = bounds.chernoff(it=self.iteration, N=self.nb_observations,
                                    range=1., delta=self.delta,
                                    sqrt_C=14*S, log_C=2*A)

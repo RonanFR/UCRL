@@ -214,7 +214,7 @@ class UcrlMdp(AbstractUCRL):
         """
         S = self.environment.nb_states
         A = self.environment.max_nb_actions_per_state
-        if self.bound_type == "chernoff":
+        if self.bound_type != "bernstein":
             beta = bounds.chernoff(it=self.iteration, N=self.nb_observations,
                                    range=1., delta=self.delta,
                                    sqrt_C=14*S, log_C=2*A)

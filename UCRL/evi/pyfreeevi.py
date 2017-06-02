@@ -278,7 +278,7 @@ class PyEVI_FSUCRLv2(object):
                  option_policies,
                  reachable_states_per_option,
                  options_terminating_conditions,
-                 use_bernstein=0):
+                 bound_type="chernoff"):
         self.nb_states = nb_states
         self.nb_options = nb_options
         self.threshold = threshold
@@ -289,7 +289,14 @@ class PyEVI_FSUCRLv2(object):
         self.option_policies = option_policies
         self.reachable_states_per_option = reachable_states_per_option
         self.options_terminating_conditions = options_terminating_conditions
-        self.use_bernstein = use_bernstein
+        if bound_type == "chernoff":
+            self.bound_type = 0
+        elif bound_type == "chernoff_statedim":
+            self.bound_type = 1
+        elif bound_type == "bernstein":
+            self.bound_type = 2
+        else:
+            raise ValueError("Unknown bound type")
 
         self.w1 = []
         self.w2 = []
@@ -307,7 +314,7 @@ class PyEVI_FSUCRLv2(object):
                             delta,
                             max_nb_actions,
                             range_opt_p):
-
+        nb_states = self.nb_states
         nb_options = self.nb_options
         self.r_tilde_opt = [None] * nb_options
         self.beta_opt_p = [None] * nb_options
@@ -345,8 +352,11 @@ class PyEVI_FSUCRLv2(object):
                     prob = estimated_probabilities_mdp[s][option_action_index][sprime]
                     #q_o[i,0] += term_cond[sprime] * prob
                     Q_o[i,j] = (1. - term_cond[sprime]) * prob
-                    if self.use_bernstein == 0:
+                    if self.bound_type == 0:
                         self.beta_opt_p[o][i, j] = range_opt_p * np.sqrt(14 * opt_nb_states * m.log(2 * max_nb_actions
+                                                                                          * (total_time + 1)/ delta) / nb_o)
+                    elif self.bound_type == 1:
+                        self.beta_opt_p[o][i, j] = range_opt_p * np.sqrt(14 * nb_states * m.log(2 * max_nb_actions
                                                                                           * (total_time + 1)/ delta) / nb_o)
                     else:
                         self.beta_opt_p[o][i, j] = range_opt_p * (np.sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o)
@@ -416,7 +426,7 @@ class PyEVI_FSUCRLv2(object):
                             option_idx = self.actions_per_state[sprime].index(option_act)
                             # print("({}) ".format(option_idx), end=" ")
                             assert option_idx is not None
-                            if self.use_bernstein == 0:
+                            if self.bound_type != 2:
                                 max_p = self.max_proba(p_hat[sprime][option_idx], nb_states,
                                                 sorted_indices_u,
                                                 beta_p[sprime][option_idx][0])
@@ -462,7 +472,7 @@ class PyEVI_FSUCRLv2(object):
                 for action_idx, action in enumerate(self.actions_per_state[s]):
                     if action <= self.threshold:
                         #this is an action
-                        if self.use_bernstein == 0:
+                        if self.bound_type != 2:
                             max_p = self.max_proba(p_hat[s][action_idx], nb_states,
                                            sorted_indices_u, beta_p[s][action_idx][0])
                             assert len(beta_p[s][action_idx]) == 1

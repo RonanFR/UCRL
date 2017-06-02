@@ -10,7 +10,7 @@ import time
 class SMDPUCRL_Mixed(AbstractUCRL):
     def __init__(self, environment, r_max, t_max, t_min=1, alpha_r=-1,
                  range_r_actions=-1, range_tau=-1, alpha_p=-1,
-                 bound_type="hoeffding",
+                 bound_type="chernoff",
                  verbose = 0, logger=default_logger):
         assert isinstance(environment, MixedEnvironment)
 
@@ -125,7 +125,7 @@ class SMDPUCRL_Mixed(AbstractUCRL):
 
     def beta_p(self):
         nb_states, nb_actions = self.nb_observations.shape
-        if self.bound_type == "hoeffding":
+        if self.bound_type != "bernstein":
             beta = self.alpha_p * np.sqrt(14 * nb_states * m.log(2 * nb_actions
                                                                  * (self.iteration + 1) / self.delta) / np.maximum(1, self.nb_observations))
             return beta.reshape([nb_states, nb_actions, 1])

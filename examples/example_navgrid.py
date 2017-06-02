@@ -34,8 +34,8 @@ parser.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute", default="FSUCRLv2") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
                   help="t_max for options", default=5)
-parser.add_option("-b", "--bernstein", action="store_true", dest="use_bernstein",
-                  default=False, help="use Bernstein bound")
+parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
+                  help="Selects the bound type", default="chernoff")
 parser.add_option("--rmax", dest="r_max", type="float",
                   help="maximum reward", default=-1)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
@@ -149,7 +149,7 @@ for rep in range(in_options.nb_simulations):
             alpha_p=in_options.alpha_p,
             verbose=1,
             logger=ucrl_log,
-            bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
+            bound_type=in_options.bound_type)  # learning algorithm
     elif in_options.algorithm == "SUCRL":
         ucrl = Ucrl.UcrlSmdpBounded(
             environment=copy.deepcopy(option_environment),
@@ -160,7 +160,7 @@ for rep in range(in_options.nb_simulations):
             alpha_tau=in_options.alpha_tau,
             verbose=1,
             logger=ucrl_log,
-            bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
+            bound_type=in_options.bound_type)  # learning algorithm
     elif in_options.algorithm == "FSUCRLv1":
         ucrl = FSUCRLv1(
             environment=copy.deepcopy(mixed_environment),
@@ -170,7 +170,7 @@ for rep in range(in_options.nb_simulations):
             alpha_mc=in_options.alpha_mc,
             verbose=1,
             logger=ucrl_log,
-            bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
+            bound_type=in_options.bound_type)  # learning algorithm
     elif in_options.algorithm == "FSUCRLv2":
         ucrl = FSUCRLv2(
             environment=copy.deepcopy(mixed_environment),
@@ -180,7 +180,7 @@ for rep in range(in_options.nb_simulations):
             alpha_mc=in_options.alpha_mc,
             verbose=1,
             logger=ucrl_log,
-            bound_type="bernstein" if in_options.use_bernstein else "hoeffding")  # learning algorithm
+            bound_type=in_options.bound_type)  # learning algorithm
 
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ucrl).__name__))
     ucrl_log.info("seed: {}".format(seed))
