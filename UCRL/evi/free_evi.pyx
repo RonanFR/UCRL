@@ -409,41 +409,26 @@ cdef class EVI_FSUCRLv1:
                             v = r_optimal + dot_prod(mtx_maxprob_memview[s], u1, nb_states)
                         else:
                             o = action - self.threshold - 1 # zero based index
-                            # printf("option: %d\n", o)
 
                             sub_dim = self.reachable_states_per_option[o].dim
-                            # printf("sub_dim: %d\n", sub_dim)
-
                             for i in range(sub_dim):
                                 idx = pos2index_2d(nb_states, self.max_reachable_states_per_opt, s, i)
-                                sorted_indices_mu[idx] = i
-                                # x[o].values[i] = min(r_max, r_tilde_opt[o].values[i])
                                 xx[idx] = min(r_max, r_tilde_opt[o].values[i])
 
+                                sorted_indices_mu[idx] = i # fill vector
+
                                 if s == self.reachable_states_per_option[o].values[i]:
-                                    #x[o].values[i] = x[o].values[i] + dot_prod(mtx_maxprob_memview[s], u1, nb_states)
                                     xx[idx] = xx[idx] + dot_prod(mtx_maxprob_memview[s], u1, nb_states)
 
                             idx = pos2index_2d(nb_states, self.max_reachable_states_per_opt, s, 0)
                             get_sorted_indices(&xx[idx], sub_dim, &sorted_indices_mu[idx])
-                            #get_sorted_indices(x[o].values, sub_dim, sorted_indices_mu[idx])
 
-                            # for i in range(sub_dim):
-                            #     printf("simu[%d] = %d ", i, sorted_indices_mu[i])
-                            #     printf("mu_opt[o].values[%d] = %f ", i, mu_opt[o].values[i])
-                            # printf("\n")
-
-                            # printf("\n%f\n", self.cn_opt[o]*beta_mu_p[o])
                             max_proba_purec2(mu_opt[o].values, sub_dim,
                                         &sorted_indices_mu[idx], self.cn_opt[o]*self.beta_mu_p[o],
                                         mtx_maxprob_memview[s])
 
-                            # for i in range(sub_dim):
-                            #     printf("mtx_maxprob_memview[%d] = %f", i, mtx_maxprob_memview[s][i])
-                            # v = dot_prod(mtx_maxprob_memview[s], x[o].values, sub_dim)
                             v = dot_prod(mtx_maxprob_memview[s], &xx[idx], sub_dim)
 
-                            # free(sorted_indices_mu)
 
                         c1 = v + u1[s]
                         if first_action or c1 > u2[s] or isclose_c(c1, u2[s]):
@@ -453,10 +438,6 @@ cdef class EVI_FSUCRLv1:
 
                         first_action = 0
                 counter = counter + 1
-                # printf("**%d\n", counter)
-                # for i in range(nb_states):
-                #     printf("%.2f[%.2f]  ", u1[i], u2[i])
-                # printf("\n")
 
                 # stopping condition
                 if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
@@ -465,9 +446,6 @@ cdef class EVI_FSUCRLv1:
                 else:
                     memcpy(u1, u2, nb_states * sizeof(DTYPE_t))
                     get_sorted_indices(u1, nb_states, sorted_indices)
-                    # for i in range(nb_states):
-                    #     printf("%d , ", sorted_indices[i])
-                    # printf("\n")
 
     cpdef get_uvectors(self):
 #        cdef np.npy_intp shape[1]
