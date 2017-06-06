@@ -7,10 +7,11 @@ import copy
 import matplotlib.pyplot as plt
 from matplotlib2tikz import save as tikz_save
 
-orig_folder = "../../results/test_20170519/test_20170519_125715"
-orig_folder = "../../results/test_20170525_125320"
-orig_folder = "../../results/navgrid_20_20170602_120209"
+orig_folder = "../../results/navgrid_20_20170602_162754"
+# orig_folder = "../../results/navgrid_20_20170602_120209"
 domain = 'navgrid'
+orig_folder = "../../results/rooms_14_20170602_113507"
+domain = '4rooms'
 
 configurations = ["c{}".format(i) for i in range(1,16,2)]
 configurations = ["c{}".format(i) for i in range(1,9)]
@@ -80,8 +81,16 @@ for conf in configurations:
         data[alg]['y'].append(np.mean(regrets)/mdp_regret)
         data[alg]['x'].append(settings['t_max'])
 
+        title = "{}-{}: $\\alpha_p$={}, $\\alpha_{{mc}}$={}, $\\alpha_r={}$, $\\alpha_{{tau}}={}$, $r_{{max}}={}$".format(
+            domain, settings['dimension'],
+            settings['alpha_p'], settings['alpha_mc'],
+            settings['alpha_r'], settings['alpha_tau'],
+            settings['r_max']
+        )
+
 print(data)
 plt.figure()
+plt.title(title)
 plt.plot([1, 8], [1, 1], 'k', linewidth=2, label="UCRL")
 for k in algorithms:
     el = data[k]
