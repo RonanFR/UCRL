@@ -31,7 +31,7 @@ parser.add_option("-d", "--dimension", dest="dimension", type="int",
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="duration of the experiment", default=40000000)
 parser.add_option("-a", "--alg", dest="algorithm", type="str",
-                  help="Name of the algorith to execute", default="FSUCRLv2") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
+                  help="Name of the algorith to execute", default="SUCRL_subexp") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2, SUCRL_subexp
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
                   help="t_max for options", default=5)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
@@ -62,7 +62,7 @@ parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random
 
 (in_options, in_args) = parser.parse_args()
 
-assert in_options.algorithm in ["UCRL", "SUCRL", "FSUCRLv1", "FSUCRLv2"]
+assert in_options.algorithm in ["UCRL", "SUCRL", "FSUCRLv1", "FSUCRLv2", "SUCRL_subexp"]
 
 if in_options.t_max < 1:
     raise ValueError("t_max should be >= 1")
@@ -150,6 +150,23 @@ for rep in range(in_options.nb_simulations):
             verbose=1,
             logger=ucrl_log,
             bound_type=in_options.bound_type)  # learning algorithm
+    elif in_options.algorithm == "SUCRL_subexp":
+
+        sigma_tau = options_free.reshaped_sigma_tau()
+
+        ucrl = Ucrl.UcrlSmdpExp(
+            environment=copy.deepcopy(option_environment),
+            r_max=in_options.r_max,
+            tau_min=np.min(options_free.tau_options),
+            tau_max=np.max(options_free.tau_options),
+            sigma_tau=sigma_tau,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            alpha_tau=in_options.alpha_tau,
+            verbose=1,
+            logger=ucrl_log,
+            bound_type=in_options.bound_type)  # learning algorithm
+
     elif in_options.algorithm == "SUCRL":
         ucrl = Ucrl.UcrlSmdpBounded(
             environment=copy.deepcopy(option_environment),
