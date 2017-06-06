@@ -2,6 +2,7 @@
 N_cpu=16
 N_mem=50g
 N_hours=24
+part=24c
 
 dim=20
 duration=40000000
@@ -10,6 +11,7 @@ init_seed=114364114
 rmax=1 #${dim}
 tmax=$((dim/2))
 exe_file=../example_navgrid.py 
+bound_type="chernoff"
 
 
 folder=navgrid_${dim}_$(date '+%Y%m%d_%H%M%S')
@@ -42,6 +44,7 @@ do
         echo "#!/bin/bash" > ${fname}                                                                                                      
         echo "#SBATCH --nodes=1" >> ${fname}
         echo "#SBATCH --ntasks-per-node=1" >> ${fname}
+        echo "#SBATCH --partition=${part}" >> ${fname}
         echo "#SBATCH --cpus-per-task=${N_cpu}" >> ${fname}
         echo "#SBATCH --time=${N_hours}:00:00" >> ${fname}
         echo "#SBATCH --job-name=${A_SHORT_NAME[$j]}_${dim}_${t}" >> ${fname}
@@ -53,10 +56,10 @@ do
         echo "export OMP_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
         echo "export NUMEXPR_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
 
-        echo "python ${exe_file} --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
+        echo "python ${exe_file} -b ${bound_type} --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
         i=$((i+1))
-        echo "python ${exe_file} -b --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
-        i=$((i+1))
+        # echo "python ${exe_file} -b --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
+        # i=$((i+1))
 
         cd ${folder}
         sbatch ${sname}
