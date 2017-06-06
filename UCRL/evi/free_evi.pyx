@@ -625,12 +625,10 @@ cdef class EVI_FSUCRLv2:
                         sum_prob_row = sum_prob_row + p_hat_opt[o].values[l_ij]
 
                         if self.bound_type == CHERNOFF:
-                            # note that 0.5 is due to the use of bernstein max_proba
-                            beta_opt_p[o].values[l_ij] = 0.5 * alpha_mc * sqrt(14 * opt_nb_states * log(2 * max_nb_actions
+                            beta_opt_p[o].values[l_ij] = alpha_mc * sqrt(14 * opt_nb_states * log(2 * max_nb_actions
                                                                                               * (total_time + 1)/ delta) / nb_o)
                         elif self.bound_type == CHERNOFF_STATEDIM:
-                            # note that 0.5 is due to the use of bernstein max_proba
-                            beta_opt_p[o].values[l_ij] = 0.5 * alpha_mc * sqrt(14 * nb_states * log(2 * max_nb_actions
+                            beta_opt_p[o].values[l_ij] = alpha_mc * sqrt(14 * nb_states * log(2 * max_nb_actions
                                                                                               * (total_time + 1)/ delta) / nb_o)
                         else:
                             beta_opt_p[o].values[l_ij] = alpha_mc * (sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o)
@@ -766,17 +764,17 @@ cdef class EVI_FSUCRLv2:
                             r_optimal = r_tilde_opt[o].values[i]
 
                             idx = pos2index_2d(nb_states_per_options, nb_states_per_options, i, 0)
-                            # if self.bound_type != BERNSTEIN:
-                            #     max_proba_purec2(&(p_hat_opt[o].values[idx]), nb_states_per_options,
-                            #         sorted_indices_popt[o].values, beta_opt_p[o].values[idx],
-                            #         mtx_maxprob_opt_memview[o])
-                            # else:
-                            max_proba_bernstein_cin(
-                                &(p_hat_opt[o].values[idx]),
-                                nb_states_per_options,
-                                sorted_indices_popt[o].values,
-                                &(beta_opt_p[o].values[idx]),
-                                mtx_maxprob_opt_memview[o])
+                            if self.bound_type != BERNSTEIN:
+                                max_proba_purec2(&(p_hat_opt[o].values[idx]), nb_states_per_options,
+                                    sorted_indices_popt[o].values, beta_opt_p[o].values[idx],
+                                    mtx_maxprob_opt_memview[o])
+                            else:
+                                max_proba_bernstein_cin(
+                                    &(p_hat_opt[o].values[idx]),
+                                    nb_states_per_options,
+                                    sorted_indices_popt[o].values,
+                                    &(beta_opt_p[o].values[idx]),
+                                    mtx_maxprob_opt_memview[o])
 
                             v = r_optimal + v + dot_prod(mtx_maxprob_opt_memview[o], w1[o].values, nb_states_per_options)
                             w2[o].values[i] = v
