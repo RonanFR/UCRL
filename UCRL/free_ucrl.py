@@ -327,6 +327,9 @@ class FSUCRLv1(AbstractUCRL):
         self.logger.info("{}".format((t1-t0, t2-t1)))
         self.solver_times.append((t1-t0, t2-t1))
 
+        if new_span < 0:
+            raise ValueError("[FSUCRLv1] Error in EVI")
+
         # # CHECK WITH PYTHON IMPL
         if self.check_with_py:
             self.pyevi.compute_mu_info(  # environment=self.environment,
@@ -429,7 +432,7 @@ class FSUCRLv2(FSUCRLv1):
         #     range_opt_p=self.range_mu_p)
 
         t0 = time.perf_counter()
-        gg = self.opt_solver.compute_prerun_info(
+        check_v = self.opt_solver.compute_prerun_info(
             estimated_probabilities_mdp=self.P_mdp, #self.estimated_probabilities_mdp,
             estimated_rewards_mdp=self.estimated_rewards_mdp,
             beta_r=beta_r,
@@ -440,9 +443,10 @@ class FSUCRLv2(FSUCRLv1):
             alpha_mc=self.alpha_mc,
         r_max=self.r_max)
         t1 = time.perf_counter()
-        if np.isclose(gg,-999):
 
-            raise ValueError()
+
+        if check_v != 0:
+            raise ValueError("[FSUCRLv1] Error in the computation of P_MC")
 
         # p, b = self.opt_solver.get_opt_p_and_beta()
         # rt = self.opt_solver.get_r_tilde_opt()
@@ -467,6 +471,9 @@ class FSUCRLv2(FSUCRLv1):
         t2 = time.perf_counter()
         self.solver_times.append((t1-t0, t2-t1))
         self.logger.info("{}".format((t1-t0, t2-t1)))
+
+        if new_span < 0:
+            raise ValueError("[FSUCRLv2] Error in EVI")
 
         # py_span = self.pyevi.run(
         #     policy_indices=self.policy_indices,

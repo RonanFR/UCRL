@@ -172,90 +172,6 @@ cdef class EVI_FSUCRLv1:
         free(self.xx)
         free(self.beta_mu_p)
 
-    cpdef compute_mu_info(self,
-                          DTYPE_t[:,:,:] estimated_probabilities_mdp,
-                          DTYPE_t[:,:] estimated_rewards_mdp,
-                          DTYPE_t[:,:] beta_r,
-                          SIZE_t[:,:] nb_observations_mdp,
-                          DTYPE_t alpha_mc,
-                          SIZE_t total_time,
-                          DTYPE_t delta,
-                          SIZE_t max_nb_actions,
-                          DTYPE_t r_max):
-        cdef SIZE_t nb_options = self.nb_options
-        cdef SIZE_t nb_states = self.nb_states
-        cdef SIZE_t o, opt_nb_states, i, j, s, nexts, idx, mdp_index_a
-        cdef DTYPE_t prob, condition_nb, bernstein_bound, bernstein_log
-        cdef SIZE_t visits = 0, nb_o
-
-        for o in range(nb_options):
-            option_reach_states = self.reachable_states_per_option[o]
-
-            opt_nb_states = option_reach_states.dim
-
-            Q_o = np.zeros((opt_nb_states, opt_nb_states))
-
-            self.beta_mu_p[o] = 0.
-            visits = total_time + 2
-            bernstein_log = log(6 * max_nb_actions / delta)
-            for i in range(option_reach_states.dim):
-                s = option_reach_states.values[i]
-                # a = self.options_policies[pos2index_2d(nb_options, self.nb_states, o, s)]
-                mdp_index_a = self.options_policies_indices_mdp[pos2index_2d(nb_options, self.nb_states, o, s)]
-
-                self.r_tilde_opt[o].values[i] = min(r_max, estimated_rewards_mdp[s, mdp_index_a] + beta_r[s,mdp_index_a])
-
-                if visits > nb_observations_mdp[s, mdp_index_a]:
-                    visits = nb_observations_mdp[s, mdp_index_a]
-
-                bernstein_bound = 0.
-                nb_o = max(1, nb_observations_mdp[s, mdp_index_a])
-
-                for j in range(option_reach_states.dim):
-                    nexts = option_reach_states.values[j]
-                    idx = pos2index_2d(nb_options, self.nb_states, o, nexts)
-                    prob = estimated_probabilities_mdp[s][mdp_index_a][nexts]
-                    Q_o[i,j] = (1. - self.options_terminating_conditions[idx]) * prob
-                    bernstein_bound += np.sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o) + bernstein_log * 7 / (3 * nb_o)
-                if self.beta_mu_p[o] < alpha_mc * bernstein_bound:
-                    self.beta_mu_p[o] = alpha_mc * bernstein_bound
-            e_m = np.ones((opt_nb_states,1))
-            q_o = e_m - np.dot(Q_o, e_m)
-
-            if self.bound_type == CHERNOFF:
-                self.beta_mu_p[o] =  alpha_mc * np.sqrt(14 * opt_nb_states * log(2 * max_nb_actions
-                    * (total_time + 1)/delta)
-                                       / np.maximum(1, visits))
-            elif self.bound_type == CHERNOFF_STATEDIM:
-                self.beta_mu_p[o] =  alpha_mc * np.sqrt(14 * nb_states * log(2 * max_nb_actions
-                    * (total_time + 1)/delta)
-                                       / np.maximum(1, visits))
-
-            Pprime_o = np.concatenate((q_o, Q_o[:, 1:]), axis=1)
-            # assert np.allclose(np.sum(Pprime_o, axis=1), np.ones(opt_nb_states))
-
-            Pap = (Pprime_o + np.eye(opt_nb_states)) / 2.
-            D, U = np.linalg.eig(np.transpose(Pap))  # eigen decomposition of transpose of P
-            sorted_indices = np.argsort(np.real(D))
-            mu = np.transpose(np.real(U))[sorted_indices[len(sorted_indices)-1]]
-            mu_sum =  np.sum(mu)  # stationary distribution
-
-            for i in range(opt_nb_states):
-                self.mu_opt[o].values[i] = mu[i] / mu_sum
-
-            P_star = np.repeat(np.array(mu, ndmin=2), opt_nb_states, axis=0)  # limiting matrix
-
-            # Compute deviation matrix
-            I = np.eye(opt_nb_states)  # identity matrix
-            Z = np.linalg.inv(I - Pap + P_star)  # fundamental matrix
-            H = np.dot(Z, I - P_star)  # deviation matrix
-
-            condition_nb = 0  # condition number of deviation matrix
-            for i in range(0, opt_nb_states):  # Seneta's condition number
-                for j in range(i + 1, opt_nb_states):
-                    condition_nb = max(condition_nb, 0.5 * np.linalg.norm(H[i, :] - H[j, :], ord=1))
-            self.cn_opt[o] = condition_nb
-
     cpdef compute_mu_info2(self,
                       DTYPE_t[:,:,:] estimated_probabilities_mdp,
                       DTYPE_t[:,:] estimated_rewards_mdp,
@@ -272,6 +188,7 @@ cdef class EVI_FSUCRLv1:
         cdef DTYPE_t prob, bernstein_log
         cdef DTYPE_t sum_prob_row, bernstein_bound
         cdef SIZE_t nb_o, l_ij, visits
+        cdef SIZE_t opt_error = 0
 
         cdef DoubleVectorStruct* r_tilde_opt = self.r_tilde_opt
         cdef DoubleVectorStruct* mu_opt = self.mu_opt
@@ -341,11 +258,11 @@ cdef class EVI_FSUCRLv1:
                             Popt[l_ij] = Popt[l_ij] + 1.0
                         Popt[l_ij] = Popt[l_ij] / 2.0
 
-                get_mu_and_ci_c(Popt, opt_nb_states, &cn_opt[o], mu_opt[o].values)
+                opt_error += get_mu_and_ci_c(Popt, opt_nb_states, &cn_opt[o], mu_opt[o].values)
 
                 free(Popt)
         # free(sum_prob_row)
-        return 0
+        return opt_error
 
     cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
                      DTYPE_t[:,:,:] p_hat,
@@ -697,8 +614,6 @@ cdef class EVI_FSUCRLv2:
 
                     sum_prob_row = 0.
                     nb_o = max(1, nb_observations_mdp[s, mdp_index_a])
-
-
 
                     for j in range(opt_nb_states):
                         nexts = self.reachable_states_per_option[o].values[j]

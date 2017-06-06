@@ -54,22 +54,6 @@ cdef class EVI_FSUCRLv1:
                      DTYPE_t r_max,
                      DTYPE_t epsilon)
 
-    # def compute_mu_and_info(self, environment,
-    #                       DTYPE_t[:,:,:] estimated_probabilities_mdp,
-    #                       DTYPE_t[:,:] estimated_rewards_mdp,
-    #                       DTYPE_t[:,:] beta_r)
-
-    cpdef compute_mu_info(self,
-                          DTYPE_t[:,:,:] estimated_probabilities_mdp,
-                          DTYPE_t[:,:] estimated_rewards_mdp,
-                          DTYPE_t[:,:] beta_r,
-                          SIZE_t[:,:] nb_observations_mdp,
-                          DTYPE_t range_mu_p,
-                          SIZE_t total_time,
-                          DTYPE_t delta,
-                          SIZE_t max_nb_actions,
-                          DTYPE_t r_max)
-
     cpdef compute_mu_info2(self,
                       DTYPE_t[:,:,:] estimated_probabilities_mdp,
                       DTYPE_t[:,:] estimated_rewards_mdp,
