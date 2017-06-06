@@ -760,6 +760,11 @@ cdef class EVI_FSUCRLv2:
 
         cdef DTYPE_t* span_w_opt = self.span_w_opt
 
+        cdef SIZE_t MAX_IT_INNER = 500000
+        cdef SIZE_t MAX_IT_OUTER = 500000
+        cdef DTYPE_t MAX_VAL_V = 500000.
+        cdef SIZE_t evi_error = 0
+
         with nogil:
             center_value = u1[0]
             for i in range(nb_states):
@@ -777,9 +782,9 @@ cdef class EVI_FSUCRLv2:
             outer_evi_it = 0
             while True:
                 outer_evi_it += 1
-                if outer_evi_it > 50000:
+                if outer_evi_it > MAX_IT_OUTER:
                     printf("%f", max_u1 - min_u1)
-                    return -5
+                    return -2
 
                 # epsilon_opt = 1. / pow(2, outer_evi_it)
                 # epsilon_opt = 1. / (outer_evi_it * outer_evi_it)
@@ -788,6 +793,7 @@ cdef class EVI_FSUCRLv2:
                 # --------------------------------------------------------------
                 # Estimate value function of each option
                 # --------------------------------------------------------------
+                evi_error = 0
                 for o in prange(nb_options):
                     continue_flag = 1
 
@@ -812,7 +818,9 @@ cdef class EVI_FSUCRLv2:
                             option_idx = j
                             break
                     if option_idx == -1:
-                        return -2
+                        evi_error = 99
+                        continue_flag = 0
+
                     if self.bound_type != BERNSTEIN:
                         # chernoff bound
                         max_proba_purec(p_hat[sprime][option_idx], nb_states,
@@ -827,10 +835,8 @@ cdef class EVI_FSUCRLv2:
                     max_prob_opt = dot_prod(mtx_maxprob_opt_memview[o], u1, nb_states)
 
                     inner_it_opt = 0
-                    while continue_flag:
+                    while continue_flag and inner_it_opt < MAX_IT_INNER:
                         inner_it_opt = inner_it_opt + 1
-                        if inner_it_opt > 500000:
-                            return -1
 
                         for i in range(nb_states_per_options):
                             sprime = reach_states[o].values[i]
@@ -843,6 +849,11 @@ cdef class EVI_FSUCRLv2:
                             r_optimal = r_tilde_opt[o].values[i]
 
                             idx = pos2index_2d(nb_states_per_options, nb_states_per_options, i, 0)
+                            # if self.bound_type != BERNSTEIN:
+                            #     max_proba_purec2(&(p_hat_opt[o].values[idx]), nb_states_per_options,
+                            #         sorted_indices_popt[o].values, beta_opt_p[o].values[idx],
+                            #         mtx_maxprob_opt_memview[o])
+                            # else:
                             max_proba_bernstein_cin(
                                 &(p_hat_opt[o].values[idx]),
                                 nb_states_per_options,
@@ -852,8 +863,6 @@ cdef class EVI_FSUCRLv2:
 
                             v = r_optimal + v + dot_prod(mtx_maxprob_opt_memview[o], w1[o].values, nb_states_per_options)
                             w2[o].values[i] = v
-                            if v > 50000:
-                                return -4
 
                         # stopping condition
                         if check_end_opt_evi(w2[o].values, w1[o].values, nb_states_per_options, &span_w_opt[o]) < epsilon_opt:
@@ -864,10 +873,15 @@ cdef class EVI_FSUCRLv2:
                             memcpy(w1[o].values, w2[o].values, nb_states_per_options * sizeof(DTYPE_t))
                             get_sorted_indices(w1[o].values, nb_states_per_options, sorted_indices_popt[o].values)
 
+                    if inner_it_opt == MAX_IT_INNER:
+                        evi_error += 1
+                if evi_error > 0:
+                    return -1
 
                 # --------------------------------------------------------------
                 # Estimate value function of SMDP
                 # --------------------------------------------------------------
+                evi_error = 0
                 for s in range(nb_states):
                     first_action = 1
                     for a_idx in range(self.actions_per_state[s].dim):
@@ -899,39 +913,25 @@ cdef class EVI_FSUCRLv2:
                             v = span_w_opt[o]
 
                         v = v + u1[s]
-                        if v > 50000:
-                            printf("%f", v)
-                            return -60
+
                         if first_action or v > u2[s] or isclose_c(v, u2[s]):
                             u2[s] = v
                             policy_indices[s] = a_idx
                             policy[s] = action
                         first_action = 0
 
-                # printf("\n")
-                # for i in range(nb_states):
-                #     printf("%.2f[%.2f] ", u1[i], u2[i])
-                # printf("\n")
+                        # error check
+                        if v > MAX_VAL_V:
+                            evi_error += 1
+                if evi_error > 0:
+                    return -3
 
                 # stopping condition
                 if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
-                    # printf("%d\n", outer_evi_it)
                     return max_u1 - min_u1
                 else:
-                    # printf("------------\n")
                     memcpy(u1, u2, nb_states * sizeof(DTYPE_t))
                     get_sorted_indices(u1, nb_states, sorted_indices)
-                    # center_value = u1[0]
-                    # for j in range(nb_states):
-                    #     u1[j] = u1[j] - center_value
-
-                if v > 50000:
-                    return -70
-
-                # printf("[%d]u1\n", outer_evi_it)
-                # for j in range(nb_states):
-                #     printf("%.2f ", u1[j])
-                # printf("\n")
 
 
     cpdef get_r_tilde_opt(self):
