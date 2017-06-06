@@ -625,10 +625,12 @@ cdef class EVI_FSUCRLv2:
                         sum_prob_row = sum_prob_row + p_hat_opt[o].values[l_ij]
 
                         if self.bound_type == CHERNOFF:
-                            beta_opt_p[o].values[l_ij] = alpha_mc * sqrt(14 * opt_nb_states * log(2 * max_nb_actions
+                            # note that 0.5 is due to the use of bernstein max_proba
+                            beta_opt_p[o].values[l_ij] = 0.5 * alpha_mc * sqrt(14 * opt_nb_states * log(2 * max_nb_actions
                                                                                               * (total_time + 1)/ delta) / nb_o)
                         elif self.bound_type == CHERNOFF_STATEDIM:
-                            beta_opt_p[o].values[l_ij] = alpha_mc * sqrt(14 * nb_states * log(2 * max_nb_actions
+                            # note that 0.5 is due to the use of bernstein max_proba
+                            beta_opt_p[o].values[l_ij] = 0.5 * alpha_mc * sqrt(14 * nb_states * log(2 * max_nb_actions
                                                                                               * (total_time + 1)/ delta) / nb_o)
                         else:
                             beta_opt_p[o].values[l_ij] = alpha_mc * (sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o)

@@ -1,10 +1,12 @@
 # cython: cdivision=True
 # cython: boundscheck=False
 # cython: wraparound=False
-
 from cython.parallel import prange
 
 from libc.stdio cimport printf
+import numpy as np
+cimport numpy as np
+
 # =============================================================================
 # Max Probabilities give CI [Near-optimal Regret Bounds for RL]
 # =============================================================================
@@ -129,3 +131,31 @@ cdef void max_proba_bernstein_cin(DTYPE_t* p,
         delta -= new_delta
         i -= 1
 
+
+# =============================================================================
+# Python interface
+# =============================================================================
+def py_max_proba_chernoff(np.ndarray[DTYPE_t, ndim=1] p,
+                          DTYPE_t beta, np.ndarray[DTYPE_t, ndim=1] v):
+    cdef SIZE_t* asc_idx
+    cdef SIZE_t n = len(p)
+
+    sorted_idx = np.argsort(v, kind='mergesort').astype(np.int)
+    asc_idx = <SIZE_t*> np.PyArray_GETPTR1(sorted_idx, 0)
+
+    new_p = np.zeros_like(p)
+    max_proba_purec(p, n, asc_idx, beta, new_p)
+    return new_p
+
+def py_max_proba_bernstein(np.ndarray[DTYPE_t, ndim=1] p,
+                           np.ndarray[DTYPE_t, ndim=1] beta,
+                           np.ndarray[DTYPE_t, ndim=1] v):
+    cdef SIZE_t* asc_idx
+    cdef SIZE_t n = len(p)
+
+    sorted_idx = np.argsort(v, kind='mergesort').astype(np.int)
+    asc_idx = <SIZE_t*> np.PyArray_GETPTR1(sorted_idx, 0)
+
+    new_p = np.zeros_like(p)
+    max_proba_bernstein(p, n, asc_idx, beta, new_p)
+    return new_p
