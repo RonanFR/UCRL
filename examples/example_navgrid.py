@@ -31,7 +31,10 @@ parser.add_option("-d", "--dimension", dest="dimension", type="int",
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="duration of the experiment", default=40000000)
 parser.add_option("-a", "--alg", dest="algorithm", type="str",
-                  help="Name of the algorith to execute", default="SUCRL_subexp") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2, SUCRL_subexp
+                  help="Name of the algorith to execute"
+                       "[UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2]",
+                  default="SUCRL_v4")
+# UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
                   help="t_max for options", default=5)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
@@ -150,37 +153,53 @@ for rep in range(in_options.nb_simulations):
             verbose=1,
             logger=ucrl_log,
             bound_type=in_options.bound_type)  # learning algorithm
-    elif in_options.algorithm == "SUCRL_subexp":
+    elif in_options.algorithm[0:5] == "SUCRL":
 
-        sigma_tau = options_free.reshaped_sigma_tau()
-        tau_bar = options_free.reshaped_tau_bar()
-        sigma_r = in_options.r_max * np.sqrt(tau_bar + sigma_tau**2)
+        version = in_options.algorithm[-2:]
+        if version == "v1":
+            ucrl = Ucrl.UcrlSmdpBounded(
+                environment=copy.deepcopy(option_environment),
+                r_max=in_options.r_max,
+                t_max=in_options.t_max,
+                alpha_r=in_options.alpha_r,
+                alpha_p=in_options.alpha_p,
+                alpha_tau=in_options.alpha_tau,
+                verbose=1,
+                logger=ucrl_log,
+                bound_type=in_options.bound_type)  # learning algorithm
+        else:
+            r_max = in_options.r_max
+            tau_min = np.min(options_free.tau_options)
+            tau_max = np.max(options_free.tau_options)
+            if version == "v3":
+                sigma_tau = options_free.reshaped_sigma_tau()
+                tau_bar = options_free.reshaped_tau_bar()
+                sigma_r = r_max * np.sqrt(tau_bar + sigma_tau**2)
+            elif version == "v4":
+                sigma_tau = options_free.reshaped_sigma_tau()
+                sigma_r = 0
+            elif version == "v5":
+                sigma_tau = np.max(options_free.reshaped_sigma_tau())
+                sigma_r = 0
+            elif version == "v2":
+                sigma_tau = np.max(options_free.reshaped_sigma_tau())
+                sigma_r = r_max * np.sqrt(tau_max + sigma_tau**2)
+            else:
+                raise ValueError("Unknown SUCRL version")
 
-        ucrl = Ucrl.UcrlSmdpExp(
-            environment=copy.deepcopy(option_environment),
-            r_max=in_options.r_max,
-            tau_min=np.min(options_free.tau_options),
-            tau_max=np.max(options_free.tau_options),
-            sigma_tau=sigma_tau,
-            sigma_r=sigma_r,
-            alpha_r=in_options.alpha_r,
-            alpha_p=in_options.alpha_p,
-            alpha_tau=in_options.alpha_tau,
-            verbose=1,
-            logger=ucrl_log,
-            bound_type=in_options.bound_type)  # learning algorithm
-
-    elif in_options.algorithm == "SUCRL":
-        ucrl = Ucrl.UcrlSmdpBounded(
-            environment=copy.deepcopy(option_environment),
-            r_max=in_options.r_max,
-            t_max=in_options.t_max,
-            alpha_r=in_options.alpha_r,
-            alpha_p=in_options.alpha_p,
-            alpha_tau=in_options.alpha_tau,
-            verbose=1,
-            logger=ucrl_log,
-            bound_type=in_options.bound_type)  # learning algorithm
+            ucrl = Ucrl.UcrlSmdpExp(
+                environment=copy.deepcopy(option_environment),
+                r_max=r_max,
+                tau_min=tau_min,
+                tau_max=tau_max,
+                sigma_tau=sigma_tau,
+                sigma_r=sigma_r,
+                alpha_r=in_options.alpha_r,
+                alpha_p=in_options.alpha_p,
+                alpha_tau=in_options.alpha_tau,
+                verbose=1,
+                logger=ucrl_log,
+                bound_type=in_options.bound_type)  # learning algorithm
     elif in_options.algorithm == "FSUCRLv1":
         ucrl = FSUCRLv1(
             environment=copy.deepcopy(mixed_environment),
