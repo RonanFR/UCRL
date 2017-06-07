@@ -1,15 +1,17 @@
 #!/bin/bash
-N_cpu=16
-N_mem=50g
+# N_cpu=16
+# N_mem=50g
+N_cpu=8
+N_mem=10g
 N_hours=24
 part=24c
 
 dim=20
-duration=40000000
+duration=120000000
 repetitions=1
 init_seed=114364114
 rmax=1 #${dim}
-tmax=$((dim/2))
+tmax=$((dim/2+2))
 exe_file=../example_navgrid.py 
 bound_type="chernoff"
 
@@ -19,8 +21,8 @@ echo ${folder}
 mkdir ${folder}
 
 
-ALGS=(FSUCRLv1 FSUCRLv2 SUCRL UCRL)
-A_SHORT_NAME=(N-fv1 N-fv2 N-suc N-ucr)
+ALGS=(FSUCRLv1 FSUCRLv2 UCRL SUCRL_v1 SUCRL_v2 SUCRL_v3 SUCRL_v4 SUCRL_v5)
+A_SHORT_NAME=(N-fv1 N-fv2 N-ucr N-1suc N-2suc N-3suc N-4suc N-5suc)
 
 # CREATE CONFIGURATIONS
 
