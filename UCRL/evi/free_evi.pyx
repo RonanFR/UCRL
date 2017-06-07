@@ -197,6 +197,7 @@ cdef class EVI_FSUCRLv1:
         cdef DTYPE_t* cn_opt = self.cn_opt
 
         cdef DTYPE_t *Popt
+        cdef DTYPE_t alpha_aperiodic = 0.5
 
         with nogil:
 
@@ -248,17 +249,8 @@ cdef class EVI_FSUCRLv1:
                     beta_mu_p[o] =  alpha_mc * sqrt(14 * nb_states * log(2 * max_nb_actions
                         * (total_time + 1)/delta) / visits)
 
-                # --------------------------------------------------------------
-                #  Aperiodic transformation
-                # --------------------------------------------------------------
-                for i in range(opt_nb_states):
-                    for j in range(opt_nb_states):
-                        l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, j)
-                        if i == j:
-                            Popt[l_ij] = Popt[l_ij] + 1.0
-                        Popt[l_ij] = Popt[l_ij] / 2.0
-
-                opt_error += get_mu_and_ci_c(Popt, opt_nb_states, &cn_opt[o], mu_opt[o].values)
+                opt_error += get_mu_and_ci_c(Popt, opt_nb_states, &cn_opt[o],
+                                             mu_opt[o].values, alpha_aperiodic)
 
                 free(Popt)
         # free(sum_prob_row)

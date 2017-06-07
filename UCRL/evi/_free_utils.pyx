@@ -68,11 +68,15 @@ cdef void print_double_vector( char* desc, SIZE_t n, DTYPE_t* a ) nogil:
 # =============================================================================
 # Note that LAPACK interface uses FORTRAN ordering for matrices (column-major)
 
-cdef SIZE_t get_mu_and_ci_c(DTYPE_t* sq_rowmaj_mtx, SIZE_t N,
-                          DTYPE_t* condition_number, DTYPE_t* mu, SIZE_t verbose=0) nogil:
+cdef SIZE_t get_mu_and_ci_c(DTYPE_t *sq_rowmaj_mtx, SIZE_t N,
+                            DTYPE_t *condition_number, DTYPE_t *mu,
+                            DTYPE_t aperiodic_transform,
+                            SIZE_t verbose=0) nogil:
 
     # Note that lapack works column-major while c-style matrices are
     # row-major. We need to transpose the matrix
+    if aperiodic_transform < 0:
+        return 5
 
     # /* Locals */
     cdef int n = N, lda = N, ldvl = N, ldvr = N, info, lwork
@@ -98,9 +102,13 @@ cdef SIZE_t get_mu_and_ci_c(DTYPE_t* sq_rowmaj_mtx, SIZE_t N,
     B = <double*>malloc(n * n * sizeof(double))
 
     # create column-view and transpose input matrix
+    # and perform aperiodic transformation
     for i in range(N):
         for j in range(N):
-            P[i + j * n] = sq_rowmaj_mtx[j * n + i]
+            P[i + j * n] = (1 - aperiodic_transform) * sq_rowmaj_mtx[j * n + i]
+            if i == j:
+                P[i + j * n] += aperiodic_transform
+
     if verbose == 1:
         print_matrix(1, "P transpose (column-major)", n, n, P, n)
 
@@ -211,7 +219,7 @@ cdef SIZE_t get_mu_and_ci_c(DTYPE_t* sq_rowmaj_mtx, SIZE_t N,
 
 
 
-def get_mu_and_ci(P):
+def get_mu_and_ci(P, alpha_aperiodic):
     cdef DTYPE_t ci
     cdef DTYPE_t* mu_ptr
     cdef DTYPE_t* P_ptr
@@ -219,5 +227,5 @@ def get_mu_and_ci(P):
     mu = np.empty((n,), dtype=np.float64)
     mu_ptr = <DTYPE_t*> np.PyArray_DATA(mu)
     P_ptr = <DTYPE_t*> np.PyArray_DATA(P)
-    get_mu_and_ci_c(P_ptr, n, &ci, mu_ptr)
+    get_mu_and_ci_c(P_ptr, n, &ci, mu_ptr, alpha_aperiodic)
     return mu, ci

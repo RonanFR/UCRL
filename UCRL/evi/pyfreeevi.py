@@ -118,7 +118,7 @@ class PyEVI_FSUCRLv1(object):
 
             # Compute deviation matrix
             I = np.eye(opt_nb_states)  # identity matrix
-            Z = np.linalg.inv(I - Pap + P_star)  # fundamental matrix
+            Z = np.linalg.inv(I - Pprime_o + P_star)  # fundamental matrix
             H = np.dot(Z, I - P_star)  # deviation matrix
 
             condition_nb = 0  # condition number of deviation matrix
