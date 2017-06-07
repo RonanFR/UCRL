@@ -60,9 +60,9 @@ parser.add_option("--succ_prob", dest="success_probability", type="float",
 alg_desc = """Here the description of the algorithms                                
 |- UCRL                                                                       
 |- SUCRL                                                                                  
-... v1: sigma_tau = max(sigma_tau)                                            
+... v2: sigma_tau = max(sigma_tau)                                            
 .       sigma_R = r_max sqrt(tau_max + max(sigma_tau)^2)                      
-... v2: sigma_tau -> per option                                               
+... v3: sigma_tau -> per option                                               
 .       sigma_R = r_max sqrt(tau_max + max(sigma_tau)^2) -> per option         
 |- FSUCRLv1                                                                      
 |- FSUCRLv2                                                                      
@@ -76,7 +76,7 @@ group1.add_option("-a", "--alg", dest="algorithm", type="str",
 
 (in_options, in_args) = parser.parse_args()
 
-assert in_options.algorithm in ["UCRL", "SUCRL_v1", "SUCRL_v2", "FSUCRLv1", "FSUCRLv2"]
+assert in_options.algorithm in ["UCRL", "SUCRL_v1", "SUCRL_v2", "FSUCRLv3", "FSUCRLv2"]
 
 if in_options.r_max < 0:
     in_options.r_max = in_options.dimension
@@ -167,10 +167,10 @@ for rep in range(in_options.nb_simulations):
         tau_max = np.max(mixed_env.tau_options)
 
         version = in_options.algorithm[-2:]
-        if version == "v1":
+        if version == "v2":
             sigma_tau = np.max(mixed_env.reshaped_sigma_tau())
             sigma_r = r_max * np.sqrt(tau_max + sigma_tau**2)
-        elif version == "v2":
+        elif version == "v3":
             sigma_tau = mixed_env.reshaped_sigma_tau()
             tau_bar = mixed_env.reshaped_tau_bar()
             sigma_r = r_max * np.sqrt(tau_bar + sigma_tau**2)

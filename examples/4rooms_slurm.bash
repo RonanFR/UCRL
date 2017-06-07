@@ -16,8 +16,8 @@ echo ${folder}
 mkdir ${folder}
 
 
-ALGS=(FSUCRLv1 FSUCRLv2 UCRL SUCRL_v1 SUCRL_v2)
-A_SHORT_NAME=(R-fv1 R-fv2 R-ucr R-1suc R-2suc)
+ALGS=(FSUCRLv1 FSUCRLv2 UCRL SUCRL_v2 SUCRL_v3)
+A_SHORT_NAME=(R-fv1 R-fv2 R-ucr R-2suc R-3suc)
 
 # CREATE CONFIGURATIONS
 
