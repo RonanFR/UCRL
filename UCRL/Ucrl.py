@@ -69,7 +69,8 @@ class AbstractUCRL(object):
         desc = {
             "alpha_p": self.alpha_p,
             "alpha_r": self.alpha_r,
-            "r_max": self.r_max
+            "r_max": self.r_max,
+            "version": self.version
         }
         return desc
 
@@ -472,7 +473,8 @@ class UcrlSmdpExp(UcrlMdp):
             "b_r": self.b_r,
             "b_tau": self.b_tau
         }
-        return super_desc.update(desc)
+        super_desc.update(desc)
+        return super_desc
 
 
 class UcrlSmdpBounded(UcrlSmdpExp):
