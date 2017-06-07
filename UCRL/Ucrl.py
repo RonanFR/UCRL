@@ -64,6 +64,13 @@ class AbstractUCRL(object):
         del self.opt_solver
         del self.logger
 
+    def description(self):
+        desc = {
+            "alpha_p": self.alpha_p,
+            "alpha_r": self.alpha_r,
+            "r_max": self.r_max
+        }
+        return desc
 
 class UcrlMdp(AbstractUCRL):
     """
@@ -451,6 +458,20 @@ class UcrlSmdpExp(UcrlMdp):
                 self.nb_observations < 2 * np.power(b / sigma, 2) * m.log(240 * S * A * m.pow(i_k, 7) / self.delta))
             beta[mask] = ci_2[mask]
         return beta
+
+
+    def description(self):
+        super_desc = super().description()
+        desc = {
+            "alpha_tau": self.alpha_tau,
+            "sigma_r": list(self.sigma_r),
+            "sigma_tau": list(self.sigma_tau),
+            "tau_max": self.tau_max,
+            "tau_min": self.tau_min,
+            "b_r": self.b_r,
+            "b_p": self.b_p
+        }
+        return super_desc.update(desc)
 
 
 class UcrlSmdpBounded(UcrlSmdpExp):

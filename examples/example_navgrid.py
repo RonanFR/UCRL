@@ -16,7 +16,7 @@ from UCRL.free_ucrl import FSUCRLv1, FSUCRLv2
 from UCRL.envs import OptionEnvironment, MixedEnvironment
 import UCRL.logging as ucrl_logger
 import UCRL.bounds as tuning
-from optparse import OptionParser
+from optparse import OptionParser, OptionGroup
 
 import matplotlib
 # 'DISPLAY' will be something like this ':0'
@@ -30,11 +30,6 @@ parser.add_option("-d", "--dimension", dest="dimension", type="int",
                   help="dimension of the gridworld", default=20)
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="duration of the experiment", default=40000000)
-parser.add_option("-a", "--alg", dest="algorithm", type="str",
-                  help="Name of the algorith to execute"
-                       "[UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2]",
-                  default="SUCRL_v4")
-# UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
                   help="t_max for options", default=5)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
@@ -63,9 +58,23 @@ parser.add_option("-q", "--quiet",
 parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random.getrandbits(16),
                   help="Seed used to generate the random seed sequence")
 
+alg_desc = """
+- UCRL                                                                         
+- SUCRL
+  - v1: knowledge of R_max and t_max (bounded version)
+  - v2: 
+"""
+group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
+group1.add_option("-a", "--alg", dest="algorithm", type="str",
+                  help="Name of the algorith to execute"
+                       "[UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2]",
+                  default="SUCRL_v4")
+# UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2
+parser.add_option_group(group1)
+
 (in_options, in_args) = parser.parse_args()
 
-assert in_options.algorithm in ["UCRL", "SUCRL", "FSUCRLv1", "FSUCRLv2", "SUCRL_subexp"]
+assert in_options.algorithm in ["UCRL", "SUCRL_v1", "SUCRL_v2", "SUCRL_v3", "SUCRL_v4", "SUCRL_v5", "FSUCRLv1", "FSUCRLv2", ]
 
 if in_options.t_max < 1:
     raise ValueError("t_max should be >= 1")
@@ -224,6 +233,9 @@ for rep in range(in_options.nb_simulations):
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ucrl).__name__))
     ucrl_log.info("seed: {}".format(seed))
     ucrl_log.info("Config: {}".format(config))
+
+    alg_desc = ucrl.description()
+    ucrl_log.info(alg_desc)
 
     h = ucrl.learn(in_options.duration, in_options.regret_time_steps)  # learn task
     ucrl.clear_before_pickle()
