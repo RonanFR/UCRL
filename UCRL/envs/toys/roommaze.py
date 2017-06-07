@@ -520,3 +520,12 @@ class EscapeRoom(MixedEnvironment):
                 sigma_tau[i,j] = sigmas[zerob_opt]
         return sigma_tau
 
+    def reshaped_tau_bar(self):
+        nb_states = self.nb_states
+        tau_bar = np.zeros((nb_states, self.max_nb_actions_per_state))
+        for i in range(nb_states):
+            for j, opt in enumerate(self.get_available_actions_state(i)):
+                zerob_opt = opt
+                tau_bar[i,j] = self.tau_options[zerob_opt]
+        return tau_bar
+

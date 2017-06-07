@@ -153,6 +153,8 @@ for rep in range(in_options.nb_simulations):
     elif in_options.algorithm == "SUCRL_subexp":
 
         sigma_tau = options_free.reshaped_sigma_tau()
+        tau_bar = options_free.reshaped_tau_bar()
+        sigma_r = in_options.r_max * np.sqrt(tau_bar + sigma_tau**2)
 
         ucrl = Ucrl.UcrlSmdpExp(
             environment=copy.deepcopy(option_environment),
@@ -160,6 +162,7 @@ for rep in range(in_options.nb_simulations):
             tau_min=np.min(options_free.tau_options),
             tau_max=np.max(options_free.tau_options),
             sigma_tau=sigma_tau,
+            sigma_r=sigma_r,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
             alpha_tau=in_options.alpha_tau,

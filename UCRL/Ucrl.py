@@ -400,7 +400,7 @@ class UcrlSmdpExp(UcrlMdp):
         assert bound_type in ["chernoff",  "bernstein"]
         assert tau_min >= 1
         if sigma_r is None:
-            sigma_r = sigma_tau * r_max
+            sigma_r = np.sqrt(sigma_tau * sigma_tau + tau_max) * r_max
 
         super(UcrlSmdpExp, self).__init__(
             environment=environment, r_max=r_max,
