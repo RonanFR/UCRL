@@ -4,8 +4,8 @@ N_mem=50g
 N_hours=24
 
 dim=14
-duration=60000000
-repetitions=2
+duration=80000000
+repetitions=5
 init_seed=114364114
 rmax=1 #${dim}
 exe_file=../example_roommaze.py 
@@ -16,8 +16,8 @@ echo ${folder}
 mkdir ${folder}
 
 
-ALGS=(FSUCRLv1 FSUCRLv2 SUCRL UCRL)
-A_SHORT_NAME=(R-fv1 R-fv2 R-suc R-ucr)
+ALGS=(FSUCRLv1 FSUCRLv2 UCRL SUCRL_v1 SUCRL_v2)
+A_SHORT_NAME=(R-fv1 R-fv2 R-ucr R-1suc R-2suc)
 
 # CREATE CONFIGURATIONS
 
@@ -49,7 +49,7 @@ do
     echo "python ${exe_file} --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
     i=$((i+1))
     # echo "python ${exe_file} -b --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
-    i=$((i+1))
+    # i=$((i+1))
 
 #    cd ${folder}
 #    sbatch ${sname}
