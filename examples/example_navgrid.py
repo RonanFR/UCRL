@@ -235,7 +235,7 @@ for rep in range(in_options.nb_simulations):
     ucrl_log.info("Config: {}".format(config))
 
     alg_desc = ucrl.description()
-    ucrl_log.info(alg_desc)
+    ucrl_log.info("alg desc: {}".format(alg_desc))
 
     h = ucrl.learn(in_options.duration, in_options.regret_time_steps)  # learn task
     ucrl.clear_before_pickle()

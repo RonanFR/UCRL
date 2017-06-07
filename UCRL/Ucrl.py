@@ -5,6 +5,7 @@ from .logging import default_logger
 from . import bounds as bounds
 from . import __version__ as ucrl_version
 
+import numbers
 import math as m
 import numpy as np
 import time
@@ -464,12 +465,12 @@ class UcrlSmdpExp(UcrlMdp):
         super_desc = super().description()
         desc = {
             "alpha_tau": self.alpha_tau,
-            "sigma_r": list(self.sigma_r),
-            "sigma_tau": list(self.sigma_tau),
+            "sigma_r": self.sigma_r if isinstance(self.sigma_r, numbers.Number) else self.sigma_r.tolist(),
+            "sigma_tau": self.sigma_tau if isinstance(self.sigma_tau, numbers.Number) else self.sigma_tau.tolist(),
             "tau_max": self.tau_max,
             "tau_min": self.tau_min,
             "b_r": self.b_r,
-            "b_p": self.b_p
+            "b_tau": self.b_tau
         }
         return super_desc.update(desc)
 
