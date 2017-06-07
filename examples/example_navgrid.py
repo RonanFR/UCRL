@@ -58,11 +58,16 @@ parser.add_option("-q", "--quiet",
 parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random.getrandbits(16),
                   help="Seed used to generate the random seed sequence")
 
-alg_desc = """
-- UCRL                                                                         
-- SUCRL
-  - v1: knowledge of R_max and t_max (bounded version)
-  - v2: 
+alg_desc = """Here the description of the algorithms                                
+|- UCRL                                                                       
+|- SUCRL                                                                      
+... v1: knowledge of R_max and t_max (bounded version)                     
+... v2: sigma_tau = max(sigma_tau)                                            
+.       sigma_R = r_max sqrt(tau_max + max(sigma_tau)^2)                      
+... v3: sigma_tau -> per option                                               
+.       sigma_R = r_max sqrt(tau_max + max(sigma_tau)^2) -> per option         
+|- FSUCRLv1                                                                      
+|- FSUCRLv2                                                                      
 """
 group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
@@ -74,7 +79,7 @@ parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
 
-assert in_options.algorithm in ["UCRL", "SUCRL_v1", "SUCRL_v2", "SUCRL_v3", "SUCRL_v4", "SUCRL_v5", "FSUCRLv1", "FSUCRLv2", ]
+assert in_options.algorithm in ["UCRL", "SUCRL_v1", "SUCRL_v2", "SUCRL_v3", "SUCRL_v4", "SUCRL_v5", "FSUCRLv1", "FSUCRLv2"]
 
 if in_options.t_max < 1:
     raise ValueError("t_max should be >= 1")

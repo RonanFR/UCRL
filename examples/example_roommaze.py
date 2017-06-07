@@ -15,7 +15,7 @@ import UCRL.Ucrl as Ucrl
 from UCRL.free_ucrl import FSUCRLv1, FSUCRLv2
 import UCRL.logging as ucrl_logger
 import UCRL.bounds as tuning
-from optparse import OptionParser
+from optparse import OptionParser, OptionGroup
 
 import matplotlib
 # 'DISPLAY' will be something like this ':0'
@@ -29,8 +29,6 @@ parser.add_option("-d", "--dimension", dest="dimension", type="int",
                   help="dimension of the gridworld", default=6)
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="duration of the experiment", default=30000000)
-parser.add_option("-a", "--alg", dest="algorithm", type="str",
-                  help="Name of the algorith to execute", default="FSUCRLv2") # UCRL, SUCRL, FSUCRLv1, FSUCRLv2
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="chernoff")
 parser.add_option("--rmax", dest="r_max", type="float",
@@ -59,9 +57,26 @@ parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random
 parser.add_option("--succ_prob", dest="success_probability", type="float",
                   help="Success probability of an action", default=0.8)
 
+alg_desc = """Here the description of the algorithms                                
+|- UCRL                                                                       
+|- SUCRL                                                                                  
+... v1: sigma_tau = max(sigma_tau)                                            
+.       sigma_R = r_max sqrt(tau_max + max(sigma_tau)^2)                      
+... v2: sigma_tau -> per option                                               
+.       sigma_R = r_max sqrt(tau_max + max(sigma_tau)^2) -> per option         
+|- FSUCRLv1                                                                      
+|- FSUCRLv2                                                                      
+"""
+group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
+group1.add_option("-a", "--alg", dest="algorithm", type="str",
+                  help="Name of the algorith to execute"
+                       "[UCRL, SUCRL_v1, SUCRL_v2, FSUCRLv1, FSUCRLv2]",
+                  default="FSUCRLv2")
+# UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2
+
 (in_options, in_args) = parser.parse_args()
 
-assert in_options.algorithm in ["UCRL", "SUCRL", "FSUCRLv1", "FSUCRLv2"]
+assert in_options.algorithm in ["UCRL", "SUCRL_v1", "SUCRL_v2", "FSUCRLv1", "FSUCRLv2"]
 
 if in_options.r_max < 0:
     in_options.r_max = in_options.dimension
@@ -146,16 +161,29 @@ for rep in range(in_options.nb_simulations):
             verbose=1,
             logger=ucrl_log,
             bound_type=in_options.bound_type)  # learning algorithm
-    elif in_options.algorithm == "SUCRL":
+    elif in_options.algorithm[0:5] == "SUCRL":
+        r_max = in_options.r_max
+        tau_min = np.min(mixed_env.tau_options)
+        tau_max = np.max(mixed_env.tau_options)
 
-        sigma_tau = mixed_env.reshaped_sigma_tau()
+        version = in_options.algorithm[-2:]
+        if version == "v1":
+            sigma_tau = np.max(mixed_env.reshaped_sigma_tau())
+            sigma_r = r_max * np.sqrt(tau_max + sigma_tau**2)
+        elif version == "v2":
+            sigma_tau = mixed_env.reshaped_sigma_tau()
+            tau_bar = mixed_env.reshaped_tau_bar()
+            sigma_r = r_max * np.sqrt(tau_bar + sigma_tau**2)
+        else:
+            raise ValueError("Unknown SUCRL version")
 
         ucrl = Ucrl.UcrlSmdpExp(
             environment=copy.deepcopy(mixed_env),
-            r_max=in_options.r_max,
-            tau_min=np.min(mixed_env.tau_options),
-            tau_max=np.max(mixed_env.tau_options),
+            r_max=r_max,
+            tau_min=tau_min,
+            tau_max=tau_max,
             sigma_tau=sigma_tau,
+            sigma_r=sigma_r,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
             alpha_tau=in_options.alpha_tau,
@@ -186,6 +214,9 @@ for rep in range(in_options.nb_simulations):
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ucrl).__name__))
     ucrl_log.info("seed: {}".format(seed))
     ucrl_log.info("Config: {}\n".format(config))
+
+    alg_desc = ucrl.description()
+    ucrl_log.info("alg desc: {}".format(alg_desc))
 
     ucrl_log.info("max gain: {}".format(env.max_gain))
     ucrl_log.info("span: {}".format(env.span / in_options.r_max))
