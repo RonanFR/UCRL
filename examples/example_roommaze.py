@@ -146,7 +146,7 @@ seed_sequence = [random.randint(0, 2**30) for _ in range(in_options.nb_simulatio
 
 config['seed_sequence'] = seed_sequence
 
-with open(os.path.join(folder_results, 'settings.conf'), 'w') as f:
+with open(os.path.join(folder_results, 'settings{}.conf'.format(in_options.nb_sim_offset)), 'w') as f:
     json.dump(config, f, indent=4, sort_keys=True)
 
 # ------------------------------------------------------------------------------
