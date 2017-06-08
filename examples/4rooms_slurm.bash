@@ -36,7 +36,7 @@ do
         
         i=1
         out_name="${ALGS[$j]}_${pr}_${dim}_%j.out"
-        sname=${ALGS[$j]}_${dim}.slurm
+        sname=${ALGS[$j]}_${pr}_${dim}.slurm
         fname=${folder}/${sname}
         
         echo "#!/bin/bash" > ${fname}                                                                                                      
