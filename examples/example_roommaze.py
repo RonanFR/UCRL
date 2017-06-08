@@ -48,7 +48,7 @@ parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
 parser.add_option("--rep_offset", dest="nb_sim_offset", type="int",
                   help="Repetitions starts at the given number", default=0)
 parser.add_option("--env_file", dest="env_pickle_file", type="str",
-                  help="Pickle file storing the mixed environment", default=None)#"escape_room_14_0.8.pickle")
+                  help="Pickle file storing the mixed environment", default="escape_room_14_0.8.pickle")
 parser.add_option("--id", dest="id", type="str",
                   help="Identifier of the script", default=None)
 parser.add_option("--path", dest="path", type="str",
@@ -155,11 +155,11 @@ with open(os.path.join(folder_results, 'settings.conf'), 'w') as f:
 start_sim = in_options.nb_sim_offset
 end_sim = start_sim + in_options.nb_simulations
 for rep in range(start_sim, end_sim):
-    seed = seed_sequence[rep]  # set seed
+    seed = seed_sequence[rep-start_sim]  # set seed
     #seed = 1011005946
     np.random.seed(seed)
     random.seed(seed)
-    print("rep: {}".format(rep))
+    print("rep: {}/{}".format(rep-start_sim, in_options.nb_simulations))
 
     name = "trace_{}".format(rep)
     ucrl_log = ucrl_logger.create_multilogger(logger_name=name,
