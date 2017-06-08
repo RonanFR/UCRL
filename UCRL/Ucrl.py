@@ -49,6 +49,7 @@ class AbstractUCRL(object):
         self.total_reward = 0
         self.total_time = 0
         self.regret = [0]  # cumulative regret of the learning algorithm
+        self.regret_unit_time = [0]
         self.unit_duration = [1]  # ratios (nb of time steps)/(nb of decision steps)
         self.span_values = []
         self.span_times = []
@@ -130,7 +131,6 @@ class UcrlMdp(AbstractUCRL):
 
         self.solver_times = []
         self.simulation_times = []
-        self.regret_unit_time = []
 
         t_star_all = time.perf_counter()
         while self.total_time < duration:

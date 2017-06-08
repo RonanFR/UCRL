@@ -45,10 +45,14 @@ parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
                   help="Number of repetitions", default=1)
+parser.add_option("--rep_offset", dest="nb_sim_offset", type="int",
+                  help="Repetitions starts at the given number", default=0)
 parser.add_option("--env_file", dest="env_pickle_file", type="str",
                   help="Pickle file storing the mixed environment", default=None)#"escape_room_14_0.8.pickle")
 parser.add_option("--id", dest="id", type="str",
                   help="Identifier of the script", default=None)
+parser.add_option("--path", dest="path", type="str",
+                  help="Path to the folder where to store results", default=None)
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
@@ -76,7 +80,11 @@ group1.add_option("-a", "--alg", dest="algorithm", type="str",
 
 (in_options, in_args) = parser.parse_args()
 
+if in_options.id and in_options.path:
+    parser.error("options --id and --path are mutually exclusive")
+
 assert in_options.algorithm in ["UCRL", "SUCRL_v2", "SUCRL_v3", "FSUCRLv1", "FSUCRLv2"]
+assert in_options.nb_sim_offset >= 0
 
 if in_options.r_max < 0:
     in_options.r_max = in_options.dimension
@@ -121,11 +129,16 @@ if in_options.algorithm != "UCRL":
 #     if col == dimension-1:
 #         print("")
 
-folder_results = os.path.abspath('{}_4rooms_{}'.format(in_options.algorithm,
-                                                       in_options.id))
-if os.path.exists(folder_results):
-    shutil.rmtree(folder_results)
-os.makedirs(folder_results)
+if in_options.path is None:
+    folder_results = os.path.abspath('{}_4rooms_{}'.format(in_options.algorithm,
+                                                           in_options.id))
+    if os.path.exists(folder_results):
+        shutil.rmtree(folder_results)
+    os.makedirs(folder_results)
+else:
+    folder_results = os.path.abspath(in_options.path)
+    if not os.path.exists(folder_results):
+        os.makedirs(folder_results)
 
 np.random.seed(in_options.seed_0)
 random.seed(in_options.seed_0)
@@ -139,7 +152,9 @@ with open(os.path.join(folder_results, 'settings.conf'), 'w') as f:
 # ------------------------------------------------------------------------------
 # Main loop
 # ------------------------------------------------------------------------------
-for rep in range(in_options.nb_simulations):
+start_sim = in_options.nb_sim_offset
+end_sim = start_sim + in_options.nb_simulations
+for rep in range(start_sim, end_sim):
     seed = seed_sequence[rep]  # set seed
     #seed = 1011005946
     np.random.seed(seed)

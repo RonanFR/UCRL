@@ -95,7 +95,6 @@ class FSUCRLv1(AbstractUCRL):
 
         self.solver_times = []
         self.simulation_times = []
-        self.regret_unit_time = []
 
         t_star_all = time.perf_counter()
         while self.total_time < duration:
