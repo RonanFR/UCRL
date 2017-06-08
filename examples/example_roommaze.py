@@ -76,7 +76,7 @@ group1.add_option("-a", "--alg", dest="algorithm", type="str",
 
 (in_options, in_args) = parser.parse_args()
 
-assert in_options.algorithm in ["UCRL", "SUCRL_v1", "SUCRL_v2", "FSUCRLv3", "FSUCRLv2"]
+assert in_options.algorithm in ["UCRL", "SUCRL_v2", "SUCRL_v3", "FSUCRLv1", "FSUCRLv2"]
 
 if in_options.r_max < 0:
     in_options.r_max = in_options.dimension
