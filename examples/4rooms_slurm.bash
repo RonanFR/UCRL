@@ -10,7 +10,7 @@ dim=14
 duration=160000000
 N_parallel_rep=1
 repetitions=5
-init_seed=(114364114 86231 34556 2538764)
+init_seed=(114364114 679848179 375341576 340061651 311346802 945527102 1028531057 358887046 299813034 472903536 650815502 931560826 391431306 111281634 55536093 484610172 131932607 835579495 82081514 603410165 467299485)
 rmax=1 #${dim}
 exe_file=../example_roommaze.py 
 
@@ -32,7 +32,7 @@ do
     off=$((pr*repetitions))
     for (( j=0; j<${#ALGS[@]}; j++ ))
     do
-        echo ${j} ${ALGS[$j]}
+        echo ${pr} ${j} ${ALGS[$j]}
         
         i=1
         out_name="${ALGS[$j]}_${pr}_${dim}_%j.out"
