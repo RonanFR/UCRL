@@ -29,6 +29,7 @@ ALPHAS=" --p_alpha 0.02 --mc_alpha 0.02 --r_alpha 0.8 --tau_alpha 0.8 "
 
 for (( pr=0; pr<${N_parallel_rep}; pr++ ))
 do
+    off=$((pr*repetitions))
     for (( j=0; j<${#ALGS[@]}; j++ ))
     do
         echo ${j} ${ALGS[$j]}
@@ -54,7 +55,7 @@ do
         echo "export NUMEXPR_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
         
         #cmdp=" --id c${i}"
-        cmdp=" --path ${ALGS[$j]}_4rooms_c${i}"
+        cmdp="--rep_offset ${off} --path ${ALGS[$j]}_4rooms_c${i}"
         
         echo "python ${exe_file} --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --rmax ${rmax} -r ${repetitions} --seed ${init_seed[$pr]} ${cmdp}" >> ${fname}
         i=$((i+1))
