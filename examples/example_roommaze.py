@@ -48,7 +48,7 @@ parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
 parser.add_option("--rep_offset", dest="nb_sim_offset", type="int",
                   help="Repetitions starts at the given number", default=0)
 parser.add_option("--env_file", dest="env_pickle_file", type="str",
-                  help="Pickle file storing the mixed environment", default="escape_room_14_0.8.pickle")
+                  help="Pickle file storing the mixed environment", default=None) #"escape_room_14_0.8.pickle")
 parser.add_option("--id", dest="id", type="str",
                   help="Identifier of the script", default=None)
 parser.add_option("--path", dest="path", type="str",
