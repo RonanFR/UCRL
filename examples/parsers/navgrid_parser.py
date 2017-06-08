@@ -32,7 +32,7 @@ plot_temporal_abstraction(folder=orig_folder,
                           configurations=configurations,
                           output_filename="navgrid_{}_temporal_abstraction".format(dim),
                           use_ucrl=True,
-                          chek_keys = chek_keys)
+                          check_keys = chek_keys)
 for conf in configurations:
     plot_regret(orig_folder, domain, ["UCRL"] + algorithms, conf,
                           output_filename="navgrid_{}_regret_{}".format(dim, conf))

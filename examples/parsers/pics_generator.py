@@ -124,7 +124,7 @@ def plot_temporal_abstraction(folder, domain, algorithms, configurations,
                 if i == 0:
                     settings0 = settings
 
-            for key in chek_keys:
+            for key in check_keys:
                 assert settings[key] == settings0[key]
                 if use_ucrl and key != "t_max":
                         assert mdp_settings[key] == settings[key]
