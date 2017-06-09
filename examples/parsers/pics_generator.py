@@ -93,8 +93,12 @@ def load_mean_values(folder, attributes):
         m = np.array([x[0:max_common_length] for x in metric])
         m_mean = np.mean(m, axis=0)
         m_std = np.std(m, axis=0)
+        m_max = np.max(m, axis=0)
+        m_min = np.min(m, axis=0)
         data['{}_mean'.format(k)] = m_mean
         data['{}_std'.format(k)] = m_std
+        data['{}_max'.format(k)] = m_max
+        data['{}_min'.format(k)] = m_min
 
     return data
 
@@ -163,7 +167,7 @@ def plot_temporal_abstraction(folder, domain, algorithms, configurations,
 
 
 def plot_regret(folder, domain, algorithms, configuration,
-                output_filename):
+                output_filename, plot_every=1):
     data = {}
     for a in algorithms:
         data[a] = {}
@@ -177,7 +181,10 @@ def plot_regret(folder, domain, algorithms, configuration,
         mv = load_mean_values(folder=lfolder,
                               attributes=["regret", "regret_unit_time"])
         data[alg]["regret"] = mv["regret_mean"]
-        data[alg]["regret_unit_time"] = [0] + mv["regret_unit_time_mean"].tolist()
+        #data[alg]["regret_error"] = mv["regret_std"]
+        data[alg]["regret_max"] = mv["regret_max"]
+        data[alg]["regret_min"] = mv["regret_min"]
+        data[alg]["regret_unit_time"] = mv["regret_unit_time_mean"]
 
     plt.figure()
     xmin = np.inf
@@ -189,7 +196,11 @@ def plot_regret(folder, domain, algorithms, configuration,
         del prop['markersize']
         # if k != "UCRL" and domain == 'navgrid':
         #     assert el['t_max'] == tmax, '{}: {} {}'.format(k, tmax, el['t_max'])
-        plt.plot(el['regret_unit_time'], el['regret'], **prop)
+        t = range(0, len(el['regret_unit_time']), plot_every)
+        ax1 = plt.plot(el['regret_unit_time'][t], el['regret'][t], **prop)
+        ax1_col = ax1[0].get_color()
+        plt.fill_between(el['regret_unit_time'][t],
+                         el['regret_min'][t] , el['regret_max'][t], facecolor=ax1_col, alpha=0.4)
         xmin = min(xmin, el['regret_unit_time'][0])
         xmax = max(xmax, el['regret_unit_time'][-1])
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
@@ -198,9 +209,10 @@ def plot_regret(folder, domain, algorithms, configuration,
     plt.xlabel("Duration $T_{n}$")
     plt.title("config: {}".format(configuration))
     plt.legend()
+    plt.xlim([xmin, xmax])
+
+    # save figures
     tikz_save('{}.tex'.format(output_filename))
     plt.savefig('{}.png'.format(output_filename))
-
-    plt.xlim([xmin, xmax])
 
     plt.show()
