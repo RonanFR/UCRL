@@ -4,6 +4,8 @@ from ...evi import EVI
 import numpy as np
 import copy
 from tqdm import tqdm
+from six import StringIO
+import sys
 
 
 def coord2state(row, col, dimension):
@@ -246,8 +248,8 @@ class FourRoomsMaze(Environment):
                         estimated_rewards[s, a_idx] = self.reward_distribution_states.mean
 
             evi = EVI(nb_states=nb_states,
-                           actions_per_state=self.state_actions,
-                           use_bernstein=0)
+                      actions_per_state=self.state_actions,
+                      use_bernstein=0)
 
             span = evi.evi(
                 policy_indices=policy_indices,
@@ -260,7 +262,7 @@ class FourRoomsMaze(Environment):
                 beta_tau=np.zeros((nb_states, 4)),
                 tau_max=1, tau_min=1, tau=1,
                 r_max=self.dimension,
-                epsilon=0.01
+                epsilon=1e-12
             )
 
             u1, u2 = evi.get_uvectors()
@@ -319,6 +321,62 @@ class FourRoomsMaze(Environment):
             return 1
         else:
             return 3
+
+    def draw_map(self):
+        dim = self.dimension
+        gmap = []
+        for i in range(dim + 3):
+            gmap.append([])
+            for i in range(dim + 3):
+                gmap[-1].append(" ")
+
+        for i in range(dim + 3):
+            for j in range(dim + 3):
+                if i == 0 or i == dim + 2:
+                    if j == 0 or j == dim // 2 + 1 or j == dim + 2:
+                        gmap[i][j] = "+"
+                    else:
+                        gmap[i][j] = "-"
+                elif i == dim // 2 + 1:
+                    if j == 0 or j == dim // 2 + 1 or j == dim + 2:
+                        gmap[i][j] = "+"
+                    elif j == 1 + dim // 4 or j == dim + 1 - dim // 4:
+                        gmap[i][j] = "D"
+                    else:
+                        gmap[i][j] = "-"
+                else:
+                    if j == 0 or j == dim + 2:
+                        gmap[i][j] = "|"
+                    elif j == dim // 2 + 1:
+                        if i == 1 + dim // 4 or i == dim + 1 - dim // 4:
+                            gmap[i][j] = "D"
+                        else:
+                            gmap[i][j] = "|"
+                    else:
+                        gmap[i][j] = "x"
+        self.MAP = gmap
+
+    def render(self, mode='human', close=False):
+        if close:
+            return
+
+        if hasattr(self, "MAP"):
+            self.draw_map()
+
+        outfile = StringIO() if mode == 'ansi' else sys.stdout
+
+        out = self.MAP.copy().tolist()
+        out = [[c.decode('utf-8') for c in line] for line in out]
+
+        outfile.write("\n".join(["".join(row) for row in out])+"\n")
+        outfile.write("  ({})\n".format(self.lastaction))
+        # if self.lastaction is not None:
+        #     outfile.write("  ({})\n".format(["East", "South", "West", "North",][self.lastaction]))
+        # else: outfile.write("\n")
+
+        # No need to return anything for human
+        if mode != 'human':
+            return outfile
 
 
 class EscapeRoom(MixedEnvironment):
