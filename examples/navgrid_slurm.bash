@@ -63,7 +63,7 @@ do
             echo "export NUMEXPR_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
             
             #cmdp=" --id c${i}"
-            cmdp="--rep_offset ${off} --path ${ALGS[$j]}_4rooms_c${i}"
+            cmdp="--rep_offset ${off} --path ${ALGS[$j]}_navgrid_c${i}"
 
             echo "python ${exe_file} -b ${bound_type} --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --tmax ${t} --rmax ${rmax} -r ${repetitions} --seed ${init_seed[$pr]} ${cmdp}" >> ${fname}
             i=$((i+1))

@@ -107,7 +107,7 @@ def plot_temporal_abstraction(folder, domain, algorithms, configurations,
                               output_filename, use_ucrl=True, check_keys=[]):
     if use_ucrl:
         lfolder = os.path.join(folder, "{}_{}_{}".format("UCRL", domain, "c1"))
-        with open(os.path.join(lfolder, "settings.conf"), "r") as f:
+        with open(os.path.join(lfolder, "settings0.conf"), "r") as f:
             mdp_settings = json.load(f)
         mv = load_mean_values(lfolder, ["regret"])
         mdp_regret = mv['regret_mean'][-1]
@@ -123,7 +123,7 @@ def plot_temporal_abstraction(folder, domain, algorithms, configurations,
         for i, alg in enumerate(algorithms):
             lfolder = os.path.join(folder,
                                    "{}_{}_{}".format(alg, domain, conf))
-            with open(os.path.join(lfolder, "settings.conf"), "r") as f:
+            with open(os.path.join(lfolder, "settings0.conf"), "r") as f:
                 settings = json.load(f)
                 if i == 0:
                     settings0 = settings
@@ -167,7 +167,8 @@ def plot_temporal_abstraction(folder, domain, algorithms, configurations,
 
 
 def plot_regret(folder, domain, algorithms, configuration,
-                output_filename, plot_every=1):
+                output_filename, plot_every=1, log_scale=False,
+                generate_tex=False):
     data = {}
     for a in algorithms:
         data[a] = {}
@@ -197,14 +198,21 @@ def plot_regret(folder, domain, algorithms, configuration,
         # if k != "UCRL" and domain == 'navgrid':
         #     assert el['t_max'] == tmax, '{}: {} {}'.format(k, tmax, el['t_max'])
         t = range(0, len(el['regret_unit_time']), plot_every)
-        ax1 = plt.plot(el['regret_unit_time'][t], el['regret'][t], **prop)
-        ax1_col = ax1[0].get_color()
-        plt.fill_between(el['regret_unit_time'][t],
-                         el['regret_min'][t] , el['regret_max'][t], facecolor=ax1_col, alpha=0.4)
+        if log_scale:
+            ax1 = plt.loglog(el['regret_unit_time'][t], el['regret'][t], **prop)
+        else:
+            # ax1 = plt.plot(el['regret_unit_time'][t], np.gradient(el['regret'][t]- 0.0009 * el['regret_unit_time'][t], 1000*plot_every), **prop)
+            # ax1 = plt.plot(el['regret_unit_time'][t],
+            #     el['regret'][t] - 0.0009 * el['regret_unit_time'][t], **prop)
+            ax1 = plt.plot(el['regret_unit_time'][t], el['regret'][t], **prop)
+            ax1_col = ax1[0].get_color()
+            plt.fill_between(el['regret_unit_time'][t],
+                          el['regret_min'][t] , el['regret_max'][t], facecolor=ax1_col, alpha=0.4)
         xmin = min(xmin, el['regret_unit_time'][0])
         xmax = max(xmax, el['regret_unit_time'][-1])
-    plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-    plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
+    if not log_scale:
+        plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+        plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
     plt.ylabel("Cumulative Regret $\Delta (T_{n})$")
     plt.xlabel("Duration $T_{n}$")
     plt.title("config: {}".format(configuration))
@@ -212,7 +220,8 @@ def plot_regret(folder, domain, algorithms, configuration,
     plt.xlim([xmin, xmax])
 
     # save figures
-    tikz_save('{}.tex'.format(output_filename))
+    if generate_tex:
+        tikz_save('{}.tex'.format(output_filename))
     plt.savefig('{}.png'.format(output_filename))
 
-    plt.show()
+    #plt.show()

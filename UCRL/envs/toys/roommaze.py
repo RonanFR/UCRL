@@ -1,6 +1,7 @@
 from .. import Environment, MixedEnvironment
 from ...cython import extended_value_iteration
 from ...evi import EVI
+from ... import utils
 import numpy as np
 import copy
 from tqdm import tqdm
@@ -19,6 +20,39 @@ def state2coord(state, dimension):
     assert state < dimension**2
     col, row = state % dimension, state // dimension
     return row, col
+
+def draw_map(dim):
+    gmap = []
+    for i in range(dim + 3):
+        gmap.append([])
+        for i in range(dim + 3):
+            gmap[-1].append(" ")
+
+    for i in range(dim + 3):
+        for j in range(dim + 3):
+            if i == 0 or i == dim + 2:
+                if j == 0 or j == dim // 2 + 1 or j == dim + 2:
+                    gmap[i][j] = "+"
+                else:
+                    gmap[i][j] = "-"
+            elif i == dim // 2 + 1:
+                if j == 0 or j == dim // 2 + 1 or j == dim + 2:
+                    gmap[i][j] = "+"
+                elif j == 1 + dim // 4 or j == dim + 1 - dim // 4:
+                    gmap[i][j] = "D"
+                else:
+                    gmap[i][j] = "-"
+            else:
+                if j == 0 or j == dim + 2:
+                    gmap[i][j] = "|"
+                elif j == dim // 2 + 1:
+                    if i == 1 + dim // 4 or i == dim + 1 - dim // 4:
+                        gmap[i][j] = "D"
+                    else:
+                        gmap[i][j] = "|"
+                else:
+                    gmap[i][j] = "x"
+    return gmap
 
 
 class FourRoomsMaze(Environment):
@@ -50,6 +84,7 @@ class FourRoomsMaze(Environment):
         initial_state = coord2state(*initial_position, dimension)
         super(FourRoomsMaze, self).__init__(initial_state, state_actions)  # call parent constructor
         self.holding_time = 1
+        self.lastaction = None
 
     def construct_transition_matrix(self, dimension, p_succ):
         nb_states = dimension**2
@@ -214,6 +249,7 @@ class FourRoomsMaze(Environment):
 
 
     def execute(self, action):
+        self.lastaction = action
         row, col = state2coord(self.state, self.dimension) # current coordinates
         try:
             action_index = self.state_actions[self.state].index(action)
@@ -322,51 +358,25 @@ class FourRoomsMaze(Environment):
         else:
             return 3
 
-    def draw_map(self):
-        dim = self.dimension
-        gmap = []
-        for i in range(dim + 3):
-            gmap.append([])
-            for i in range(dim + 3):
-                gmap[-1].append(" ")
-
-        for i in range(dim + 3):
-            for j in range(dim + 3):
-                if i == 0 or i == dim + 2:
-                    if j == 0 or j == dim // 2 + 1 or j == dim + 2:
-                        gmap[i][j] = "+"
-                    else:
-                        gmap[i][j] = "-"
-                elif i == dim // 2 + 1:
-                    if j == 0 or j == dim // 2 + 1 or j == dim + 2:
-                        gmap[i][j] = "+"
-                    elif j == 1 + dim // 4 or j == dim + 1 - dim // 4:
-                        gmap[i][j] = "D"
-                    else:
-                        gmap[i][j] = "-"
-                else:
-                    if j == 0 or j == dim + 2:
-                        gmap[i][j] = "|"
-                    elif j == dim // 2 + 1:
-                        if i == 1 + dim // 4 or i == dim + 1 - dim // 4:
-                            gmap[i][j] = "D"
-                        else:
-                            gmap[i][j] = "|"
-                    else:
-                        gmap[i][j] = "x"
-        self.MAP = gmap
-
     def render(self, mode='human', close=False):
         if close:
             return
 
-        if hasattr(self, "MAP"):
-            self.draw_map()
+        if not hasattr(self, "MAP"):
+            self.MAP = draw_map(self.dimension)
+
+        row, col = self.curr_coordinates
+        def set_offset(x): return x + 2 if x >= self.dimension // 2 else x + 1
+
+        row = set_offset(row)
+        col = set_offset(col)
 
         outfile = StringIO() if mode == 'ansi' else sys.stdout
 
-        out = self.MAP.copy().tolist()
+        out = copy.deepcopy(self.MAP)
         out = [[c.decode('utf-8') for c in line] for line in out]
+
+        out[row][col] = utils.colorize(out[row][col], 'magenta')
 
         outfile.write("\n".join(["".join(row) for row in out])+"\n")
         outfile.write("  ({})\n".format(self.lastaction))
@@ -378,6 +388,32 @@ class FourRoomsMaze(Environment):
         if mode != 'human':
             return outfile
 
+    def render_policy(self, policy, outfile=None):
+        if outfile is None:
+            outfile = sys.stdout
+
+        def set_offset(x): return x + 2 if x >= self.dimension // 2 else x + 1
+        if not hasattr(self, "MAP"):
+            self.MAP = draw_map(self.dimension)
+
+        if self.nb_states != len(policy):
+            raise ValueError("We expect a deterministic policy, "
+                             "len(policy) == nb_states ({} != {})".format(len(policy), self.nb_states))
+
+        out = copy.deepcopy(self.MAP)
+        action_syms = [">", "v", "<", "^"]
+        for i in range(self.nb_states):
+            row, col = state2coord(i, self.dimension)
+
+            row = set_offset(row)
+            col = set_offset(col)
+
+            out[row][col] = action_syms[policy[i]]
+
+        outfile.write("\n".join(["".join(row) for row in out]) + "\n")
+        outfile.write("\n")
+        return outfile
+
 
 class EscapeRoom(MixedEnvironment):
 
@@ -388,6 +424,7 @@ class EscapeRoom(MixedEnvironment):
         dim = maze.dimension
         nb_states = maze.nb_states
 
+        state_syms = []
         state_options = []
         options_policies = []
         options_terminating_conditions = []
@@ -407,7 +444,10 @@ class EscapeRoom(MixedEnvironment):
                 state_options.append([option_id])
                 option_id += 1
                 assert sum(map(len,state_options)) == 1
+                action_syms = ["R"]
+                state_syms.append(action_syms)
             else:
+                action_syms = ["V", "H", "C", "M"]
                 room_nb = maze.get_room_number(s)
                 if room_nb==0: # top left room
                     target_states = [
@@ -455,11 +495,17 @@ class EscapeRoom(MixedEnvironment):
                 assert s in rooms[room_nb]
 
                 if s in target_states:
+                    new_syms = []
+                    for i,el in enumerate(target_states):
+                        if el != s:
+                            new_syms.append(action_syms[i])
+                    action_syms = new_syms
                     target_states.remove(s)
                 assert s not in target_states
 
                 policies = self.solve_forward_model(maze, target_states)
                 state_options.append([])
+                state_syms.append(action_syms)
                 for i in range(len(target_states)):
                     options_policies.append(policies[i])
                     loc_otc = copy.deepcopy(o_tc)
@@ -477,6 +523,8 @@ class EscapeRoom(MixedEnvironment):
         assert option_id == nb_states*4 - 8 -2 #starting state has just one option
         assert option_id == len(options_policies)
         assert option_id == len(options_terminating_conditions)
+
+        self.state_syms = state_syms
 
         super(EscapeRoom, self).__init__(environment=maze,
                                          state_options=state_options,
@@ -650,5 +698,32 @@ class EscapeRoom(MixedEnvironment):
         self.real_condition_numbers_opt = condition_numbers_opt
         self.real_mu_opt = mu_opt
         return self.real_mu_opt, self.real_condition_numbers_opt
+
+    def render_policy(self, policy, outfile=None):
+        if outfile is None:
+            outfile = sys.stdout
+
+        def set_offset(x): return x + 2 if x >= self.dimension // 2 else x + 1
+        if not hasattr(self, "MAP"):
+            self.MAP = draw_map(self.dimension)
+
+        if self.nb_states != len(policy):
+            raise ValueError("We expect a deterministic policy, "
+                             "len(policy) == nb_states ({} != {})".format(len(policy), self.nb_states))
+
+        out = copy.deepcopy(self.MAP)
+        action_syms = [">", "v", "<", "^"]
+        for i in range(self.nb_states):
+            row, col = state2coord(i, self.dimension)
+
+            row = set_offset(row)
+            col = set_offset(col)
+
+            act = policy[i]
+            out[row][col] = self.state_syms[i][act]
+
+        outfile.write("\n".join(["".join(row) for row in out]) + "\n")
+        outfile.write("\n")
+        return outfile
 
 

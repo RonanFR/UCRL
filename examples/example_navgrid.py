@@ -69,7 +69,11 @@ alg_desc = """Here the description of the algorithms
 ... v2: sigma_tau = max(sigma_tau)                                            
 .       sigma_R = r_max sqrt(tau_max + max(sigma_tau)^2)                      
 ... v3: sigma_tau -> per option                                               
-.       sigma_R = r_max sqrt(tau_max + max(sigma_tau)^2) -> per option         
+.       sigma_R = r_max sqrt(tau_max + max(sigma_tau)^2) -> per option             
+... v4: max sigma_tau                                               
+.       sigma_R = 0             
+... v5: sigma_tau -> per option                                               
+.       sigma_R = 0         
 |- FSUCRLv1                                                                      
 |- FSUCRLv2                                                                      
 """

@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
-                  help="dimension of the gridworld", default=6)
+                  help="dimension of the gridworld", default=14)
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="duration of the experiment", default=30000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
