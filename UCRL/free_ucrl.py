@@ -18,7 +18,7 @@ class FSUCRLv1(AbstractUCRL):
 
         assert bound_type in ["chernoff",  "chernoff_statedim", "bernstein"]
         assert isinstance(environment, MixedEnvironment)
-        run_py = False
+        run_py = True
         self.check_with_py = False
         run_py = False if self.check_with_py else run_py
 
@@ -113,6 +113,8 @@ class FSUCRLv1(AbstractUCRL):
             t0 = time.time()
             span_value = self.solve_optimistic_model()
             t1 = time.time()
+
+            self.environment.render_policy(self.policy_indices)
 
             span_value /= self.r_max
             if self.verbose > 0:
@@ -339,7 +341,7 @@ class FSUCRLv1(AbstractUCRL):
                 delta=self.delta,
                 max_nb_actions=max_nb_actions,
                 total_time=self.total_time,
-                range_mu_p=self.alpha_mc,
+                alpha_mu=self.alpha_mc,
             r_max=self.r_max)
 
             py_span = self.pyevi.run(
@@ -384,9 +386,12 @@ class FSUCRLv2(FSUCRLv1):
                  bound_type="chernoff",
                  verbose = 0, logger=default_logger):
 
-        py = False
-        if py:
-            evi_solver = self.pyevi = PyEVI_FSUCRLv2(nb_states=environment.nb_states,
+        run_py = True
+        self.check_with_py = False
+        run_py = False if self.check_with_py else run_py
+
+        if run_py or self.check_with_py:
+            evi_solver = PyEVI_FSUCRLv2(nb_states=environment.nb_states,
                                     nb_options=environment.nb_options,
                                     threshold=environment.threshold_options,
                                     macro_actions_per_state=environment.get_state_actions(),
@@ -395,16 +400,19 @@ class FSUCRLv2(FSUCRLv1):
                                     options_terminating_conditions=environment.options_terminating_conditions,
                                     mdp_actions_per_state=environment.environment.get_state_actions(),
                                     bound_type=bound_type)
-        else:
+            if self.check_with_py:
+                self.pyevi = evi_solver
+
+        if not run_py:
             evi_solver = EVI_FSUCRLv2(nb_states=environment.nb_states,
-                                      nb_options=environment.nb_options,
-                                      threshold=environment.threshold_options,
-                                      macro_actions_per_state=environment.get_state_actions(),
-                                      reachable_states_per_option=environment.reachable_states_per_option,
-                                      option_policies=environment.options_policies,
-                                      options_terminating_conditions=environment.options_terminating_conditions,
-                                      mdp_actions_per_state=environment.environment.get_state_actions(),
-                                      bound_type=bound_type)
+                                  nb_options=environment.nb_options,
+                                  threshold=environment.threshold_options,
+                                  macro_actions_per_state=environment.get_state_actions(),
+                                  reachable_states_per_option=environment.reachable_states_per_option,
+                                  option_policies=environment.options_policies,
+                                  options_terminating_conditions=environment.options_terminating_conditions,
+                                  mdp_actions_per_state=environment.environment.get_state_actions(),
+                                  bound_type=bound_type)
 
         super(FSUCRLv2, self).__init__(
             environment=environment,
@@ -415,24 +423,24 @@ class FSUCRLv2(FSUCRLv1):
             evi_solver=evi_solver
         )
 
+        self.v1solver = EVI_FSUCRLv1(nb_states=environment.nb_states,
+                     nb_options=environment.nb_options,
+                     threshold=environment.threshold_options,
+                     macro_actions_per_state=environment.get_state_actions(),
+                     reachable_states_per_option=environment.reachable_states_per_option,
+                     option_policies=environment.options_policies,
+                     options_terminating_conditions=environment.options_terminating_conditions,
+                     mdp_actions_per_state=environment.environment.get_state_actions(),
+                     bound_type=bound_type)
+
     def solve_optimistic_model(self):
         beta_r = self.beta_r()  # confidence bounds on rewards
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
         max_nb_actions = self.nb_observations.shape[1]
 
-        # self.pyevi.compute_prerun_info(
-        #     estimated_probabilities_mdp=self.estimated_probabilities,
-        #     estimated_rewards_mdp=self.estimated_rewards_mdp,
-        #     beta_r=beta_r,
-        #     nb_observations_mdp=self.nb_observations_mdp,
-        #     total_time=self.total_time,
-        #     delta=self.delta,
-        #     max_nb_actions=max_nb_actions,
-        #     range_opt_p=self.range_mu_p)
-
         t0 = time.perf_counter()
         check_v = self.opt_solver.compute_prerun_info(
-            estimated_probabilities_mdp=self.P_mdp, #self.estimated_probabilities_mdp,
+            estimated_probabilities_mdp=self.P_mdp, # self.estimated_probabilities_mdp,
             estimated_rewards_mdp=self.estimated_rewards_mdp,
             beta_r=beta_r,
             nb_observations_mdp=self.nb_observations_mdp,
@@ -440,56 +448,143 @@ class FSUCRLv2(FSUCRLv1):
             delta=self.delta,
             max_nb_actions=max_nb_actions,
             alpha_mc=self.alpha_mc,
-        r_max=self.r_max)
+            r_max=self.r_max)
         t1 = time.perf_counter()
 
 
         if check_v != 0:
             raise ValueError("[FSUCRLv1] Error in the computation of P_MC")
 
-        # p, b = self.opt_solver.get_opt_p_and_beta()
-        # rt = self.opt_solver.get_r_tilde_opt()
-        # assert len(p) == len(self.pyevi.p_hat_opt)
-        # assert len(b) == len(self.pyevi.beta_opt_p)
-        # assert len(rt) == len(self.pyevi.r_tilde_opt)
-        # for i in range(len(p)):
-        #     assert np.allclose(p[i],self.pyevi.p_hat_opt[i])
-        #     assert np.allclose(np.sum(p[i], axis=1),1)
-        #     assert np.allclose(b[i],self.pyevi.beta_opt_p[i])
-        #     assert np.allclose(rt[i],self.pyevi.r_tilde_opt[i])
-
         new_span = self.opt_solver.run(
             policy_indices=self.policy_indices,
             policy=self.policy,
-            p_hat=self.P, #self.estimated_probabilities,
+            p_hat=self.P,  # self.estimated_probabilities,
             r_hat_mdp=self.estimated_rewards_mdp,
             beta_p=beta_p,
             beta_r_mdp=beta_r,
             r_max=self.r_max,
             epsilon=self.r_max / m.sqrt(self.iteration + 1))
         t2 = time.perf_counter()
-        self.solver_times.append((t1-t0, t2-t1))
-        self.logger.info("{}".format((t1-t0, t2-t1)))
+        self.solver_times.append((t1 - t0, t2 - t1))
+        self.logger.info("{}".format((t1 - t0, t2 - t1)))
 
         if new_span < 0:
             raise ValueError("[FSUCRLv2] Error in EVI")
-
-        # py_span = self.pyevi.run(
-        #     policy_indices=self.policy_indices,
-        #     policy=self.policy,
-        #     p_hat=self.estimated_probabilities,
-        #     r_hat_mdp=self.estimated_rewards_mdp,
-        #     beta_p=beta_p,
-        #     beta_r_mdp=beta_r,
-        #     r_max=self.r_max,
-        #     epsilon=self.r_max / m.sqrt(self.iteration + 1))
-
-        # print("{}, {}".format(new_span, py_span))
-        # assert np.isclose(new_span, py_span), "{} != {}".format(new_span, py_span)
 
         if new_span < 0:
             self.logger.info("ERROR {}".format(new_span))
 
         assert new_span > -0.00001, "{}".format(new_span)
 
+        # if self.episode > 18:
+        #     self.solve_with_v1()
+
+        # # CHECK WITH PYTHON IMPL
+        if self.check_with_py:
+            self.pyevi.compute_prerun_info(  # environment=self.environment,
+                estimated_probabilities_mdp=self.P_mdp, #self.estimated_probabilities_mdp,
+                estimated_rewards_mdp=self.estimated_rewards_mdp,
+                beta_r=beta_r,
+                nb_observations_mdp=self.nb_observations_mdp,
+                delta=self.delta,
+                max_nb_actions=max_nb_actions,
+                total_time=self.total_time,
+                alpha_mc=self.alpha_mc,
+                r_max=self.r_max)
+
+            py_span = self.pyevi.run(
+                policy_indices=self.policy_indices,
+                policy=self.policy,
+                p_hat=self.P,#self.estimated_probabilities,
+                r_hat_mdp=self.estimated_rewards_mdp,
+                beta_p=beta_p,
+                beta_r_mdp=beta_r,
+                r_max=self.r_max,
+                epsilon=self.r_max / m.sqrt(self.iteration + 1))
+
+            r = self.opt_solver.get_r_tilde_opt()
+            assert len(r) == len(self.pyevi.r_tilde_opt)
+            for x, y in zip(r, self.pyevi.r_tilde_opt):
+                assert np.allclose(x, y)
+
+            p, b = self.opt_solver.get_opt_p_and_beta()
+            rt = self.opt_solver.get_r_tilde_opt()
+            assert len(p) == len(self.pyevi.p_hat_opt)
+            assert len(b) == len(self.pyevi.beta_opt_p)
+            assert len(rt) == len(self.pyevi.r_tilde_opt)
+            for i in range(len(p)):
+                assert np.allclose(p[i], self.pyevi.p_hat_opt[i])
+                assert np.allclose(np.sum(p[i], axis=1), 1)
+                assert np.allclose(b[i], self.pyevi.beta_opt_p[i])
+                assert np.allclose(rt[i], self.pyevi.r_tilde_opt[i])
+            assert np.isclose(new_span, py_span), "{} != {}".format(new_span, py_span)
+
         return new_span
+
+    # def solve_with_v1(self):
+    #     beta_r = self.beta_r()  # confidence bounds on rewards
+    #     beta_p = self.beta_p()  # confidence bounds on transition probabilities
+    #     max_nb_actions = self.nb_observations.shape[1]
+    #     check_v = self.v1solver.compute_mu_info2(
+    #         # environment=self.environment,
+    #         estimated_probabilities_mdp=self.P_mdp,
+    #         # self.estimated_probabilities_mdp,
+    #         estimated_rewards_mdp=self.estimated_rewards_mdp,
+    #         beta_r=beta_r,
+    #         nb_observations_mdp=self.nb_observations_mdp,
+    #         delta=self.delta,
+    #         max_nb_actions=max_nb_actions,
+    #         total_time=self.total_time,
+    #         alpha_mc=self.alpha_mc,
+    #         r_max=self.r_max)
+    #
+    #     if check_v != 0:
+    #         raise ValueError("[FSUCRLv1] Error in the computation of mu and ci")
+    #
+    #     import copy
+    #     policy_v1 = copy.deepcopy(self.policy)
+    #     policy_v1_indices = copy.deepcopy(self.policy_indices)
+    #     new_span = self.v1solver.run(
+    #         policy_indices=policy_v1_indices,
+    #         policy=policy_v1,
+    #         p_hat=self.P,  # self.estimated_probabilities,
+    #         r_hat_mdp=self.estimated_rewards_mdp,
+    #         beta_p=beta_p,
+    #         beta_r_mdp=beta_r,
+    #         r_max=self.r_max,
+    #         epsilon=self.r_max / m.sqrt(self.iteration + 1))
+    #
+    #     mu_v1 = self.v1solver.get_mu()
+    #     mu_tilde_v1 = self.v1solver.get_mu_tilde(self.r_max)
+    #     cn_v1 = self.v1solver.get_conditioning_numbers()
+    #
+    #     ptilde_list = self.opt_solver.get_P_prime_tilde()
+    #     mu_tilde_v2 = []
+    #     cn_tilde_v2 = []
+    #     for P in ptilde_list:
+    #         opt_nb_states = P.shape[0]
+    #         Pap = (P + np.eye(opt_nb_states)) / 2.
+    #         D, U = np.linalg.eig(
+    #             np.transpose(Pap))  # eigen decomposition of transpose of P
+    #         sorted_indices = np.argsort(np.real(D))
+    #         mu = np.transpose(np.real(U))[sorted_indices[-1]]
+    #         mu /= np.sum(mu)  # stationary distribution
+    #         mu_tilde_v2.append(mu)
+    #
+    #         P_star = np.repeat(np.array(mu, ndmin=2), opt_nb_states,
+    #                            axis=0)  # limiting matrix
+    #
+    #         # Compute deviation matrix
+    #         I = np.eye(opt_nb_states)  # identity matrix
+    #         Z = np.linalg.inv(I - P + P_star)  # fundamental matrix
+    #         H = np.dot(Z, I - P_star)  # deviation matrix
+    #
+    #         condition_nb = 0  # condition number of deviation matrix
+    #         for i in range(0, opt_nb_states):  # Seneta's condition number
+    #             for j in range(i + 1, opt_nb_states):
+    #                 condition_nb = max(condition_nb,
+    #                                    0.5 * np.linalg.norm(H[i, :] - H[j, :],
+    #                                                         ord=1))
+    #         cn_tilde_v2.append(condition_nb)
+    #
+    #     print(" ")
