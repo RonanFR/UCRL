@@ -14,7 +14,8 @@ class PyEVI_FSUCRLv1(object):
                  option_policies,
                  reachable_states_per_option,
                  options_terminating_conditions,
-                 bound_type="chernoff"):
+                 bound_type="chernoff",
+                 random_state = None):
         self.nb_states = nb_states
         self.nb_options = nb_options
         self.threshold = threshold
@@ -289,7 +290,8 @@ class PyEVI_FSUCRLv2(object):
                  option_policies,
                  reachable_states_per_option,
                  options_terminating_conditions,
-                 bound_type="chernoff"):
+                 bound_type="chernoff",
+                 random_state = None):
         self.nb_states = nb_states
         self.nb_options = nb_options
         self.threshold = threshold
@@ -501,10 +503,13 @@ class PyEVI_FSUCRLv2(object):
                         v = 0.5 * (max(self.w2[o] - self.w1[o]) + min(self.w2[o] - self.w1[o]))
 
                     c1 = v + self.u1[s]
-                    if first_action or m.isclose(c1, self.u2[s], abs_tol=epsilon_opt/2.):
+                    if first_action:
+                        actions_argmax = [action]
+                        actions_indices_argmax = [action_idx]
+                        self.u2[s] = c1
+                    elif m.isclose(c1, self.u2[s], abs_tol=epsilon_opt/2.):
                         actions_argmax.append(action)
                         actions_indices_argmax.append(action_idx)
-                        self.u2[s] = c1
                     elif c1 > self.u2[s]:
                         self.u2[s] = c1
                         actions_argmax = [action]

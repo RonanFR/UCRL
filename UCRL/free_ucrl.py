@@ -10,7 +10,7 @@ import time
 
 
 class FSUCRLv1(AbstractUCRL):
-    def __init__(self, environment, r_max,
+    def __init__(self, environment, r_max, random_state,
                  alpha_r=None, alpha_p=None, alpha_mc=None,
                  bound_type="chernoff",
                  verbose = 0, logger=default_logger,
@@ -33,7 +33,8 @@ class FSUCRLv1(AbstractUCRL):
                     option_policies=environment.options_policies,
                     options_terminating_conditions=environment.options_terminating_conditions,
                     mdp_actions_per_state=environment.environment.get_state_actions(),
-                    bound_type=bound_type)
+                    bound_type=bound_type,
+                    random_state=random_state)
                 if self.check_with_py:
                     self.pyevi = evi_solver
 
@@ -46,7 +47,8 @@ class FSUCRLv1(AbstractUCRL):
                                   option_policies=environment.options_policies,
                                   options_terminating_conditions=environment.options_terminating_conditions,
                                   mdp_actions_per_state=environment.environment.get_state_actions(),
-                                  bound_type=bound_type)
+                                  bound_type=bound_type,
+                                          random_state=random_state)
 
 
         super(FSUCRLv1, self).__init__(environment=environment,
@@ -54,7 +56,8 @@ class FSUCRLv1(AbstractUCRL):
                                        alpha_p=alpha_p, solver=evi_solver,
                                        verbose=verbose,
                                        logger=logger,
-                                       bound_type=bound_type)
+                                       bound_type=bound_type,
+                                       random_state=random_state)
 
         nb_states = self.environment.nb_states
         max_nb_mdp_actions = environment.max_nb_mdp_actions_per_state # actions of the mdp
@@ -381,7 +384,7 @@ class FSUCRLv1(AbstractUCRL):
 
 
 class FSUCRLv2(FSUCRLv1):
-    def __init__(self, environment, r_max,
+    def __init__(self, environment, r_max, random_state,
                  alpha_r=-1, alpha_p=-1, alpha_mc=-1,
                  bound_type="chernoff",
                  verbose = 0, logger=default_logger):
@@ -399,7 +402,8 @@ class FSUCRLv2(FSUCRLv1):
                                     option_policies=environment.options_policies,
                                     options_terminating_conditions=environment.options_terminating_conditions,
                                     mdp_actions_per_state=environment.environment.get_state_actions(),
-                                    bound_type=bound_type)
+                                    bound_type=bound_type,
+                                        random_state=random_state)
             if self.check_with_py:
                 self.pyevi = evi_solver
 
@@ -412,7 +416,8 @@ class FSUCRLv2(FSUCRLv1):
                                   option_policies=environment.options_policies,
                                   options_terminating_conditions=environment.options_terminating_conditions,
                                   mdp_actions_per_state=environment.environment.get_state_actions(),
-                                  bound_type=bound_type)
+                                  bound_type=bound_type,
+                                      random_state=random_state)
 
         super(FSUCRLv2, self).__init__(
             environment=environment,
@@ -420,7 +425,8 @@ class FSUCRLv2(FSUCRLv1):
             alpha_r=alpha_r, alpha_p=alpha_p, alpha_mc=alpha_mc,
             bound_type=bound_type,
             verbose=verbose, logger=logger,
-            evi_solver=evi_solver
+            evi_solver=evi_solver,
+            random_state=random_state
         )
 
         self.v1solver = EVI_FSUCRLv1(nb_states=environment.nb_states,
@@ -431,7 +437,8 @@ class FSUCRLv2(FSUCRLv1):
                      option_policies=environment.options_policies,
                      options_terminating_conditions=environment.options_terminating_conditions,
                      mdp_actions_per_state=environment.environment.get_state_actions(),
-                     bound_type=bound_type)
+                     bound_type=bound_type,
+                                     random_state=random_state)
 
     def solve_optimistic_model(self):
         beta_r = self.beta_r()  # confidence bounds on rewards
@@ -476,7 +483,7 @@ class FSUCRLv2(FSUCRLv1):
 
         assert new_span > -0.00001, "{}".format(new_span)
 
-        # if self.episode > 18:
+        # if self.episode >= 100:
         #     self.solve_with_v1()
 
         # # CHECK WITH PYTHON IMPL
@@ -555,7 +562,7 @@ class FSUCRLv2(FSUCRLv1):
     #         epsilon=self.r_max / m.sqrt(self.iteration + 1))
     #
     #     mu_v1 = self.v1solver.get_mu()
-    #     mu_tilde_v1 = self.v1solver.get_mu_tilde(self.r_max)
+    #     mu_tilde_v1 = self.v1solver.get_mu_tilde(self.r_max, self.P, beta_p)
     #     cn_v1 = self.v1solver.get_conditioning_numbers()
     #
     #     ptilde_list = self.opt_solver.get_P_prime_tilde()

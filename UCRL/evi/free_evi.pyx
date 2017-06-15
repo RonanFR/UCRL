@@ -14,7 +14,7 @@ from libc.math cimport sqrt, fabs
 from libc.math cimport pow
 from libc.string cimport memcpy
 from libc.string cimport memset
-from libc.stdlib cimport rand, RAND_MAX
+from libc.stdlib cimport rand, RAND_MAX, srand
 
 from libc.stdio cimport printf
 from libc.math cimport log
@@ -68,7 +68,8 @@ cdef class EVI_FSUCRLv1:
                  list option_policies,
                  list reachable_states_per_option,
                  list options_terminating_conditions,
-                 bound_type):
+                 bound_type,
+                 int random_state):
         cdef SIZE_t n, m, i, j, idx
         cdef SIZE_t max_states_per_option = 0
         self.nb_states = nb_states
@@ -151,6 +152,8 @@ cdef class EVI_FSUCRLv1:
         self.xx = <DTYPE_t *> malloc(nb_states * max_states_per_option * sizeof(DTYPE_t))
         self.max_reachable_states_per_opt = max_states_per_option
         self.beta_mu_p = <DTYPE_t *> malloc(nb_options * sizeof(DTYPE_t))
+        self.random_state = random_state
+        srand(random_state)
 
     def __dealloc__(self):
         cdef SIZE_t i
@@ -192,6 +195,7 @@ cdef class EVI_FSUCRLv1:
         cdef DTYPE_t prob, bernstein_log
         cdef DTYPE_t sum_prob_row, bernstein_bound
         cdef SIZE_t nb_o, l_ij, visits
+        cdef SIZE_t options_visited_allsa
         cdef SIZE_t opt_error = 0, local_error
 
         cdef DoubleVectorStruct* r_tilde_opt = self.r_tilde_opt
@@ -213,6 +217,7 @@ cdef class EVI_FSUCRLv1:
                 # note that this should be row-major (c ordering)
                 Popt = <double*>malloc(opt_nb_states * opt_nb_states * sizeof(double))
 
+                options_visited_allsa = 0
                 visits = total_time + 2
                 beta_mu_p[o] = -1.
 
@@ -228,6 +233,7 @@ cdef class EVI_FSUCRLv1:
                     nb_o = max(1, nb_observations_mdp[s, mdp_index_a])
                     if visits > nb_o:
                         visits = nb_o
+                    options_visited_allsa = options_visited_allsa + min(1, nb_observations_mdp[s, mdp_index_a])
 
                     for j in range(opt_nb_states):
                         nexts = self.reachable_states_per_option[o].values[j]
@@ -246,17 +252,28 @@ cdef class EVI_FSUCRLv1:
                     l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, 0)
                     Popt[l_ij] = 1. - sum_prob_row
 
-                if self.bound_type == CHERNOFF:
-                    beta_mu_p[o] =  alpha_mc * sqrt(14 * opt_nb_states * log(2 * max_nb_actions
-                        * (total_time + 1)/delta) / visits)
-                elif self.bound_type == CHERNOFF_STATEDIM:
-                    beta_mu_p[o] =  alpha_mc * sqrt(14 * nb_states * log(2 * max_nb_actions
-                        * (total_time + 1)/delta) / visits)
+                if options_visited_allsa == opt_nb_states:
+                    # do this when all the states has been visited at least once
+                    if self.bound_type == CHERNOFF:
+                        beta_mu_p[o] =  alpha_mc * sqrt(14 * opt_nb_states * log(2 * max_nb_actions
+                            * (total_time + 1)/delta) / visits)
+                    elif self.bound_type == CHERNOFF_STATEDIM:
+                        beta_mu_p[o] =  alpha_mc * sqrt(14 * nb_states * log(2 * max_nb_actions
+                            * (total_time + 1)/delta) / visits)
 
-                local_error = get_mu_and_ci_c(Popt, opt_nb_states, &cn_opt[o],
-                                             mu_opt[o].values, alpha_aperiodic)
-                if local_error != 0:
-                    printf("Error in the computation of mu and ci of option %d (zero-based)\n", o)
+                    local_error = get_mu_and_ci_c(Popt, opt_nb_states, &cn_opt[o],
+                                                mu_opt[o].values, alpha_aperiodic)
+                    if local_error != 0:
+                        printf("Error in the computation of mu and ci of option %d (zero-based)\n", o)
+                    # cn_opt[o] = 1.
+                else:
+                    printf("Still exploring opt %d\n", o)
+                    beta_mu_p[o] = 2.
+                    cn_opt[o] = 1.
+                    for i in range(opt_nb_states):
+                        mu_opt[o].values[i] = 1./ opt_nb_states
+                    local_error = 0
+                    
                 opt_error += local_error
 
                 free(Popt)
@@ -306,7 +323,7 @@ cdef class EVI_FSUCRLv1:
             get_sorted_indices(u1, nb_states, sorted_indices)
 
             while True: #counter < 5:
-                for s in prange(nb_states):
+                for s in range(nb_states):
                     # printf("state: %d\n", s)
                     first_action = 1
                     count_equal_actions = 0
@@ -383,12 +400,16 @@ cdef class EVI_FSUCRLv1:
                     new_idx = pos2index_2d(nb_states, max_nb_actions, s, picked_idx)
                     policy_indices[s] = action_argmax_indices[new_idx]
                     policy[s] = action_argmax[new_idx]
+                    # for i in range(count_equal_actions):
+                    #     new_idx = pos2index_2d(nb_states, max_nb_actions, s, i  )
+                    #     printf("%d, ", action_argmax_indices[new_idx])
+                    # printf("\n")
                         
                 counter = counter + 1
 
                 # stopping condition
                 if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
-                    # printf("-- %d\n", counter)
+                    printf("-- %d\n", counter)
                     free(action_argmax)
                     free(action_argmax_indices)
                     return max_u1 - min_u1
@@ -440,14 +461,20 @@ cdef class EVI_FSUCRLv1:
             r.append(L)
         return r
     
-    cpdef get_mu_tilde(self, DTYPE_t r_max):
-        cdef SIZE_t i, o, s, sub_dim, idx
+    cpdef get_mu_tilde(self, DTYPE_t r_max, DTYPE_t[:,:,:] p_hat, DTYPE_t[:,:,:] beta_p):
+        cdef SIZE_t i, j, o, s, sub_dim, idx
         cdef SIZE_t nb_states = self.nb_states, nb_options = self.nb_options
         cdef DTYPE_t[:,:] mtx_maxprob_memview = self.mtx_maxprob_memview
         cdef DoubleVectorStruct* mu_opt = self.mu_opt
         cdef DoubleVectorStruct* r_tilde_opt = self.r_tilde_opt
         cdef DTYPE_t* xx = self.xx
         cdef SIZE_t* sorted_indices_mu = self.sorted_indices_mu
+        cdef SIZE_t option_act, option_idx
+        cdef SIZE_t* sorted_indices = self.sorted_indices
+        
+        for i in range(self.nb_states):
+            sorted_indices[i] = i
+        get_sorted_indices(self.u1, self.nb_states, sorted_indices)
         
         mu_tilde = []
         for o in range(nb_options):
@@ -457,6 +484,26 @@ cdef class EVI_FSUCRLv1:
             for o in range(nb_options):
                 s = self.reachable_states_per_option[o].values[0]
                 sub_dim = self.reachable_states_per_option[o].dim
+                
+                option_act = o + self.threshold + 1
+                option_idx = -1
+                # get index of the option in the current state
+                for j in range(self.actions_per_state[s].dim):
+                    if self.actions_per_state[s].values[j] == option_act:
+                        option_idx = j
+                        break
+                
+                if self.bound_type != BERNSTEIN:
+                    max_proba_purec(p_hat[s][option_idx], nb_states,
+                                sorted_indices, beta_p[s][option_idx][0],
+                                mtx_maxprob_memview[s])
+                else:
+                    max_proba_bernstein(p_hat[s][option_idx], nb_states,
+                                sorted_indices, beta_p[s][option_idx],
+                                mtx_maxprob_memview[s])
+
+                mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
+                
                 for i in range(sub_dim):
                     idx = pos2index_2d(nb_states, self.max_reachable_states_per_opt, s, i)
                     xx[idx] = min(r_max, r_tilde_opt[o].values[i])
@@ -465,6 +512,7 @@ cdef class EVI_FSUCRLv1:
 
                     if s == self.reachable_states_per_option[o].values[i]:
                         xx[idx] = xx[idx] + dot_prod(mtx_maxprob_memview[s], self.u1, nb_states)
+                        # printf("%f\n", dot_prod(mtx_maxprob_memview[s], self.u1, nb_states))
 
                 idx = pos2index_2d(nb_states, self.max_reachable_states_per_opt, s, 0)
                 get_sorted_indices(&xx[idx], sub_dim, &sorted_indices_mu[idx])
@@ -506,6 +554,9 @@ cdef class EVI_FSUCRLv1:
                 p_prime[o][i,0] = 1 - sum_prob_row
                         
         return p_prime          
+    
+    cpdef set_seed(self, SIZE_t seed):
+        srand(seed)
 
 # =============================================================================
 # FSUCRLv2
@@ -522,7 +573,8 @@ cdef class EVI_FSUCRLv2:
              list option_policies,
              list reachable_states_per_option,
              list options_terminating_conditions,
-             bound_type):
+             bound_type,
+             int random_state):
         cdef SIZE_t n, m, i, j, idx
         cdef SIZE_t max_states_per_option = 0
 
@@ -644,6 +696,9 @@ cdef class EVI_FSUCRLv2:
         self.mtx_maxprob_opt = <DTYPE_t *>malloc(nb_options * nb_states * sizeof(DTYPE_t))
         self.mtx_maxprob_opt_memview = <DTYPE_t[:nb_options, :nb_states]> self.mtx_maxprob_opt
         self.span_w_opt = <DTYPE_t*> malloc(nb_options * sizeof(DTYPE_t))
+        
+        self.random_state = random_state
+        srand(random_state)
 
     def __dealloc__(self):
         cdef SIZE_t i
@@ -1050,3 +1105,6 @@ cdef class EVI_FSUCRLv2:
             u1n[i] = self.u1[i]
             u2n[i] = self.u2[i]
         return u1n, u2n
+    
+    cpdef set_seed(self, SIZE_t seed):
+        srand(seed)

@@ -14,7 +14,7 @@ import time
 class AbstractUCRL(object):
 
     def __init__(self, environment,
-                 r_max,
+                 r_max, random_state,
                  alpha_r=None, alpha_p=None,
                  solver=None,
                  verbose = 0,
@@ -36,7 +36,8 @@ class AbstractUCRL(object):
             # create solver for optimistic model
             self.opt_solver = EVI(self.environment.nb_states,
                                   self.environment.get_state_actions(),
-                                  use_bernstein=1 if bound_type == "bernstein" else 0
+                                  use_bernstein=1 if bound_type == "bernstein" else 0,
+                                  random_state = random_state
                                   )
         else:
             self.opt_solver = solver
@@ -61,6 +62,7 @@ class AbstractUCRL(object):
         self.verbose = verbose
         self.logger = logger
         self.version = ucrl_version
+        self.random_state = random_state
 
     def clear_before_pickle(self):
         del self.opt_solver
@@ -83,7 +85,7 @@ class UcrlMdp(AbstractUCRL):
 
     def __init__(self, environment, r_max, alpha_r=None, alpha_p=None, solver=None,
                  bound_type="chernoff", verbose = 0,
-                 logger=default_logger):
+                 logger=default_logger, random_state=None):
         """
         :param environment: an instance of any subclass of abstract class Environment which is an MDP
         :param r_max: upper bound
@@ -97,7 +99,8 @@ class UcrlMdp(AbstractUCRL):
                                       r_max=r_max, alpha_r=alpha_r,
                                       alpha_p=alpha_p, solver=solver,
                                       verbose=verbose,
-                                      logger=logger, bound_type=bound_type)
+                                      logger=logger, bound_type=bound_type,
+                                      random_state=random_state)
         nb_states = self.environment.nb_states
         max_nb_actions = self.environment.max_nb_actions_per_state
         # self.estimated_probabilities = np.ones((nb_states, max_nb_actions, nb_states)) / nb_states
@@ -405,7 +408,7 @@ class UcrlSmdpExp(UcrlMdp):
                  alpha_r=None, alpha_tau=None, alpha_p=None,
                  b_r=0., b_tau=0.,
                  bound_type="chernoff",
-                 verbose=0, logger=default_logger):
+                 verbose=0, logger=default_logger, random_state=None):
         assert bound_type in ["chernoff",  "bernstein"]
         assert tau_min >= 1
         if sigma_r is None:
@@ -415,7 +418,7 @@ class UcrlSmdpExp(UcrlMdp):
             environment=environment, r_max=r_max,
             alpha_r=alpha_r, alpha_p=alpha_p, solver=None,
             bound_type=bound_type,
-            verbose=verbose, logger=logger)
+            verbose=verbose, logger=logger,random_state=random_state)
         self.tau = tau_min - 0.1
         self.tau_max = tau_max
         self.tau_min = tau_min
@@ -485,7 +488,7 @@ class UcrlSmdpBounded(UcrlSmdpExp):
     def __init__(self, environment, r_max, t_max, t_min=1,
                  alpha_r=None, alpha_tau=None, alpha_p=None,
                  bound_type="chernoff",
-                 verbose=0, logger=default_logger):
+                 verbose=0, logger=default_logger, random_state=None):
         super(UcrlSmdpBounded, self).__init__(environment=environment,
                          r_max=r_max, tau_max=t_max,
                          sigma_r=t_max * r_max,
@@ -494,4 +497,5 @@ class UcrlSmdpBounded(UcrlSmdpExp):
                          alpha_r=alpha_r, alpha_tau=alpha_tau, alpha_p=alpha_p,
                          b_r=0., b_tau=0.,
                          bound_type=bound_type,
-                         verbose=verbose, logger=logger)
+                         verbose=verbose, logger=logger,
+                        random_state=random_state)

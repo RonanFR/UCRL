@@ -37,13 +37,14 @@ from ._max_proba cimport max_proba_bernstein
 
 cdef class EVI:
 
-    def __init__(self, nb_states, list actions_per_state, use_bernstein=0):
+    def __init__(self, nb_states, list actions_per_state, use_bernstein=0, random_state=0):
         cdef SIZE_t n, m, i, j
         self.nb_states = nb_states
         self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
         self.u2 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
 
         self.bernstein_bound = use_bernstein
+        self.random_state = random_state
 
         # allocate indices and memoryview (may slow down)
         self.sorted_indices = <SIZE_t *> malloc(nb_states * sizeof(SIZE_t))

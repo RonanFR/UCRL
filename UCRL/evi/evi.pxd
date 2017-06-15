@@ -20,6 +20,7 @@ cdef class EVI:
     cdef SIZE_t nb_states
     cdef IntVectorStruct* actions_per_state
     cdef SIZE_t bernstein_bound
+    cdef SIZE_t random_state
 
     # Methods
 
