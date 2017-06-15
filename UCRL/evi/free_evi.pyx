@@ -14,7 +14,6 @@ from libc.math cimport sqrt, fabs
 from libc.math cimport pow
 from libc.string cimport memcpy
 from libc.string cimport memset
-from libc.stdlib cimport rand
 
 from libc.stdio cimport printf
 from libc.math cimport log
@@ -188,7 +187,7 @@ cdef class EVI_FSUCRLv1:
         cdef DTYPE_t prob, bernstein_log
         cdef DTYPE_t sum_prob_row, bernstein_bound
         cdef SIZE_t nb_o, l_ij, visits
-        cdef SIZE_t opt_error = 0
+        cdef SIZE_t opt_error = 0, local_error
 
         cdef DoubleVectorStruct* r_tilde_opt = self.r_tilde_opt
         cdef DoubleVectorStruct* mu_opt = self.mu_opt
@@ -249,8 +248,11 @@ cdef class EVI_FSUCRLv1:
                     beta_mu_p[o] =  alpha_mc * sqrt(14 * nb_states * log(2 * max_nb_actions
                         * (total_time + 1)/delta) / visits)
 
-                opt_error += get_mu_and_ci_c(Popt, opt_nb_states, &cn_opt[o],
+                local_error = get_mu_and_ci_c(Popt, opt_nb_states, &cn_opt[o],
                                              mu_opt[o].values, alpha_aperiodic)
+                if local_error != 0:
+                    printf("Error in the computation of mu and ci of option %d (zero-based)\n", o)
+                opt_error += local_error
 
                 free(Popt)
         # free(sum_prob_row)
@@ -399,6 +401,73 @@ cdef class EVI_FSUCRLv1:
                 L.append(self.r_tilde_opt[i].values[j])
             r.append(L)
         return r
+    
+    cpdef get_mu_tilde(self, DTYPE_t r_max):
+        cdef SIZE_t i, o, s, sub_dim, idx
+        cdef SIZE_t nb_states = self.nb_states, nb_options = self.nb_options
+        cdef DTYPE_t[:,:] mtx_maxprob_memview = self.mtx_maxprob_memview
+        cdef DoubleVectorStruct* mu_opt = self.mu_opt
+        cdef DoubleVectorStruct* r_tilde_opt = self.r_tilde_opt
+        cdef DTYPE_t* xx = self.xx
+        cdef SIZE_t* sorted_indices_mu = self.sorted_indices_mu
+        
+        mu_tilde = []
+        for o in range(nb_options):
+            sub_dim = self.reachable_states_per_option[o].dim
+            mu_tilde.append(np.zeros(sub_dim))
+        with nogil:
+            for o in range(nb_options):
+                s = self.reachable_states_per_option[o].values[0]
+                sub_dim = self.reachable_states_per_option[o].dim
+                for i in range(sub_dim):
+                    idx = pos2index_2d(nb_states, self.max_reachable_states_per_opt, s, i)
+                    xx[idx] = min(r_max, r_tilde_opt[o].values[i])
+
+                    sorted_indices_mu[idx] = i # fill vector
+
+                    if s == self.reachable_states_per_option[o].values[i]:
+                        xx[idx] = xx[idx] + dot_prod(mtx_maxprob_memview[s], self.u1, nb_states)
+
+                idx = pos2index_2d(nb_states, self.max_reachable_states_per_opt, s, 0)
+                get_sorted_indices(&xx[idx], sub_dim, &sorted_indices_mu[idx])
+
+                max_proba_purec2(mu_opt[o].values, sub_dim,
+                            &sorted_indices_mu[idx], self.cn_opt[o]*self.beta_mu_p[o],
+                            mtx_maxprob_memview[s])
+                with gil:
+                    for i in range(sub_dim):
+                        mu_tilde[o][i] = mtx_maxprob_memview[s][i]
+        return mu_tilde
+    
+    cpdef get_P_prime(self, DTYPE_t[:,:,:] estimated_probabilities_mdp):
+        cdef SIZE_t i, j, o, s, sub_dim, mdp_index_a, opt_nb_states
+        cdef DTYPE_t sum_prob_row
+        cdef DTYPE_t* term_cond = self.options_terminating_conditions
+        
+        p_prime = []
+        for o in range(self.nb_options):
+            sub_dim = self.reachable_states_per_option[o].dim
+            p_prime.append(np.zeros((sub_dim, sub_dim)))
+
+        for o in range(self.nb_options):
+            opt_nb_states = self.reachable_states_per_option[o].dim
+            for i in range(opt_nb_states):
+                s = self.reachable_states_per_option[o].values[i]
+                mdp_index_a = self.options_policies_indices_mdp[pos2index_2d(self.nb_options, self.nb_states, o, s)]
+
+                sum_prob_row = 0.0
+
+                for j in range(opt_nb_states):
+                    nexts = self.reachable_states_per_option[o].values[j]
+                    idx = pos2index_2d(self.nb_options, self.nb_states, o, nexts)
+                    prob = estimated_probabilities_mdp[s][mdp_index_a][nexts]
+
+                    p_prime[o][i,j] = (1. - term_cond[idx]) * prob
+                    sum_prob_row = sum_prob_row + p_prime[o][i,j]
+                
+                p_prime[o][i,0] = 1 - sum_prob_row
+                        
+        return p_prime          
 
 # =============================================================================
 # FSUCRLv2
@@ -867,3 +936,49 @@ cdef class EVI_FSUCRLv2:
             p.append(P)
         return p, beta
 
+
+    cpdef get_P_prime_tilde(self):
+        cdef SIZE_t sprime, idx, i, o, k, nb_states_per_options, nb_options = self.nb_options
+        cdef DTYPE_t[:,:] mtx_maxprob_opt_memview = self.mtx_maxprob_opt_memview #(|O|x|S|)
+        cdef IntVectorStruct* reach_states = self.reachable_states_per_option
+        cdef DoubleVectorStruct* beta_opt_p = self.beta_opt_p
+        cdef IntVectorStruct* sorted_indices_popt = self.sorted_indices_popt
+        cdef DoubleVectorStruct* p_hat_opt = self.p_hat_opt
+        
+        ptilde_list = []
+        for o in range(nb_options):
+            nb_states_per_options = reach_states[o].dim
+            ptilde_list.append(np.zeros((nb_states_per_options, nb_states_per_options)))
+
+        with nogil:
+            for o in prange(nb_options):
+                nb_states_per_options = reach_states[o].dim
+                # sort indices
+                get_sorted_indices(self.w1[o].values, nb_states_per_options, sorted_indices_popt[o].values)
+                for i in range(nb_states_per_options):
+                    sprime = reach_states[o].values[i]
+
+                    idx = pos2index_2d(nb_states_per_options, nb_states_per_options, i, 0)
+                    if self.bound_type != BERNSTEIN:
+                        max_proba_purec2(&(p_hat_opt[o].values[idx]), nb_states_per_options,
+                            sorted_indices_popt[o].values, beta_opt_p[o].values[idx],
+                            mtx_maxprob_opt_memview[o])
+                    else:
+                        max_proba_bernstein_cin(
+                            &(p_hat_opt[o].values[idx]),
+                            nb_states_per_options,
+                            sorted_indices_popt[o].values,
+                            &(beta_opt_p[o].values[idx]),
+                            mtx_maxprob_opt_memview[o])
+                    with gil:
+                        for k in range(nb_states_per_options):
+                            ptilde_list[o][i,k] = mtx_maxprob_opt_memview[o][k]
+        return ptilde_list
+
+    cpdef get_uvectors(self):
+        u1n = -99*np.ones((self.nb_states,))
+        u2n = -99*np.ones((self.nb_states,))
+        for i in range(self.nb_states):
+            u1n[i] = self.u1[i]
+            u2n[i] = self.u2[i]
+        return u1n, u2n

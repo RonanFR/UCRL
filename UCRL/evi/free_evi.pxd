@@ -70,6 +70,8 @@ cdef class EVI_FSUCRLv1:
     cpdef get_beta_mu_p(self)
     cpdef get_mu(self)
     cpdef get_r_tilde_opt(self)
+    cpdef get_mu_tilde(self, DTYPE_t r_max)
+    cpdef get_P_prime(self, DTYPE_t[:,:,:] estimated_probabilities_mdp)
 
 
 cdef class EVI_FSUCRLv2:
@@ -145,4 +147,6 @@ cdef class EVI_FSUCRLv2:
 
     cpdef get_r_tilde_opt(self)
     cpdef get_opt_p_and_beta(self)
+    cpdef get_P_prime_tilde(self)
+    cpdef get_uvectors(self)
 
