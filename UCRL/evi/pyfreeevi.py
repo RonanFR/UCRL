@@ -1,6 +1,7 @@
 import numpy as np
 import math as m
 from ._free_utils import get_mu_and_ci
+import random
 
 class PyEVI_FSUCRLv1(object):
 
@@ -38,7 +39,7 @@ class PyEVI_FSUCRLv1(object):
                         estimated_rewards_mdp,
                         beta_r,
                         nb_observations_mdp,
-                        range_mu_p,
+                        alpha_mu,
                         total_time,
                         delta,
                         max_nb_actions,
@@ -91,11 +92,11 @@ class PyEVI_FSUCRLv1(object):
             r_tilde_opt[o] = r_o
 
             if self.bound_type == 0:
-                beta_mu_p[o] =  range_mu_p * np.sqrt(14 * opt_nb_states * m.log(2 * max_nb_actions
-                    * (total_time + 1)/ delta) / max(1, visits))
+                beta_mu_p[o] = alpha_mu * np.sqrt(14 * opt_nb_states * m.log(2 * max_nb_actions
+                                                                             * (total_time + 1) / delta) / max(1, visits))
             elif self.bound_type == 1:
-                beta_mu_p[o] =  range_mu_p * np.sqrt(14 * nb_states * m.log(2 * max_nb_actions
-                    * (total_time + 1)/ delta) / max(1, visits))
+                beta_mu_p[o] = alpha_mu * np.sqrt(14 * nb_states * m.log(2 * max_nb_actions
+                                                                         * (total_time + 1) / delta) / max(1, visits))
 
 
             Pprime_o = np.concatenate((q_o, Q_o[:, 1:]), axis=1)
@@ -163,6 +164,8 @@ class PyEVI_FSUCRLv1(object):
             self.counter += 1
             for s in range(nb_states):
                 first_action = True
+                actions_argmax = []
+                actions_indices_argmax = []
                 for action_idx, action in enumerate(self.actions_per_state[s]):
                     if self.bound_type != 2:
                         # chernoff bound
@@ -198,11 +201,19 @@ class PyEVI_FSUCRLv1(object):
                         v = np.dot(max_mu, x)
 
                     c1 = v + self.u1[s]
-                    if first_action or c1 > self.u2[s] or m.isclose(c1, self.u2[s]):
+                    if first_action or m.isclose(c1, self.u2[s]):
+                        actions_argmax.append(action)
+                        actions_indices_argmax.append(action_idx)
                         self.u2[s] = c1
-                        policy_indices[s] = action_idx
-                        policy[s] = action
+                    elif c1 > self.u2[s]:
+                        self.u2[s] = c1
+                        actions_argmax = [action]
+                        actions_indices_argmax = [action_idx]
                     first_action = False
+
+                picked_idx = random.randint(0,len(actions_indices_argmax)-1)
+                policy_indices[s] = actions_indices_argmax[picked_idx]
+                policy[s] = actions_argmax[picked_idx]
 
             # print("**%d\n" % self.counter)
             # for i in range(nb_states):
@@ -313,7 +324,8 @@ class PyEVI_FSUCRLv2(object):
                             total_time,
                             delta,
                             max_nb_actions,
-                            range_opt_p):
+                            alpha_mc,
+                            r_max):
         nb_states = self.nb_states
         nb_options = self.nb_options
         self.r_tilde_opt = [None] * nb_options
@@ -340,10 +352,9 @@ class PyEVI_FSUCRLv2(object):
             for i, s in enumerate(option_reach_states):
                 option_action = option_policy[s]
                 option_action_index = self.mdp_actions_per_state[s].index(option_action)
-                r_o[i] = estimated_rewards_mdp[s, option_action_index] + beta_r[s,option_action_index]
+                r_o[i] = min(r_max, estimated_rewards_mdp[s, option_action_index] + beta_r[s,option_action_index])
 
 
-                bernstein_bound = 0.
                 nb_o = max(1, nb_observations_mdp[s, option_action_index])
 
                 visits[o][i] = nb_observations_mdp[s, option_action_index]
@@ -353,13 +364,13 @@ class PyEVI_FSUCRLv2(object):
                     #q_o[i,0] += term_cond[sprime] * prob
                     Q_o[i,j] = (1. - term_cond[sprime]) * prob
                     if self.bound_type == 0:
-                        self.beta_opt_p[o][i, j] = range_opt_p * np.sqrt(14 * opt_nb_states * m.log(2 * max_nb_actions
+                        self.beta_opt_p[o][i, j] = alpha_mc * np.sqrt(14 * opt_nb_states * m.log(2 * max_nb_actions
                                                                                           * (total_time + 1)/ delta) / nb_o)
                     elif self.bound_type == 1:
-                        self.beta_opt_p[o][i, j] = range_opt_p * np.sqrt(14 * nb_states * m.log(2 * max_nb_actions
+                        self.beta_opt_p[o][i, j] = alpha_mc * np.sqrt(14 * nb_states * m.log(2 * max_nb_actions
                                                                                           * (total_time + 1)/ delta) / nb_o)
                     else:
-                        self.beta_opt_p[o][i, j] = range_opt_p * (np.sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o)
+                        self.beta_opt_p[o][i, j] = alpha_mc * (np.sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o)
                                                                    + bernstein_log * 7 / (3 * nb_o))
 
             e_m = np.ones((opt_nb_states,1))
@@ -384,10 +395,11 @@ class PyEVI_FSUCRLv2(object):
             beta_r_mdp,
             r_max,
             epsilon):
-        self.u1.fill(0.0)
         nb_states = self.nb_states
         nb_options = self.nb_options
-        sorted_indices_u = np.arange(nb_states)
+
+        self.u1 = self.u1 - self.u1[0]
+        sorted_indices_u = np.argsort(self.u1, kind='mergesort')
 
         for o in range(nb_options):
             for i in range(len(self.w1[o])):
@@ -405,16 +417,15 @@ class PyEVI_FSUCRLv2(object):
             # ------------------------------------------------------------------
             # Estimate value function of each option
             # ------------------------------------------------------------------
+            epsilon_opt = 1 / (2 ** self.outer_evi_it)
             for opt in range(nb_options):
                 continue_flag = True
                 nb_states_per_options = len(self.reachable_states_per_option[opt])
-                epsilon_opt = 1 / (2**self.outer_evi_it)
 
                 #initialize
-                sorted_indices_popt = np.arange(nb_states_per_options)
-                for i in range(nb_states_per_options):
-                    self.w1[opt][i] = 0.0#self.w1[opt][i] - self.w1[opt][0]  # 0.0
+                self.w1[opt] = self.w1[opt] - self.w1[opt][0]
                 self.w2[opt].fill(0.0)
+                sorted_indices_popt = np.argsort(self.w1[opt], kind='mergesort')
                 inner_it_opt = 0
                 while continue_flag:
                     inner_it_opt += 1
@@ -469,6 +480,8 @@ class PyEVI_FSUCRLv2(object):
             # ------------------------------------------------------------------
             for s in range(nb_states):
                 first_action = True
+                actions_argmax = []
+                actions_indices_argmax = []
                 for action_idx, action in enumerate(self.actions_per_state[s]):
                     if action <= self.threshold:
                         #this is an action
@@ -488,11 +501,21 @@ class PyEVI_FSUCRLv2(object):
                         v = 0.5 * (max(self.w2[o] - self.w1[o]) + min(self.w2[o] - self.w1[o]))
 
                     c1 = v + self.u1[s]
-                    if first_action or c1 > self.u2[s] or m.isclose(c1, self.u2[s]):
+                    if first_action or m.isclose(c1, self.u2[s], abs_tol=epsilon_opt/2.):
+                        actions_argmax.append(action)
+                        actions_indices_argmax.append(action_idx)
                         self.u2[s] = c1
-                        policy_indices[s] = action_idx
-                        policy[s] = action
+                    elif c1 > self.u2[s]:
+                        self.u2[s] = c1
+                        actions_argmax = [action]
+                        actions_indices_argmax = [action_idx]
                     first_action = False
+
+                picked_idx = random.randint(0,len(actions_indices_argmax)-1)
+                policy_indices[s] = actions_indices_argmax[picked_idx]
+                policy[s] = actions_argmax[picked_idx]
+
+
             # print()
             # for i in range(nb_states):
             #     print("{:.2f}[{:.2f}]".format(self.u1[i], self.u2[i]), end=" ")
