@@ -945,7 +945,7 @@ cdef class EVI_FSUCRLv2:
                             count_equal_actions = 1
                             action_argmax[0] = action
                             action_argmax_indices[0] = a_idx
-                        elif isclose_c(v, u2[s]):
+                        elif isclose_c(v, u2[s], 1e-09, 0.5*epsilon_opt):
                             action_argmax[count_equal_actions] = action
                             action_argmax_indices[count_equal_actions] = a_idx
                             count_equal_actions = count_equal_actions + 1
