@@ -18,7 +18,7 @@ class FSUCRLv1(AbstractUCRL):
 
         assert bound_type in ["chernoff",  "chernoff_statedim", "bernstein"]
         assert isinstance(environment, MixedEnvironment)
-        run_py = True
+        run_py = False
         self.check_with_py = False
         run_py = False if self.check_with_py else run_py
 
@@ -386,7 +386,7 @@ class FSUCRLv2(FSUCRLv1):
                  bound_type="chernoff",
                  verbose = 0, logger=default_logger):
 
-        run_py = True
+        run_py = False
         self.check_with_py = False
         run_py = False if self.check_with_py else run_py
 

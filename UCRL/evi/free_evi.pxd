@@ -31,6 +31,7 @@ cdef class EVI_FSUCRLv1:
     cdef SIZE_t threshold
     cdef SIZE_t nb_options
     cdef SIZE_t max_reachable_states_per_opt
+    cdef SIZE_t max_macroactions_per_state
     cdef IntVectorStruct* actions_per_state
     cdef IntVectorStruct* reachable_states_per_option
 
@@ -122,6 +123,7 @@ cdef class EVI_FSUCRLv2:
     cdef BoundType bound_type
 
     cdef SIZE_t max_reachable_states_per_opt
+    cdef SIZE_t max_macroactions_per_state
 
 
     # --------------------------------------------------------------------------
