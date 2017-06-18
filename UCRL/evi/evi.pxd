@@ -18,6 +18,7 @@ cdef class EVI:
     cdef DTYPE_t[:,:] mtx_maxprob_memview
     cdef SIZE_t *sorted_indices
     cdef SIZE_t nb_states
+    cdef SIZE_t max_macroactions_per_state
     cdef IntVectorStruct* actions_per_state
     cdef SIZE_t bernstein_bound
     cdef SIZE_t random_state

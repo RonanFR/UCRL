@@ -26,9 +26,9 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
-                  help="dimension of the gridworld", default=14)
+                  help="dimension of the gridworld", default=6)
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=30000000)
+                  help="duration of the experiment", default=1000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="chernoff")
 parser.add_option("--rmax", dest="r_max", type="float",
@@ -56,7 +56,7 @@ parser.add_option("--path", dest="path", type="str",
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
-parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random.getrandbits(16),
+parser.add_option("--seed", dest="seed_0", type=int, default=101100594, #random.getrandbits(16),
                   help="Seed used to generate the random seed sequence")
 parser.add_option("--succ_prob", dest="success_probability", type="float",
                   help="Success probability of an action", default=0.8)
@@ -74,8 +74,8 @@ alg_desc = """Here the description of the algorithms
 group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
-                       "[UCRL, SUCRL_v1, SUCRL_v2, FSUCRLv1, FSUCRLv2]",
-                  default="FSUCRLv2")
+                       "[UCRL, SUCRL_v2, SUCRL_v3, FSUCRLv1, FSUCRLv2]",
+                  default="SUCRL_v2")
 # UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2
 
 (in_options, in_args) = parser.parse_args()
@@ -121,6 +121,20 @@ if in_options.algorithm != "UCRL":
             pickle.dump(mixed_env, f)
         print("Mixed environment saved in {}".format(fname))
 
+
+# mus, ci = mixed_env.compute_true_mu_and_ci()
+# for o in range(mixed_env.nb_options):
+#     mu = mus[o]
+#     mask = mu < 0.001
+#     state_idx = np.array(mixed_env.reachable_states_per_option[o])[mask]
+#     aa = np.array(mixed_env.options_terminating_conditions[o])
+#     aa[state_idx] = 1.
+#     mixed_env.options_terminating_conditions[o] = aa.tolist()
+#     print("")
+#
+# del mixed_env.real_mu_opt
+# del mixed_env.reachable_states_options
+# mus, ci = mixed_env.compute_true_mu_and_ci()
 
 # # check optimal policy
 # for i, a in enumerate(env.optimal_policy):
@@ -175,7 +189,8 @@ for rep in range(start_sim, end_sim):
             alpha_p=in_options.alpha_p,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type)  # learning algorithm
+            bound_type=in_options.bound_type,
+            random_state=seed)  # learning algorithm
     elif in_options.algorithm[0:5] == "SUCRL":
         r_max = in_options.r_max
         tau_min = np.min(mixed_env.tau_options)
@@ -204,7 +219,8 @@ for rep in range(start_sim, end_sim):
             alpha_tau=in_options.alpha_tau,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type)  # learning algorithm
+            bound_type=in_options.bound_type,
+            random_state=seed)  # learning algorithm
     elif in_options.algorithm == "FSUCRLv1":
         ucrl = FSUCRLv1(
             environment=copy.deepcopy(mixed_env),
@@ -214,7 +230,8 @@ for rep in range(start_sim, end_sim):
             alpha_mc=in_options.alpha_mc,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type)  # learning algorithm
+            bound_type=in_options.bound_type,
+            random_state=seed)  # learning algorithm
     elif in_options.algorithm == "FSUCRLv2":
         ucrl = FSUCRLv2(
             environment=copy.deepcopy(mixed_env),
@@ -224,7 +241,8 @@ for rep in range(start_sim, end_sim):
             alpha_mc=in_options.alpha_mc,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type)  # learning algorithm
+            bound_type=in_options.bound_type,
+            random_state=seed)  # learning algorithm
 
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ucrl).__name__))
     ucrl_log.info("seed: {}".format(seed))

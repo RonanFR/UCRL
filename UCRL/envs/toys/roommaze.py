@@ -285,7 +285,8 @@ class FourRoomsMaze(Environment):
 
             evi = EVI(nb_states=nb_states,
                       actions_per_state=self.state_actions,
-                      use_bernstein=0)
+                      use_bernstein=0,
+                      random_state=123456)
 
             span = evi.evi(
                 policy_indices=policy_indices,
@@ -433,7 +434,8 @@ class EscapeRoom(MixedEnvironment):
 
         self.evi = EVI(nb_states=maze.nb_states,
                        actions_per_state=maze.get_state_actions(),
-                       use_bernstein=0)
+                       use_bernstein=0,
+                       random_state=123456)
 
         option_id = 0
         for s in tqdm(range(nb_states)):
