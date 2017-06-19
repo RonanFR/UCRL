@@ -56,7 +56,7 @@ parser.add_option("--path", dest="path", type="str",
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
-parser.add_option("--seed", dest="seed_0", type=int, default=101100594, #random.getrandbits(16),
+parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random.getrandbits(16),
                   help="Seed used to generate the random seed sequence")
 parser.add_option("--succ_prob", dest="success_probability", type="float",
                   help="Success probability of an action", default=0.8)
@@ -75,7 +75,7 @@ group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
                        "[UCRL, SUCRL_v2, SUCRL_v3, FSUCRLv1, FSUCRLv2]",
-                  default="SUCRL_v2")
+                  default="FSUCRLv1")
 # UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2
 
 (in_options, in_args) = parser.parse_args()

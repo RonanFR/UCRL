@@ -182,7 +182,7 @@ cdef SIZE_t get_mu_and_ci_c(DTYPE_t *sq_rowmaj_mtx, SIZE_t N,
         printf( "The diagonal element of the triangular factor of A,\n" )
         printf( "U(%i,%i) is zero, so that A is singular;\n", info, info )
         printf( "the solution could not be computed.\n" )
-        return 1
+        return 2
 
     if verbose == 1:
         # /* Print solution */

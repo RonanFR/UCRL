@@ -263,7 +263,14 @@ cdef class EVI_FSUCRLv1:
 
                     local_error = get_mu_and_ci_c(Popt, opt_nb_states, &cn_opt[o],
                                                 mu_opt[o].values, alpha_aperiodic)
-                    if local_error != 0:
+                    if local_error == 2:
+                        # the matrix is not invertible
+                        beta_mu_p[o] = 2.
+                        cn_opt[o] = 1.
+                        for i in range(opt_nb_states):
+                            mu_opt[o].values[i] = 1./ opt_nb_states
+                        local_error = 0
+                    elif local_error != 0:
                         printf("Error in the computation of mu and ci of option %d (zero-based)\n", o)
                     # cn_opt[o] = 1.
                 else:
