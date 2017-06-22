@@ -103,6 +103,18 @@ class NavigateGrid(Environment):
             self.state = x + y*self.dimension
             self.reward = self.reward_distribution_states.generate()
 
+    @property
+    def prob_kernel(self):
+        if not hasattr(self, 'Pkernel'):
+            self.Pkernel = np.zeros((self.nb_states, self.max_nb_actions_per_state, self.nb_states))
+            for s in range(self.nb_states):
+                for aidx, action in enumerate(self.state_actions[s]):
+                    self.state = s
+                    self.execute(action)
+                    next_state = self.state
+                    self.Pkernel[s, aidx, next_state] = 1.
+        return self.Pkernel
+
 
 class NavigateGrid2(Environment):
 

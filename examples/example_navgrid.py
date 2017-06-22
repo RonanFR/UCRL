@@ -142,6 +142,9 @@ if in_options.algorithm != 'UCRL':
         delete_environment_actions="all"
     )
 
+# mus, condn = mixed_environment.compute_true_mu_and_ci()
+# print(min(map(min, mus)))
+# print(np.mean(condn), np.max(condn))
 if in_options.path is None:
     folder_results = os.path.abspath('{}_navgrid_{}'.format(in_options.algorithm,
                                                            in_options.id))
@@ -186,7 +189,8 @@ for rep in range(start_sim, end_sim):
             alpha_p=in_options.alpha_p,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type)  # learning algorithm
+            bound_type=in_options.bound_type,
+            random_state=seed)  # learning algorithm
     elif in_options.algorithm[0:5] == "SUCRL":
 
         version = in_options.algorithm[-2:]
@@ -200,7 +204,8 @@ for rep in range(start_sim, end_sim):
                 alpha_tau=in_options.alpha_tau,
                 verbose=1,
                 logger=ucrl_log,
-                bound_type=in_options.bound_type)  # learning algorithm
+                bound_type=in_options.bound_type,
+                random_state=seed)  # learning algorithm
         else:
             r_max = in_options.r_max
             tau_min = np.min(options_free.tau_options)
@@ -233,7 +238,8 @@ for rep in range(start_sim, end_sim):
                 alpha_tau=in_options.alpha_tau,
                 verbose=1,
                 logger=ucrl_log,
-                bound_type=in_options.bound_type)  # learning algorithm
+                bound_type=in_options.bound_type,
+                random_state=seed)  # learning algorithm
     elif in_options.algorithm == "FSUCRLv1":
         ucrl = FSUCRLv1(
             environment=copy.deepcopy(mixed_environment),
@@ -243,7 +249,8 @@ for rep in range(start_sim, end_sim):
             alpha_mc=in_options.alpha_mc,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type)  # learning algorithm
+            bound_type=in_options.bound_type,
+            random_state=seed)  # learning algorithm
     elif in_options.algorithm == "FSUCRLv2":
         ucrl = FSUCRLv2(
             environment=copy.deepcopy(mixed_environment),
@@ -253,7 +260,8 @@ for rep in range(start_sim, end_sim):
             alpha_mc=in_options.alpha_mc,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type)  # learning algorithm
+            bound_type=in_options.bound_type,
+            random_state=seed)  # learning algorithm
 
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ucrl).__name__))
     ucrl_log.info("seed: {}".format(seed))

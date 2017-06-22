@@ -152,3 +152,74 @@ class OptionEnvironment(Environment):
                         self.reachable_states_options[o-self.index_min_options].append(x)
         return self.reachable_states_options
 
+
+    # --------------------------------------------------------------------------
+    # Mus and Condition Numbers
+    # --------------------------------------------------------------------------
+    def compute_true_mu_and_ci(self):
+        if hasattr(self, 'real_mu_opt'):
+            return self.real_mu_opt, self.real_condition_numbers_opt
+
+        if not hasattr(self.environment, "prob_kernel"):
+            raise ValueError("I cannot compute the mus and the conditioning"
+            "numbers because the transition kernel is not stored explicitely")
+
+        nb_options = self.nb_options
+        mu_opt = [None] * nb_options
+        condition_numbers_opt = np.empty((nb_options,))
+
+        for o in range(nb_options):
+            option_policy = self.options_policies[o]
+            option_reach_states = self.reachable_states_per_option[o]
+            term_cond = self.options_terminating_conditions[o]
+
+            opt_nb_states = len(option_reach_states)
+
+            Q_o = np.zeros((opt_nb_states, opt_nb_states))
+
+            # compute the reward and the mu
+            for i, s in enumerate(option_reach_states):
+                option_action = option_policy[s]
+                option_action_index = self.environment.get_index_of_action_state(s, option_action)
+
+                for j, sprime in enumerate(option_reach_states):
+                    prob = self.environment.prob_kernel[s, option_action_index, sprime]
+                    #q_o[i,0] += term_cond[sprime] * prob
+                    Q_o[i,j] = (1. - term_cond[sprime]) * prob
+
+            e_m = np.ones((opt_nb_states,1))
+            q_o = e_m - np.dot(Q_o, e_m)
+
+            Pprime_o = np.concatenate((q_o, Q_o[:, 1:]), axis=1)
+            if not np.allclose(np.sum(Pprime_o, axis=1), np.ones(opt_nb_states)):
+                print("{}\n{}".format(Pprime_o,Q_o))
+
+
+            Pap = (Pprime_o + np.eye(opt_nb_states)) / 2.
+            D, U = np.linalg.eig(
+                np.transpose(Pap))  # eigen decomposition of transpose of P
+            sorted_indices = np.argsort(np.real(D))
+            mu = np.transpose(np.real(U))[sorted_indices[-1]]
+            mu /= np.sum(mu)  # stationary distribution
+            mu_opt[o] = mu
+
+            P_star = np.repeat(np.array(mu, ndmin=2), opt_nb_states,
+                               axis=0)  # limiting matrix
+
+            # Compute deviation matrix
+            I = np.eye(opt_nb_states)  # identity matrix
+            Z = np.linalg.inv(I - Pprime_o + P_star)  # fundamental matrix
+            # Z = np.linalg.inv(I - Pap + P_star)  # fundamental matrix
+            H = np.dot(Z, I - P_star)  # deviation matrix
+
+            condition_nb = 0  # condition number of deviation matrix
+            for i in range(0, opt_nb_states):  # Seneta's condition number
+                for j in range(i + 1, opt_nb_states):
+                    condition_nb = max(condition_nb,
+                                       0.5 * np.linalg.norm(H[i, :] - H[j, :],
+                                                            ord=1))
+            condition_numbers_opt[o] = condition_nb
+        self.real_condition_numbers_opt = condition_numbers_opt
+        self.real_mu_opt = mu_opt
+        return self.real_mu_opt, self.real_condition_numbers_opt
+
