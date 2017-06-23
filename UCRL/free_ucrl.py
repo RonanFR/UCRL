@@ -117,7 +117,7 @@ class FSUCRLv1(AbstractUCRL):
             span_value = self.solve_optimistic_model()
             t1 = time.time()
 
-            self.environment.render_policy(self.policy_indices)
+            # self.environment.render_policy(self.policy_indices)
 
             span_value /= self.r_max
             if self.verbose > 0:

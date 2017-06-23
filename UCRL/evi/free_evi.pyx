@@ -416,7 +416,7 @@ cdef class EVI_FSUCRLv1:
 
                 # stopping condition
                 if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
-                    printf("-- %d\n", counter)
+                    # printf("-- %d\n", counter)
                     free(action_argmax)
                     free(action_argmax_indices)
                     return max_u1 - min_u1
