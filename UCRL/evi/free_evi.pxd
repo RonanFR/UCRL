@@ -10,15 +10,12 @@ cimport numpy as np
 
 from ._utils cimport DTYPE_t, SIZE_t
 from ._utils cimport IntVectorStruct, DoubleVectorStruct
+from .evi cimport BoundType
 
 
 cdef DTYPE_t check_end_opt_evi(DTYPE_t* x, DTYPE_t* y, SIZE_t dim,
                                DTYPE_t* add_res) nogil
 
-cdef enum BoundType:
-    CHERNOFF=0
-    CHERNOFF_STATEDIM=1
-    BERNSTEIN=2
 
 cdef class EVI_FSUCRLv1:
     cdef DTYPE_t *u1

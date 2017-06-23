@@ -186,12 +186,15 @@ class FSUCRLv1(AbstractUCRL):
             # assert np.allclose(ci, beta)
             return self.alpha_p * beta.reshape([S, A, 1])
         else:
-            Z = m.log(6 * A * (self.iteration + 1) / self.delta)
+            Z = m.log(S * m.log(self.iteration + 1) / self.delta)
             n = np.maximum(1, self.nb_observations)
-            # A = np.sqrt(2 * self.estimated_probabilities * (1-self.estimated_probabilities) * Z / n[:,:,np.newaxis])
             Va = np.sqrt(2 * self.P * (1-self.P) * Z / n[:,:,np.newaxis])
             Vb = Z * 7 / (3 * n)
-            return self.alpha_p * (Va + Vb[:, :, np.newaxis])
+            ci = (Va + Vb[:, :, np.newaxis])
+            beta = bounds.bernstein(it=self.iteration, N=self.nb_observations,
+                                    delta=self.delta, P=self.P, log_C=S)
+            assert np.allclose(beta, ci)
+            return self.alpha_p * beta
 
     def update(self):
         s = self.environment.state  # current state
