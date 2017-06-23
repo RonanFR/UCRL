@@ -38,13 +38,18 @@ from ._max_proba cimport max_proba_bernstein
 
 cdef class EVI:
 
-    def __init__(self, nb_states, list actions_per_state, use_bernstein, random_state):
+    def __init__(self, nb_states, list actions_per_state, bound_type, int random_state):
         cdef SIZE_t n, m, i, j
         self.nb_states = nb_states
         self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
         self.u2 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
 
-        self.bernstein_bound = use_bernstein
+        if bound_type == "chernoff":
+            self.bound_type = CHERNOFF
+        elif bound_type == "bernstein":
+            self.bound_type = BERNSTEIN
+        else:
+            raise ValueError("Unknown bound type")
 
         # allocate indices and memoryview (may slow down)
         self.sorted_indices = <SIZE_t *> malloc(nb_states * sizeof(SIZE_t))
@@ -131,7 +136,7 @@ cdef class EVI:
                     count_equal_actions = 0
                     for a_idx in range(self.actions_per_state[s].dim):
                         action = self.actions_per_state[s].values[a_idx]
-                        if self.bernstein_bound == 0:
+                        if self.bound_type == CHERNOFF:
                             # max_proba_purec
                             # max_proba_reduced
                             max_proba_purec(estimated_probabilities[s][a_idx], nb_states,

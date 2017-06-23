@@ -11,6 +11,11 @@ cimport numpy as np
 from ._utils cimport DTYPE_t, SIZE_t
 from ._utils cimport IntVectorStruct
 
+cdef enum BoundType:
+    CHERNOFF=0
+    CHERNOFF_STATEDIM=1
+    BERNSTEIN=2
+
 cdef class EVI:
     cdef DTYPE_t *u1
     cdef DTYPE_t *u2
@@ -20,7 +25,7 @@ cdef class EVI:
     cdef SIZE_t nb_states
     cdef SIZE_t max_macroactions_per_state
     cdef IntVectorStruct* actions_per_state
-    cdef SIZE_t bernstein_bound
+    cdef BoundType bound_type
     cdef SIZE_t random_state
 
     # Methods
