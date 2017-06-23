@@ -90,7 +90,7 @@ class FSUCRLv1(AbstractUCRL):
         else:
             self.alpha_mc = alpha_mc
 
-    def learn(self, duration, regret_time_step):
+    def learn(self, duration, regret_time_step, render=False):
         if self.total_time >= duration:
             return
         threshold = self.total_time + regret_time_step
@@ -117,7 +117,8 @@ class FSUCRLv1(AbstractUCRL):
             span_value = self.solve_optimistic_model()
             t1 = time.time()
 
-            # self.environment.render_policy(self.policy_indices)
+            if render:
+                self.environment.render_policy(self.policy_indices)
 
             span_value /= self.r_max
             if self.verbose > 0:
@@ -186,14 +187,14 @@ class FSUCRLv1(AbstractUCRL):
             # assert np.allclose(ci, beta)
             return self.alpha_p * beta.reshape([S, A, 1])
         else:
-            Z = m.log(S * m.log(self.iteration + 1) / self.delta)
-            n = np.maximum(1, self.nb_observations)
-            Va = np.sqrt(2 * self.P * (1-self.P) * Z / n[:,:,np.newaxis])
-            Vb = Z * 7 / (3 * n)
-            ci = (Va + Vb[:, :, np.newaxis])
             beta = bounds.bernstein(it=self.iteration, N=self.nb_observations,
                                     delta=self.delta, P=self.P, log_C=S)
-            assert np.allclose(beta, ci)
+            # Z = m.log(S * m.log(self.iteration + 2) / self.delta)
+            # n = np.maximum(1, self.nb_observations)
+            # Va = np.sqrt(2 * self.P * (1-self.P) * Z / n[:,:,np.newaxis])
+            # Vb = Z * 7 / (3 * n)
+            # ci = (Va + Vb[:, :, np.newaxis])
+            # assert np.allclose(beta, ci)
             return self.alpha_p * beta
 
     def update(self):

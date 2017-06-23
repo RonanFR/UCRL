@@ -212,7 +212,7 @@ cdef class EVI_FSUCRLv1:
             for o in prange(nb_options):
 
                 opt_nb_states = self.reachable_states_per_option[o].dim
-                bernstein_log = log(opt_nb_states * log(total_time + 1.) / delta)
+                bernstein_log = log(opt_nb_states * log(total_time + 2.) / delta)
 
                 # note that this should be row-major (c ordering)
                 Popt = <double*>malloc(opt_nb_states * opt_nb_states * sizeof(double))
@@ -768,7 +768,7 @@ cdef class EVI_FSUCRLv2:
             for o in prange(nb_options):
 
                 opt_nb_states = self.reachable_states_per_option[o].dim
-                bernstein_log = log(opt_nb_states * log(total_time + 1.) / delta)
+                bernstein_log = log(opt_nb_states * log(total_time + 2.) / delta)
 
                 for i in range(opt_nb_states):
                     s = self.reachable_states_per_option[o].values[i]

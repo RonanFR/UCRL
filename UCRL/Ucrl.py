@@ -117,7 +117,7 @@ class UcrlMdp(AbstractUCRL):
         self.tau_max = 1
         self.tau_min = 1
 
-    def learn(self, duration, regret_time_step):
+    def learn(self, duration, regret_time_step, render=False):
         """ Run UCRL on the provided environment
         
         Args:
@@ -151,6 +151,9 @@ class UcrlMdp(AbstractUCRL):
             t0 = time.time()
             span_value = self.solve_optimistic_model()
             t1 = time.time()
+
+            if render:
+                self.environment.render_policy(self.policy)
 
             span_value *= self.tau / self.r_max
             if self.verbose > 0:
@@ -237,14 +240,14 @@ class UcrlMdp(AbstractUCRL):
             # assert np.allclose(ci, beta)
             return self.alpha_p * beta.reshape([S, A, 1])
         else:
-            Z = m.log(S * m.log(self.iteration + 1) / self.delta)
-            n = np.maximum(1, self.nb_observations)
-            Va = np.sqrt(2 * self.P * (1-self.P) * Z / n[:,:,np.newaxis])
-            Vb = Z * 7 / (3 * n)
-            ci = (Va + Vb[:, :, np.newaxis])
             beta = bounds.bernstein(it=self.iteration, N=self.nb_observations,
                                     delta=self.delta, P=self.P, log_C=S)
-            assert np.allclose(beta, ci)
+            # Z = m.log(S * m.log(self.iteration + 2) / self.delta)
+            # n = np.maximum(1, self.nb_observations)
+            # Va = np.sqrt(2 * self.P * (1-self.P) * Z / n[:,:,np.newaxis])
+            # Vb = Z * 7 / (3 * n)
+            # ci = (Va + Vb[:, :, np.newaxis])
+            # assert np.allclose(beta, ci)
             return self.alpha_p * beta
 
     def update(self):

@@ -7,7 +7,7 @@ def chernoff(it, N, delta, sqrt_C, log_C, range=1.):
     return ci
 
 def bernstein(it, P, N, delta, log_C):
-    Z = m.log(log_C * m.log(it + 1) / delta)
+    Z = m.log(log_C * m.log(it + 2) / delta)
     n = np.maximum(1, N)
     Va = np.sqrt(2 * P * (1 - P) * Z / n[:, :, np.newaxis])
     Vb = Z * 7 / (3 * n)
