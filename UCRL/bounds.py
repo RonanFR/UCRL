@@ -6,12 +6,12 @@ def chernoff(it, N, delta, sqrt_C, log_C, range=1.):
     ci = range * np.sqrt(sqrt_C * m.log(log_C * (it + 1) / delta) / np.maximum(1,N))
     return ci
 
-def bernstein(it, P, N, delta, log_C):
-    Z = m.log(log_C * m.log(it + 2) / delta)
+def bernstein(it, P, N, delta, log_C, alpha_1, alpha_2, scale_f=4.):
+    Z = scale_f * m.log(log_C * m.log(it + 2) / delta)
     n = np.maximum(1, N)
     Va = np.sqrt(2 * P * (1 - P) * Z / n[:, :, np.newaxis])
     Vb = Z * 7 / (3 * n)
-    return Va + Vb[:, :, np.newaxis]
+    return alpha_1 * Va + alpha_2 * Vb[:, :, np.newaxis]
 
 
 # def grid_range_r_from_hoeffding(nb_states, nb_actions, nb_observations,

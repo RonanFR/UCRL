@@ -241,14 +241,15 @@ class UcrlMdp(AbstractUCRL):
             return self.alpha_p * beta.reshape([S, A, 1])
         else:
             beta = bounds.bernstein(it=self.iteration, N=self.nb_observations,
-                                    delta=self.delta, P=self.P, log_C=S)
+                                    delta=self.delta, P=self.P, log_C=S,
+                                    alpha_1=1., alpha_2=self.alpha_p)
             # Z = m.log(S * m.log(self.iteration + 2) / self.delta)
             # n = np.maximum(1, self.nb_observations)
             # Va = np.sqrt(2 * self.P * (1-self.P) * Z / n[:,:,np.newaxis])
             # Vb = Z * 7 / (3 * n)
             # ci = (Va + Vb[:, :, np.newaxis])
             # assert np.allclose(beta, ci)
-            return self.alpha_p * beta
+            return beta
 
     def update(self):
         s = self.environment.state  # current state

@@ -212,7 +212,7 @@ cdef class EVI_FSUCRLv1:
             for o in prange(nb_options):
 
                 opt_nb_states = self.reachable_states_per_option[o].dim
-                bernstein_log = log(opt_nb_states * log(total_time + 2.) / delta)
+                bernstein_log = 4. * log(opt_nb_states * log(total_time + 2.) / delta)
 
                 # note that this should be row-major (c ordering)
                 Popt = <double*>malloc(opt_nb_states * opt_nb_states * sizeof(double))
@@ -243,9 +243,8 @@ cdef class EVI_FSUCRLv1:
                         l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, j)
                         Popt[l_ij] = (1. - term_cond[idx]) * prob
                         sum_prob_row = sum_prob_row + Popt[l_ij]
-                        bernstein_bound = bernstein_bound + sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o) + bernstein_log * 7. / (3. * nb_o)
+                        bernstein_bound = bernstein_bound + alpha_mc * sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o) + bernstein_log * 7. / (3. * nb_o)
 
-                    bernstein_bound = alpha_mc * bernstein_bound
                     if beta_mu_p[o] < bernstein_bound:
                         beta_mu_p[o] = bernstein_bound
 
@@ -768,7 +767,7 @@ cdef class EVI_FSUCRLv2:
             for o in prange(nb_options):
 
                 opt_nb_states = self.reachable_states_per_option[o].dim
-                bernstein_log = log(opt_nb_states * log(total_time + 2.) / delta)
+                bernstein_log = 4. * log(opt_nb_states * log(total_time + 2.) / delta)
 
                 for i in range(opt_nb_states):
                     s = self.reachable_states_per_option[o].values[i]
@@ -796,8 +795,7 @@ cdef class EVI_FSUCRLv2:
                             beta_opt_p[o].values[l_ij] = alpha_mc * sqrt(14 * nb_states * log(2 * max_nb_actions
                                                                                               * (total_time + 1)/ delta) / nb_o)
                         else:
-                            beta_opt_p[o].values[l_ij] = alpha_mc * (sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o)
-                                                                       + bernstein_log * 7. / (3. * nb_o))
+                            beta_opt_p[o].values[l_ij] = sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o) + alpha_mc * (bernstein_log * 7. / (3. * nb_o))
                     # compute transition matrix of option
                     l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, 0)
                     p_hat_opt[o].values[l_ij] = 1. - sum_prob_row
