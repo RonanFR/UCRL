@@ -871,7 +871,7 @@ cdef class EVI_FSUCRLv2:
             while True:
                 outer_evi_it += 1
                 if outer_evi_it > MAX_IT_OUTER:
-                    printf("%f", max_u1 - min_u1)
+                    printf("Max iteration (%d) of outer loop reached", MAX_IT_OUTER)
                     return -2
 
                 # epsilon_opt = 1. / pow(2, outer_evi_it)
@@ -906,6 +906,7 @@ cdef class EVI_FSUCRLv2:
                             option_idx = j
                             break
                     if option_idx == -1:
+                        printf("Option not found among the one available in the state")
                         evi_error = 99
                         continue_flag = 0
 
@@ -962,6 +963,7 @@ cdef class EVI_FSUCRLv2:
                             get_sorted_indices(w1[o].values, nb_states_per_options, sorted_indices_popt[o].values)
 
                     if inner_it_opt == MAX_IT_INNER:
+                        printf("Max iteration (%d) of inner loop reached for opt. %d", MAX_IT_INNER, o)
                         evi_error += 1
                 if evi_error > 0:
                     return -1
@@ -1021,6 +1023,7 @@ cdef class EVI_FSUCRLv2:
 
                         # error check
                         if v > MAX_VAL_V:
+                            printf("u value is too big (> %f)", MAX_VAL_V)
                             evi_error += 1
                     
                     # randomly select action
