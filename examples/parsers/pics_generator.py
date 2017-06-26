@@ -79,6 +79,7 @@ def ordered(obj):
 def load_mean_values(folder, attributes):
     onlyfiles = [f for f in os.listdir(folder) if
                  os.path.isfile(os.path.join(folder, f)) and ".pickle" in f]
+    print("{}: {} files".format(folder, len(onlyfiles)))
     data = {}
     for f in onlyfiles:
         model = pickle.load(open(os.path.join(folder, f), "rb"))
@@ -99,6 +100,7 @@ def load_mean_values(folder, attributes):
         data['{}_std'.format(k)] = m_std
         data['{}_max'.format(k)] = m_max
         data['{}_min'.format(k)] = m_min
+        data['{}_num'.format(k)] = m.shape[0]
 
     return data
 
@@ -168,7 +170,8 @@ def plot_temporal_abstraction(folder, domain, algorithms, configurations,
 
 def plot_regret(folder, domain, algorithms, configuration,
                 output_filename, plot_every=1, log_scale=False,
-                generate_tex=False):
+                generate_tex=False, gtype="minmax"):
+    assert gtype in ["minmax", "confidence"]
     data = {}
     for a in algorithms:
         data[a] = {}
@@ -181,11 +184,21 @@ def plot_regret(folder, domain, algorithms, configuration,
                            "{}_{}_{}".format(alg, domain, conf))
         mv = load_mean_values(folder=lfolder,
                               attributes=["regret", "regret_unit_time"])
-        data[alg]["regret"] = mv["regret_mean"]
+        # data[alg]["regret"] = mv["regret_mean"]
         #data[alg]["regret_error"] = mv["regret_std"]
-        data[alg]["regret_max"] = mv["regret_max"]
-        data[alg]["regret_min"] = mv["regret_min"]
-        data[alg]["regret_unit_time"] = mv["regret_unit_time_mean"]
+        # data[alg]["regret_max"] = mv["regret_max"]
+        # data[alg]["regret_min"] = mv["regret_min"]
+        # data[alg]["regret_unit_time"] = mv["regret_unit_time_mean"]
+        data[alg] = mv
+
+        with open(os.path.join(lfolder, "settings0.conf"), "r") as f:
+            settings = json.load(f)
+        title = "{}-{}: $\\alpha_p$={}, $\\alpha_{{mc}}$={}, $\\alpha_r={}$, $\\alpha_{{tau}}={}$, $r_{{max}}={}$".format(
+            domain, settings['dimension'],
+            settings['alpha_p'], settings['alpha_mc'],
+            settings['alpha_r'], settings['alpha_tau'],
+            settings['r_max']
+        )
 
     plt.figure()
     xmin = np.inf
@@ -197,25 +210,33 @@ def plot_regret(folder, domain, algorithms, configuration,
         del prop['markersize']
         # if k != "UCRL" and domain == 'navgrid':
         #     assert el['t_max'] == tmax, '{}: {} {}'.format(k, tmax, el['t_max'])
-        t = range(0, len(el['regret_unit_time']), plot_every)
+        t = list(range(0, len(el['regret_unit_time_mean']), plot_every)) + [len(el['regret_unit_time_mean'])-1]
         if log_scale:
-            ax1 = plt.loglog(el['regret_unit_time'][t], el['regret'][t], **prop)
+            ax1 = plt.loglog(el['regret_unit_time_mean'][t], el['regret_mean'][t], **prop)
         else:
             # ax1 = plt.plot(el['regret_unit_time'][t], np.gradient(el['regret'][t]- 0.0009 * el['regret_unit_time'][t], 1000*plot_every), **prop)
             # ax1 = plt.plot(el['regret_unit_time'][t],
             #     el['regret'][t] - 0.0009 * el['regret_unit_time'][t], **prop)
-            ax1 = plt.plot(el['regret_unit_time'][t], el['regret'][t], **prop)
+            ax1 = plt.plot(el['regret_unit_time_mean'][t], el['regret_mean'][t], **prop)
             ax1_col = ax1[0].get_color()
-            plt.fill_between(el['regret_unit_time'][t],
-                          el['regret_min'][t] , el['regret_max'][t], facecolor=ax1_col, alpha=0.4)
-        xmin = min(xmin, el['regret_unit_time'][0])
-        xmax = max(xmax, el['regret_unit_time'][-1])
+            if gtype == "minmax":
+                plt.fill_between(el['regret_unit_time_mean'][t],
+                              el['regret_min'][t] , el['regret_max'][t], facecolor=ax1_col, alpha=0.4)
+                # if k == "FSUCRLv2":
+                #     for v in el['regret']:
+                #         plt.plot(el['regret_unit_time_mean'][t], np.array(v)[t], '--', c=ax1_col, alpha=0.45)
+            else:
+                ci = 1.96 * el['regret_std'][t] / np.sqrt(el['regret_num'])
+                plt.fill_between(el['regret_unit_time_mean'][t],
+                                 el['regret_mean'][t]-ci, el['regret_mean'][t]+ci, facecolor=ax1_col, alpha=0.4)
+        xmin = min(xmin, el['regret_unit_time_mean'][0])
+        xmax = max(xmax, el['regret_unit_time_mean'][-1])
     if not log_scale:
         plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
         plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
     plt.ylabel("Cumulative Regret $\Delta (T_{n})$")
     plt.xlabel("Duration $T_{n}$")
-    plt.title("config: {}".format(configuration))
+    plt.title("{} / {}".format(configuration, title))
     plt.legend()
     plt.xlim([xmin, xmax])
 

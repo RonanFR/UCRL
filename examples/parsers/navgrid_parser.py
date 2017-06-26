@@ -10,12 +10,12 @@ from pics_generator import plot_temporal_abstraction, plot_regret
 # orig_folder = '../../results/0606_evening/navgrid_20_20170606_195704/' #1
 orig_folder = '../../results/0607_morning/navgrid_20_20170607_183103/'
 # orig_folder = '../../results/navgrid_20_20170609_175906/'
-# orig_folder = '../../results/navgrid_20_20170612_145532/'
+orig_folder = '../../results/navgrid_20_20170612_145532/'
 domain = 'navgrid'
 # domain = '4rooms'
 dim = 20
 
-configurations = ["c{}".format(i) for i in range(1, 13)]
+configurations = ["c{}".format(i) for i in range(1, 19)]
 # configurations = ["c{}".format(i) for i in range(1,16,2)]
 
 
