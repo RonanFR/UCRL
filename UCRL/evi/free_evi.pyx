@@ -243,7 +243,7 @@ cdef class EVI_FSUCRLv1:
                         l_ij = pos2index_2d(opt_nb_states, opt_nb_states, i, j)
                         Popt[l_ij] = (1. - term_cond[idx]) * prob
                         sum_prob_row = sum_prob_row + Popt[l_ij]
-                        bernstein_bound = bernstein_bound + alpha_mc * sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o) + bernstein_log * 7. / (3. * nb_o)
+                        bernstein_bound = bernstein_bound + sqrt(bernstein_log * 2 * prob * (1 - prob) / nb_o) + alpha_mc * bernstein_log * 7. / (3. * nb_o)
 
                     if beta_mu_p[o] < bernstein_bound:
                         beta_mu_p[o] = bernstein_bound
