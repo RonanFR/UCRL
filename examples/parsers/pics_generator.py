@@ -5,6 +5,7 @@ import json
 import copy
 import matplotlib.pyplot as plt
 from matplotlib2tikz import save as tikz_save
+import matplotlib.colors as pltcolors
 
 graph_properties = {}
 graph_properties["SUCRL_v1"] = {'marker': '*',
@@ -12,8 +13,8 @@ graph_properties["SUCRL_v1"] = {'marker': '*',
                                 'linewidth': 2.,
                                 'label': 'SUCRLv1',
                                 'linestyle': '-',
-                                # 'c': [0.172549019607843,0.627450980392157,0.172549019607843]
-                                'c': 'C2'
+                                'color': pltcolors.rgb2hex([0.580392156862745,0.403921568627451,0.741176470588235])
+                                #'color': 'C4'
                             }
 graph_properties["SUCRL"] = graph_properties["SUCRL_v1"]
 graph_properties["SUCRL_v2"] = {'marker': "1",
@@ -22,8 +23,8 @@ graph_properties["SUCRL_v2"] = {'marker': "1",
                                 'linewidth': 2.,
                                 'label': 'SUCRLv2',
                                 'linestyle': '-',
-                                # 'c': [0.83921568627451,0.152941176470588,0.156862745098039]
-                                'c': 'C3'
+                                'color': pltcolors.rgb2hex([0.83921568627451,0.152941176470588,0.156862745098039])
+                                # 'color': 'C3'
                             }
 graph_properties["SUCRL_subexp"] = graph_properties["SUCRL_v2"]
 graph_properties["SUCRL_v3"] = {'marker': "d",
@@ -31,8 +32,8 @@ graph_properties["SUCRL_v3"] = {'marker': "d",
                                 'linewidth': 2.,
                                 'label': 'SUCRLv3',
                                 'linestyle': '--',
-                                # 'c': [0.580392156862745,0.403921568627451,0.741176470588235]
-                                'c': 'C4'
+                                'color': pltcolors.rgb2hex([0.172549019607843,0.627450980392157,0.172549019607843])
+                                # 'c': 'C2'
                             }
 graph_properties["SUCRL_subexp_tau"] = graph_properties["SUCRL_v2"]
 graph_properties["SUCRL_v4"] = {'marker': "3",
@@ -40,39 +41,39 @@ graph_properties["SUCRL_v4"] = {'marker': "3",
                                 'linewidth': 2.,
                                 'label': 'SUCRLv4',
                                 'linestyle': '--',
-                                # 'c': [0.580392156862745,0.403921568627451,0.741176470588235]
-                                'c': 'C5'
+                                'color': pltcolors.rgb2hex([0.549019607843137,0.337254901960784,0.294117647058824])
+                                # 'c': 'C5'
                             }
 graph_properties["SUCRL_v5"] = {'marker': "3",
                                 'markersize': 10,
                                 'linewidth': 2.,
                                 'label': 'SUCRLv5',
                                 'linestyle': '--',
-                                # 'c': [0.890196078431372,0.466666666666667,0.76078431372549]
-                                'c': 'C6'
+                                'color': pltcolors.rgb2hex([0.890196078431372,0.466666666666667,0.76078431372549])
+                                # 'c': 'C6'
                             }
 graph_properties["FSUCRLv1"] = {'marker': '^',
                                 'markersize': 10,
                                 'linewidth': 2.,
                                 'label': 'FSUCRLv1',
                                 'linestyle': '--',
-                                # 'c': [0.12156862745098,0.466666666666667,0.705882352941177]
-                                'c': 'C0'
+                                'color': pltcolors.rgb2hex([0.12156862745098,0.466666666666667,0.705882352941177])
+                                #'color': 'C0'
                                 }
 graph_properties["FSUCRLv2"] = {'marker': 'o',
                                 'markersize': 10,
                                 'linewidth': 2.,
                                 'label': 'FSUCRLv2',
                                 'linestyle': '-.',
-                                # 'c':[1,0.498039215686275,0.0549019607843137]
-                                'c': 'C1'
+                                'color': pltcolors.rgb2hex([1,0.498039215686275,0.0549019607843137])
+                                #'color': 'C1'
                                 }
 graph_properties["UCRL"] = {'marker': 'o',
                             'markersize': 10,
                             'linewidth': 2.,
                             'label': 'UCRL',
                             'linestyle': ':',
-                            'c': 'k'
+                            'color': 'k'
                            }
 
 def ordered(obj):
@@ -93,7 +94,10 @@ def load_mean_values(folder, attributes):
         for k in attributes:
             if k not in data:
                 data[k] = []
-            data[k].append(getattr(model, k))
+            if k == 'regret':
+                data[k].append(np.array(getattr(model,k)) / (np.array(getattr(model,'regret_unit_time'))+1))
+            else:
+                data[k].append(getattr(model, k))
 
     for k in attributes:
         metric = data[k]
@@ -126,7 +130,7 @@ def plot_temporal_abstraction(folder, domain, algorithms, configurations,
     data = {}
 
     for alg in algorithms:
-        data[alg] = {"x": [], "y": []}
+        data[alg] = {"x": [], "y": [], "y_min": [], "y_max": []}
 
     for conf in configurations:
         for i, alg in enumerate(algorithms):
@@ -146,6 +150,8 @@ def plot_temporal_abstraction(folder, domain, algorithms, configurations,
             mean_regret = mv['regret_mean'][-1]
 
             data[alg]['y'].append(mean_regret / mdp_regret)
+            data[alg]['y_min'].append(mv['regret_min'][-1] / mdp_regret)
+            data[alg]['y_max'].append(mv['regret_max'][-1] / mdp_regret)
             data[alg]['x'].append(settings['t_max'])
 
             title = "{}-{}: $\\alpha_p$={}, $\\alpha_{{mc}}$={}, $\\alpha_r={}$, $\\alpha_{{tau}}={}$,\n$r_{{max}}={}$, bound={}".format(
@@ -159,10 +165,13 @@ def plot_temporal_abstraction(folder, domain, algorithms, configurations,
     print(data)
     plt.figure()
     plt.title(title)
-    plt.plot([1, len(configurations)], [1, 1], 'k', linewidth=2, label="UCRL")
+    plt.plot([1, len(configurations)], [1, 1], color='k', linewidth=2, label="UCRL")
     for k in algorithms:
         el = data[k]
-        plt.plot(el['x'], el['y'], **graph_properties[k])
+        ax1 = plt.plot(el['x'], el['y'], **graph_properties[k])
+        # ax1_col = ax1[0].get_color()
+        # plt.fill_between(el['y'],
+        #                  el['y_min'], el['y_max'], facecolor=ax1_col, alpha=0.4)
 
     plt.xlim([1, len(configurations)])
 
@@ -178,7 +187,7 @@ def plot_temporal_abstraction(folder, domain, algorithms, configurations,
 
 def plot_regret(folder, domain, algorithms, configuration,
                 output_filename, plot_every=1, log_scale=False,
-                generate_tex=False, gtype="minmax"):
+                generate_tex=False, gtype="minmax", y_lim=None):
     assert gtype in ["minmax", "confidence"]
     data = {}
     for a in algorithms:
@@ -201,11 +210,12 @@ def plot_regret(folder, domain, algorithms, configuration,
 
         with open(os.path.join(lfolder, "settings0.conf"), "r") as f:
             settings = json.load(f)
-        title = "{}-{}: $\\alpha_p$={}, $\\alpha_{{mc}}$={}, $\\alpha_r={}$, $\\alpha_{{tau}}={}$, $r_{{max}}={}$".format(
+        title = "{}-{}: $\\alpha_p$={}, $\\alpha_{{mc}}$={}, $\\alpha_r={}$, $\\alpha_{{tau}}={}$,\n$r_{{max}}={}$, bound={}$".format(
             domain, settings['dimension'],
             settings['alpha_p'], settings['alpha_mc'],
             settings['alpha_r'], settings['alpha_tau'],
-            settings['r_max']
+            settings['r_max'],
+                settings['bound_type']
         )
 
     plt.figure()
@@ -230,9 +240,9 @@ def plot_regret(folder, domain, algorithms, configuration,
             if gtype == "minmax":
                 plt.fill_between(el['regret_unit_time_mean'][t],
                               el['regret_min'][t] , el['regret_max'][t], facecolor=ax1_col, alpha=0.4)
-                # if k == "FSUCRLv2":
-                #     for v in el['regret']:
-                #         plt.plot(el['regret_unit_time_mean'][t], np.array(v)[t], '--', c=ax1_col, alpha=0.45)
+                if k == "FSUCRLv2":
+                    for v in el['regret']:
+                        plt.plot(el['regret_unit_time_mean'][t], np.array(v)[t], '--', c=ax1_col, alpha=0.42)
             else:
                 ci = 1.96 * el['regret_std'][t] / np.sqrt(el['regret_num'])
                 plt.fill_between(el['regret_unit_time_mean'][t],
@@ -244,9 +254,11 @@ def plot_regret(folder, domain, algorithms, configuration,
         plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
     plt.ylabel("Cumulative Regret $\Delta (T_{n})$")
     plt.xlabel("Duration $T_{n}$")
-    # plt.title("{} / {}".format(configuration, title))
+    plt.title("{} / {}".format(configuration, title))
     plt.legend(loc=2)
     plt.xlim([xmin, xmax])
+    if y_lim is not None:
+        plt.ylim(y_lim)
 
     # save figures
     if generate_tex:
