@@ -14,4 +14,5 @@
 #   - added Bias Span Constrained EVI (same structure of EVI)
 #   - added test accordingly to (Puterman, 1994) for Evi e SC-EVI
 #   - SUCRL and FSUCRL are unchanged
+#   - addet test of 2 states domain in article
 __version__ = '0.16.dev0'

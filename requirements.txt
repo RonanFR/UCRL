@@ -4,3 +4,4 @@ pandas
 cython
 matplotlib
 tqdm
+pytest
