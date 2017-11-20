@@ -122,7 +122,7 @@ cdef class EVI_FSUCRLv1:
         self.options_policies_indices_mdp = <SIZE_t *>malloc(nb_options * nb_states * sizeof(SIZE_t)) # (O x S)
         self.options_terminating_conditions = <DTYPE_t *>malloc(nb_options * nb_states * sizeof(SIZE_t)) # (O x S)
 
-        
+
         for i in range(n):
             m = len(reachable_states_per_option[i])
             if m > max_states_per_option:
@@ -280,7 +280,7 @@ cdef class EVI_FSUCRLv1:
                     for i in range(opt_nb_states):
                         mu_opt[o].values[i] = 1./ opt_nb_states
                     local_error = 0
-                    
+
                 opt_error += local_error
 
                 free(Popt)
@@ -313,19 +313,19 @@ cdef class EVI_FSUCRLv1:
         cdef DoubleVectorStruct* mu_opt = self.mu_opt
         cdef DoubleVectorStruct* r_tilde_opt = self.r_tilde_opt
         cdef DTYPE_t* xx = self.xx
-        
+
         cdef SIZE_t* action_argmax
         cdef SIZE_t* action_argmax_indices
         cdef SIZE_t count_equal_actions, picked_idx, new_idx
-        
+
         action_argmax = <SIZE_t*> malloc(nb_states * max_nb_actions * sizeof(SIZE_t))
         action_argmax_indices = <SIZE_t*> malloc(nb_states * max_nb_actions * sizeof(SIZE_t))
 
 
         with nogil:
-            c1 = u1[0]
+            c1 = u2[0]
             for i in range(nb_states):
-                u1[i] = u1[i] - c1
+                u1[i] = u2[i] - c1
                 sorted_indices[i] = i
             get_sorted_indices(u1, nb_states, sorted_indices)
 
@@ -380,11 +380,11 @@ cdef class EVI_FSUCRLv1:
 
 
                         c1 = v + u1[s]
-                        
+
                         if first_action:
                             u2[s] = c1
                             count_equal_actions = 1
-                            
+
                             new_idx = pos2index_2d(nb_states, max_nb_actions, s, 0)
                             action_argmax[new_idx] = action
                             action_argmax_indices[new_idx] = a_idx
@@ -396,12 +396,12 @@ cdef class EVI_FSUCRLv1:
                         elif c1 > u2[s]:
                             u2[s] = c1
                             count_equal_actions = 1
-                            
+
                             new_idx = pos2index_2d(nb_states, max_nb_actions, s, 0)
                             action_argmax[new_idx] = action
                             action_argmax_indices[new_idx] = a_idx
                         first_action = 0
-                        
+
                     # randomly select action
                     picked_idx = rand() / (RAND_MAX / count_equal_actions + 1)
                     new_idx = pos2index_2d(nb_states, max_nb_actions, s, picked_idx)
@@ -411,7 +411,7 @@ cdef class EVI_FSUCRLv1:
                     #     new_idx = pos2index_2d(nb_states, max_nb_actions, s, i  )
                     #     printf("%d, ", action_argmax_indices[new_idx])
                     # printf("\n")
-                        
+
                 counter = counter + 1
 
                 # stopping condition
@@ -467,7 +467,7 @@ cdef class EVI_FSUCRLv1:
                 L.append(self.r_tilde_opt[i].values[j])
             r.append(L)
         return r
-    
+
     cpdef get_mu_tilde(self, DTYPE_t r_max, DTYPE_t[:,:,:] p_hat, DTYPE_t[:,:,:] beta_p):
         cdef SIZE_t i, j, o, s, sub_dim, idx
         cdef SIZE_t nb_states = self.nb_states, nb_options = self.nb_options
@@ -478,11 +478,11 @@ cdef class EVI_FSUCRLv1:
         cdef SIZE_t* sorted_indices_mu = self.sorted_indices_mu
         cdef SIZE_t option_act, option_idx
         cdef SIZE_t* sorted_indices = self.sorted_indices
-        
+
         for i in range(self.nb_states):
             sorted_indices[i] = i
         get_sorted_indices(self.u1, self.nb_states, sorted_indices)
-        
+
         mu_tilde = []
         for o in range(nb_options):
             sub_dim = self.reachable_states_per_option[o].dim
@@ -491,7 +491,7 @@ cdef class EVI_FSUCRLv1:
             for o in range(nb_options):
                 s = self.reachable_states_per_option[o].values[0]
                 sub_dim = self.reachable_states_per_option[o].dim
-                
+
                 option_act = o + self.threshold + 1
                 option_idx = -1
                 # get index of the option in the current state
@@ -499,7 +499,7 @@ cdef class EVI_FSUCRLv1:
                     if self.actions_per_state[s].values[j] == option_act:
                         option_idx = j
                         break
-                
+
                 if self.bound_type != BoundType.BERNSTEIN:
                     max_proba_purec(p_hat[s][option_idx], nb_states,
                                 sorted_indices, beta_p[s][option_idx][0],
@@ -510,7 +510,7 @@ cdef class EVI_FSUCRLv1:
                                 mtx_maxprob_memview[s])
 
                 mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
-                
+
                 for i in range(sub_dim):
                     idx = pos2index_2d(nb_states, self.max_reachable_states_per_opt, s, i)
                     xx[idx] = min(r_max, r_tilde_opt[o].values[i])
@@ -531,12 +531,12 @@ cdef class EVI_FSUCRLv1:
                     for i in range(sub_dim):
                         mu_tilde[o][i] = mtx_maxprob_memview[s][i]
         return mu_tilde
-    
+
     cpdef get_P_prime(self, DTYPE_t[:,:,:] estimated_probabilities_mdp):
         cdef SIZE_t i, j, o, s, sub_dim, mdp_index_a, opt_nb_states
         cdef DTYPE_t sum_prob_row
         cdef DTYPE_t* term_cond = self.options_terminating_conditions
-        
+
         p_prime = []
         for o in range(self.nb_options):
             sub_dim = self.reachable_states_per_option[o].dim
@@ -557,11 +557,11 @@ cdef class EVI_FSUCRLv1:
 
                     p_prime[o][i,j] = (1. - term_cond[idx]) * prob
                     sum_prob_row = sum_prob_row + p_prime[o][i,j]
-                
+
                 p_prime[o][i,0] = 1 - sum_prob_row
-                        
-        return p_prime          
-    
+
+        return p_prime
+
     cpdef set_seed(self, SIZE_t seed):
         srand(seed)
 
@@ -703,7 +703,7 @@ cdef class EVI_FSUCRLv2:
         self.mtx_maxprob_opt = <DTYPE_t *>malloc(nb_options * nb_states * sizeof(DTYPE_t))
         self.mtx_maxprob_opt_memview = <DTYPE_t[:nb_options, :nb_states]> self.mtx_maxprob_opt
         self.span_w_opt = <DTYPE_t*> malloc(nb_options * sizeof(DTYPE_t))
-        
+
         self.random_state = random_state
         srand(random_state)
 
@@ -843,18 +843,18 @@ cdef class EVI_FSUCRLv2:
         cdef SIZE_t MAX_IT_OUTER = 500000
         cdef DTYPE_t MAX_VAL_V = 500000.
         cdef SIZE_t evi_error = 0
-        
+
         cdef SIZE_t* action_argmax
         cdef SIZE_t* action_argmax_indices
         cdef SIZE_t count_equal_actions, picked_idx
-        
+
         action_argmax = <SIZE_t*> malloc(max_nb_actions * sizeof(SIZE_t))
         action_argmax_indices = <SIZE_t*> malloc(max_nb_actions * sizeof(SIZE_t))
 
         with nogil:
-            center_value = u1[0]
+            center_value = u2[0]
             for i in range(nb_states):
-                u1[i] = u1[i] - center_value
+                u1[i] = u2[i] - center_value
                 sorted_indices[i] = i
             get_sorted_indices(u1, nb_states, sorted_indices)
 
@@ -1023,12 +1023,12 @@ cdef class EVI_FSUCRLv2:
                         if v > MAX_VAL_V:
                             printf("u value is too big (> %f)", MAX_VAL_V)
                             evi_error += 1
-                    
+
                     # randomly select action
                     picked_idx = rand() / (RAND_MAX / count_equal_actions + 1)
                     policy_indices[s] = action_argmax_indices[picked_idx]
                     policy[s] = action_argmax[picked_idx]
-                    
+
                 if evi_error > 0:
                     return -3
 
@@ -1076,7 +1076,7 @@ cdef class EVI_FSUCRLv2:
         cdef DoubleVectorStruct* beta_opt_p = self.beta_opt_p
         cdef IntVectorStruct* sorted_indices_popt = self.sorted_indices_popt
         cdef DoubleVectorStruct* p_hat_opt = self.p_hat_opt
-        
+
         ptilde_list = []
         for o in range(nb_options):
             nb_states_per_options = reach_states[o].dim
@@ -1114,6 +1114,6 @@ cdef class EVI_FSUCRLv2:
             u1n[i] = self.u1[i]
             u2n[i] = self.u2[i]
         return u1n, u2n
-    
+
     cpdef set_seed(self, SIZE_t seed):
         srand(seed)

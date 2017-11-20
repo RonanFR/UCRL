@@ -144,7 +144,7 @@ def core_op(mdp, evi, constraint=np.inf):
 
     return u1, policy_indices, policy
 
-@pytest.mark.parametrize("count",range(10))
+@pytest.mark.parametrize("count",range(100))
 def test_state_action(count):
     ################################################################################
     # Define the MDP model (Figure 3.3.1 pag 34)

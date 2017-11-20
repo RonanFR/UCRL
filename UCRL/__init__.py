@@ -15,4 +15,7 @@
 #   - added test accordingly to (Puterman, 1994) for Evi e SC-EVI
 #   - SUCRL and FSUCRL are unchanged
 #   - addet test of 2 states domain in article
-__version__ = '0.16.dev0'
+# 0.18dev0
+#   - changed schema for tie breaking in EVI
+#       * use random noise in [0, 1e-4]
+__version__ = '0.18.dev0'

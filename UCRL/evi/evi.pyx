@@ -126,12 +126,9 @@ cdef class EVI:
 
         cdef DTYPE_t[:,:] mtx_maxprob_memview = self.mtx_maxprob_memview
 
-        cdef SIZE_t* action_argmax
-        cdef SIZE_t* action_argmax_indices
-        cdef SIZE_t count_equal_actions, picked_idx, new_idx
+        cdef DTYPE_t* action_noise
 
-        action_argmax = <SIZE_t*> malloc(nb_states * max_nb_actions * sizeof(SIZE_t))
-        action_argmax_indices = <SIZE_t*> malloc(nb_states * max_nb_actions * sizeof(SIZE_t))
+        action_noise = <DTYPE_t*> malloc(max_nb_actions * sizeof(DTYPE_t))
 
         with nogil:
             c1 = u2[0] if initial_recenter else 0.
@@ -141,11 +138,14 @@ cdef class EVI:
                 sorted_indices[i] = i
             get_sorted_indices(u1, nb_states, sorted_indices)
 
+            for a in range(max_nb_actions):
+                action_noise[a] = 1e-4 * (<double> rand()) / (<double> RAND_MAX)
+
 
             while True: #counter < 5:
                 for s in prange(nb_states):
                     first_action = 1
-                    count_equal_actions = 0
+
                     for a_idx in range(self.actions_per_state[s].dim):
                         action = self.actions_per_state[s].values[a_idx]
                         if self.bound_type == CHERNOFF:
@@ -169,30 +169,14 @@ cdef class EVI:
                         c1 = v / tau_optimal + gamma * u1[s]
                         if first_action:
                             u2[s] = c1
-                            count_equal_actions = 1
-
-                            new_idx = pos2index_2d(nb_states, max_nb_actions, s, 0)
-                            action_argmax[new_idx] = action
-                            action_argmax_indices[new_idx] = a_idx
-                        elif isclose_c(c1, u2[s]):
-                            new_idx = pos2index_2d(nb_states, max_nb_actions, s, count_equal_actions)
-                            action_argmax[new_idx] = action
-                            action_argmax_indices[new_idx] = a_idx
-                            count_equal_actions = count_equal_actions + 1
-                        elif c1 > u2[s]:
+                            policy[s] = action
+                            policy_indices[s] = a_idx
+                        elif c1 + action_noise[a_idx] > u2[s] + action_noise[policy_indices[s]]:
                             u2[s] = c1
-                            count_equal_actions = 1
+                            policy[s] = action
+                            policy_indices[s] = a_idx
 
-                            new_idx = pos2index_2d(nb_states, max_nb_actions, s, 0)
-                            action_argmax[new_idx] = action
-                            action_argmax_indices[new_idx] = a_idx
                         first_action = 0
-
-                    # randomly select action
-                    picked_idx = rand() / (RAND_MAX / count_equal_actions + 1)
-                    new_idx = pos2index_2d(nb_states, max_nb_actions, s, picked_idx)
-                    policy_indices[s] = action_argmax_indices[new_idx]
-                    policy[s] = action_argmax[new_idx]
 
                 counter = counter + 1
                 # printf("**%d\n", counter)
@@ -203,8 +187,7 @@ cdef class EVI:
                 # stopping condition
                 if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
                     # printf("%d\n", counter)
-                    free(action_argmax)
-                    free(action_argmax_indices)
+                    free(action_noise)
                     return max_u1 - min_u1
                 else:
                     memcpy(u1, u2, nb_states * sizeof(DTYPE_t))
