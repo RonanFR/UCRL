@@ -27,10 +27,12 @@ cdef class EVI:
     cdef IntVectorStruct* actions_per_state
     cdef BoundType bound_type
     cdef SIZE_t random_state
+    cdef DTYPE_t gamma
+
 
     # Methods
 
-    cpdef DTYPE_t evi(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
+    cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
                      DTYPE_t[:,:,:] estimated_probabilities,
                      DTYPE_t[:,:] estimated_rewards,
                      DTYPE_t[:,:] estimated_holding_times,
@@ -41,6 +43,9 @@ cdef class EVI:
                      DTYPE_t r_max,
                      DTYPE_t tau,
                      DTYPE_t tau_min,
-                     DTYPE_t epsilon)
+                     DTYPE_t epsilon,
+                     DTYPE_t span_constraint=*,
+                     SIZE_t initial_recenter = *,
+                     SIZE_t relative_vi = *)
 
     cpdef get_uvectors(self)

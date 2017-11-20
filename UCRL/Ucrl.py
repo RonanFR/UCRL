@@ -119,13 +119,14 @@ class UcrlMdp(AbstractUCRL):
 
     def learn(self, duration, regret_time_step, render=False):
         """ Run UCRL on the provided environment
-        
+
         Args:
-            duration (int): the algorithm is run until the number of time steps 
+            duration (int): the algorithm is run until the number of time steps
                             exceeds "duration"
             regret_time_step (int): the value of the cumulative regret is stored
                                     every "regret_time_step" time steps
-        
+            render (flag): True for rendering the domain, False otherwise
+
         """
         if self.total_time >= duration:
             return
@@ -183,7 +184,7 @@ class UcrlMdp(AbstractUCRL):
             self.nb_observations += self.nu_k
 
             for (s,a) in self.visited_sa:
-                self.P[s,a]  = self.P_counter[s,a] / self.nb_observations[s,a]
+                self.P[s,a] = self.P_counter[s,a] / self.nb_observations[s,a]
                 # assert np.sum(self.P_counter[s,a]) == self.nb_observations[s,a]
             # assert np.allclose(self.estimated_probabilities, self.P)
 
@@ -198,10 +199,10 @@ class UcrlMdp(AbstractUCRL):
 
     def beta_r(self):
         """ Confidence bounds on the reward
-        
+
         Returns:
             np.array: the vector of confidence bounds on the reward function (|S| x |A|)
-            
+
         """
         S = self.environment.nb_states
         A = self.environment.max_nb_actions_per_state
@@ -215,19 +216,19 @@ class UcrlMdp(AbstractUCRL):
 
     def beta_tau(self):
         """ Confidence bounds on holding times
-        
+
         Returns:
             np.array: the vecor of confidence bounds on the holding times (|S| x |A|)
-        
+
         """
         return np.zeros((self.environment.nb_states, self.environment.max_nb_actions_per_state))
 
     def beta_p(self):
         """ Confidence bounds on transition probabilities
-        
+
         Returns:
             np.array: the vector of confidence bounds on the transition matrix (|S| x |A|)
-            
+
         """
         S = self.environment.nb_states
         A = self.environment.max_nb_actions_per_state
@@ -253,12 +254,15 @@ class UcrlMdp(AbstractUCRL):
 
     def update(self):
         s = self.environment.state  # current state
-        self.environment.execute(self.policy[s])
+        curr_act_idx, curr_act = self.sample_action(s) # sample action from the policy
+
+        # execute the action
+        self.environment.execute(curr_act)
         s2 = self.environment.state  # new state
         r = self.environment.reward
         t = self.environment.holding_time
 
-        curr_act_idx = self.policy_indices[s]
+        # updated observations
         scale_f = self.nb_observations[s][curr_act_idx] + self.nu_k[s][curr_act_idx]
 
         self.estimated_rewards[s, curr_act_idx] *= scale_f / (scale_f + 1.)
@@ -275,6 +279,24 @@ class UcrlMdp(AbstractUCRL):
         self.total_reward += r
         self.total_time += t
         self.iteration += 1
+
+    def sample_action(self, s):
+        """
+        Args:
+            s (int): a given state index
+
+        Returns:
+            action_idx (int): index of the selected action
+            action (int): selected action
+        """
+        if isinstance(self.policy[s], list):
+            # this is a stochastic policy
+            action_idx = np.random.choice(self.policy_indices, p=self.policy)
+            action = self.environment.state_actions[s][action_idx]
+        else:
+            action_idx = self.policy_indices[s]
+            action = self.policy[s]
+        return action_idx, action
 
 
     def solve_optimistic_model(self):
@@ -498,12 +520,12 @@ class UcrlSmdpBounded(UcrlSmdpExp):
                  bound_type="chernoff",
                  verbose=0, logger=default_logger, random_state=None):
         super(UcrlSmdpBounded, self).__init__(environment=environment,
-                         r_max=r_max, tau_max=t_max,
-                         sigma_r=t_max * r_max,
-                         sigma_tau=t_max - t_min,
-                         tau_min=t_min,
-                         alpha_r=alpha_r, alpha_tau=alpha_tau, alpha_p=alpha_p,
-                         b_r=0., b_tau=0.,
-                         bound_type=bound_type,
-                         verbose=verbose, logger=logger,
-                        random_state=random_state)
+                                              r_max=r_max, tau_max=t_max,
+                                              sigma_r=t_max * r_max,
+                                              sigma_tau=t_max - t_min,
+                                              tau_min=t_min,
+                                              alpha_r=alpha_r, alpha_tau=alpha_tau, alpha_p=alpha_p,
+                                              b_r=0., b_tau=0.,
+                                              bound_type=bound_type,
+                                              verbose=verbose, logger=logger,
+                                              random_state=random_state)

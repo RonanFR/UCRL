@@ -11,7 +11,7 @@ You can perform a minimal install of the library with:
 	git clone https://github.com/RonanFR/UCRL
 	cd UCRL
 	pip install -e .
-    make
+	make
 
 What's new
 ----------
