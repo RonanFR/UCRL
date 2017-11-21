@@ -38,7 +38,8 @@ from ._max_proba cimport max_proba_bernstein
 
 cdef class SpanConstrainedEVI:
 
-    def __init__(self, nb_states, list actions_per_state, bound_type, int random_state, DTYPE_t gamma=1.):
+    def __init__(self, nb_states, list actions_per_state, str bound_type,
+                    int random_state, DTYPE_t gamma=1.):
         cdef SIZE_t n, m, i, j
         self.nb_states = nb_states
         self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
@@ -108,7 +109,10 @@ cdef class SpanConstrainedEVI:
                      DTYPE_t epsilon,
                      DTYPE_t span_constraint,
                      SIZE_t initial_recenter = 1,
-                     SIZE_t relative_vi = 1):
+                     SIZE_t relative_vi = 1,
+                     str operator_type = "T"):
+
+        cdef SIZE_t isT = 1 if operator_type == "T" else 0
 
         cdef SIZE_t s, i, a_idx, counter = 0
         cdef SIZE_t first_action
@@ -118,6 +122,7 @@ cdef class SpanConstrainedEVI:
         cdef SIZE_t nb_states = self.nb_states
         cdef SIZE_t max_nb_actions = self.max_macroactions_per_state
         cdef SIZE_t action
+        cdef SIZE_t exists_policy = 0
 
         cdef DTYPE_t* u1 = self.u1
         cdef DTYPE_t* u2 = self.u2
@@ -128,7 +133,7 @@ cdef class SpanConstrainedEVI:
         cdef SIZE_t* action_max_min
         cdef SIZE_t* action_max_min_indices
         cdef SIZE_t pos_mina, pos_maxa
-        cdef DTYPE_t truncated_value, x, min_v, max_v
+        cdef DTYPE_t truncated_value, min_v, max_v, w1, w2
         cdef DTYPE_t* action_noise
         cdef DTYPE_t* u2_mina
 
@@ -158,8 +163,10 @@ cdef class SpanConstrainedEVI:
             # printf('\n')
 
             while True:
+                exists_policy = 1 #let's hope for a policy
+
                 # each state is independently updated
-                for s in range(nb_states):
+                for s in prange(nb_states):
                     first_action = 1
 
                     # for each action available in the state
@@ -236,6 +243,7 @@ cdef class SpanConstrainedEVI:
 
                 ########################################################
                 # Truncate value function based on span
+                # Compute "greedy" policy
                 ########################################################
                 min_v = u2[0]
                 max_v = u2[0]
@@ -250,30 +258,67 @@ cdef class SpanConstrainedEVI:
                     truncated_value = min(u2[s], min_v + span_constraint)
 
                     if u2_mina[s] > truncated_value:
-                        printf("%d, %f, %f\n", s, u2_mina[s], truncated_value)
-                        # in this case I cannot recover the policy
-                        free(action_max_min)
-                        free(action_max_min_indices)
-                        free(u2_mina)
-                        free(action_noise)
-                        return -21
+                        pos_mina = pos2index_2d(nb_states, max_nb_actions, s, 0)
+                        pos_maxa = pos2index_2d(nb_states, max_nb_actions, s, 1)
 
-                    x = max(0., min(1., (truncated_value - 1.) / (u2[s] - u2_mina[s])))
+                        if isT:
+                            # at this iteration does not exist a policy fot T
+                            exists_policy = 0
+
+                            # reset policy
+                            policy_indices[s, 0] = -1
+                            policy_indices[s, 1] = -1
+                            policy[s, 0] = -1
+                            policy[s, 1] = -1
+                        else:
+                            # printf('state: %d\n', s)
+                            # the new value is the one of the min action
+                            truncated_value = u2_mina[s]
+
+                            # the new policy is just the min action
+                            policy_indices[s, 0] = action_max_min_indices[pos_mina]
+                            policy_indices[s, 1] = action_max_min_indices[pos_maxa]
+                            policy[s, 0] = 1.
+                            policy[s, 1] = 0
+
+                    else:
+
+                        if isclose_c(u2_mina[s], truncated_value):
+                            w1 = 1.
+                            w2 = 0.
+                        elif isclose_c(u2[s], truncated_value):
+                            w1 = 0.
+                            w2 = 1.
+                        else:
+                            w1 = (u2[s] - truncated_value) / (u2[s] - u2_mina[s])
+                            w2 = (truncated_value - u2_mina[s]) / (u2[s] - u2_mina[s])
+
+                        if not isclose_c(truncated_value, w1*u2_mina[s] + w2 * u2[s])\
+                            or w1 < 0 or w2 < 0 or not isclose_c(w1+w2, 1.):
+                            printf('(%d) %.3f %.3f %.3f [%.3f, %.3f]\n',s,u2_mina[s], u2[s], truncated_value, w1, w2)
+                            return -22
+
+
+
+
+                        ##########################
+                        # Compute "greedy" policy
+                        ##########################
+                        pos_mina = pos2index_2d(nb_states, max_nb_actions, s, 0)
+                        pos_maxa = pos2index_2d(nb_states, max_nb_actions, s, 1)
+                        policy_indices[s, 0] = action_max_min_indices[pos_mina]
+                        policy_indices[s, 1] = action_max_min_indices[pos_maxa]
+                        policy[s, 0] = w1
+                        policy[s, 1] = w2
+
+                    # update with truncated value
                     u2[s] = truncated_value
-
-                    ##########################
-                    # Compute "greedy" policy
-                    ##########################
-                    pos_mina = pos2index_2d(nb_states, max_nb_actions, s, 0)
-                    pos_maxa = pos2index_2d(nb_states, max_nb_actions, s, 1)
-                    policy_indices[s, 0] = action_max_min_indices[pos_mina]
-                    policy_indices[s, 1] = action_max_min_indices[pos_maxa]
-                    policy[s, 0] = 1-x
-                    policy[s, 1] = x
 
                 # stopping condition
                 if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
-                    # printf("%d\n", counter)
+                    if exists_policy == 0 and isT:
+                        return -21
+
                     free(action_max_min)
                     free(action_max_min_indices)
                     free(u2_mina)

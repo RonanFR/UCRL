@@ -45,6 +45,7 @@ cdef class SpanConstrainedEVI:
                      DTYPE_t epsilon,
                      DTYPE_t span_constraint,
                      SIZE_t initial_recenter = *,
-                     SIZE_t relative_vi = *)
+                     SIZE_t relative_vi = *,
+                     str operator_type = *)
 
     cpdef get_uvectors(self)

@@ -17,3 +17,5 @@ What's new
 ----------
 - 2017-11-16: Initial release (v0.15.dev0)
     Contains UCRL, SMDP-UCRL, Free-Parameter SMDP-UCRL
+- 2017-11-21: Release (v0.19.dev0)
+    Added Span Constrained EVI

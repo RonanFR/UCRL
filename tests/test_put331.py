@@ -6,7 +6,7 @@ import pytest
 
 MDP = namedtuple('MDP', 'S,A,P,R,gamma')
 
-def core_op(mdp, evi, constraint=np.inf):
+def core_op(mdp, evi, constraint=np.inf, opT="T"):
     r_max = np.max(mdp.R)
 
     na = max(map(len, mdp.A))
@@ -16,6 +16,25 @@ def core_op(mdp, evi, constraint=np.inf):
     else:
         policy_indices = np.zeros((mdp.S,), dtype=np.int)
         policy = np.zeros((mdp.S,), dtype=np.int)
+
+    run_params = {"policy_indices": policy_indices,
+                  "policy": policy,
+                  "estimated_probabilities": mdp.P,
+                  "estimated_rewards": mdp.R,
+                  "estimated_holding_times": np.ones((mdp.S, na)),
+                  "beta_r": np.zeros((mdp.S, na)),
+                  "beta_p": np.zeros((mdp.S, na, mdp.S)),
+                  "beta_tau": np.zeros((mdp.S, na)),
+                  "tau_max": 1.,
+                  "r_max": r_max,
+                  "tau": 1.,
+                  "tau_min": 1.,
+                  "epsilon": 100*r_max,
+                  "initial_recenter": 0,
+                  "relative_vi": 0,
+                  "span_constraint": constraint}
+    if isinstance(evi, SpanConstrainedEVI):
+        run_params['operator_type'] = opT
 
     # real values are obtained from Puterman pag. 165 (table 6.3.1)
     real_v = {
@@ -42,22 +61,7 @@ def core_op(mdp, evi, constraint=np.inf):
     stats['stopvalues'].append(np.nan)
     i = 0
     while not stop:
-        span_value_new = evi.run(policy_indices=policy_indices,
-                                 policy=policy,
-                                 estimated_probabilities=mdp.P,
-                                 estimated_rewards=mdp.R,
-                                 estimated_holding_times=np.ones((mdp.S, na)),
-                                 beta_r=np.zeros((mdp.S, na)),
-                                 beta_p=np.zeros((mdp.S, na, mdp.S)),
-                                 beta_tau=np.zeros((mdp.S, na)),
-                                 tau_max=1.,
-                                 r_max=r_max,
-                                 tau=1.,
-                                 tau_min=1.,
-                                 epsilon=100,
-                                 initial_recenter=0,
-                                 relative_vi=0,
-                                 span_constraint=constraint)
+        span_value_new = evi.run(**run_params)
         u1, u2 = evi.get_uvectors()
         # print(u1, u2)
         if i in real_v.keys():
@@ -102,22 +106,7 @@ def core_op(mdp, evi, constraint=np.inf):
     stats_span['stopvalues'].append(np.nan)
     i = 0
     while not stop:
-        span_value_new = evi.run(policy_indices=policy_indices,
-                                 policy=policy,
-                                 estimated_probabilities=mdp.P,
-                                 estimated_rewards=mdp.R,
-                                 estimated_holding_times=np.ones((mdp.S, na)),
-                                 beta_r=np.zeros((mdp.S, na)),
-                                 beta_p=np.zeros((mdp.S, na, mdp.S)),
-                                 beta_tau=np.zeros((mdp.S, na)),
-                                 tau_max=1.,
-                                 r_max=r_max,
-                                 tau=1.,
-                                 tau_min=1.,
-                                 epsilon=100,
-                                 initial_recenter=0,
-                                 relative_vi=0,
-                                 span_constraint=constraint)
+        span_value_new = evi.run(**run_params)
         u1, u2 = evi.get_uvectors()
         span_v = (np.max(u2 - u1) - np.min(u2 - u1))
         print(u1, u2, span_v)
@@ -184,7 +173,8 @@ def test_state_action(count):
                               bound_type="chernoff", random_state=0,
                               gamma=mdp.gamma)
 
-    u2_T, policy_indices_T, policy_T = core_op(mdp, evi2)
+    u2_T, policy_indices_T, policy_T = core_op(mdp, evi2, opT='T')
+    u2_N, policy_indices_N, policy_N = core_op(mdp, evi2, opT='N')
 
     assert np.allclose(u2_L, u2_T)
 
@@ -199,6 +189,10 @@ def test_state_action(count):
 
     assert np.allclose(policy_indices_T, [[0,1], [0,0]])
     assert np.allclose(policy_T, [[0,1],[1,0]])
+
+    assert np.allclose(u2_T, u2_N)
+    assert np.allclose(policy_indices_T, policy_indices_N)
+    assert np.allclose(policy_T, policy_N)
 
 
 if __name__ == '__main__':

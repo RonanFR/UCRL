@@ -18,4 +18,9 @@
 # 0.18dev0
 #   - changed schema for tie breaking in EVI
 #       * use random noise in [0, 1e-4]
-__version__ = '0.18.dev0'
+# 0.19dev0
+#   - implemented operator N as special case of SCEVI (run parameter)
+#   - added test for N as in article
+#   - fixed computation of convex combination
+#   - added check of policy in test_toy2d1
+__version__ = '0.19.dev0'
