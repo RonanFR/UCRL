@@ -39,6 +39,7 @@ from ._max_proba cimport max_proba_bernstein
 cdef class SpanConstrainedEVI:
 
     def __init__(self, nb_states, list actions_per_state, str bound_type,
+                    DTYPE_t span_constraint, SIZE_t relative_vi,
                     int random_state, DTYPE_t gamma=1.):
         cdef SIZE_t n, m, i, j
         self.nb_states = nb_states
@@ -76,9 +77,10 @@ cdef class SpanConstrainedEVI:
             for j in range(m):
                 self.actions_per_state[i].values[j] = actions_per_state[i][j]
         self.random_state = random_state
-        srand(random_state)
 
         self.gamma = gamma
+        self.span_constraint = span_constraint
+        self.relative_vi = relative_vi
 
     def __dealloc__(self):
         cdef SIZE_t i
@@ -107,10 +109,13 @@ cdef class SpanConstrainedEVI:
                      DTYPE_t tau,
                      DTYPE_t tau_min,
                      DTYPE_t epsilon,
-                     DTYPE_t span_constraint,
+                     DTYPE_t span_constraint = -1,
                      SIZE_t initial_recenter = 1,
-                     SIZE_t relative_vi = 1,
+                     SIZE_t relative_vi = -1,
                      str operator_type = "T"):
+
+        span_constraint = self.span_constraint if span_constraint < 0 else span_constraint
+        relative_vi = self.relative_vi if relative_vi < 0 else relative_vi
 
         cdef SIZE_t isT = 1 if operator_type == "T" else 0
 
@@ -144,6 +149,14 @@ cdef class SpanConstrainedEVI:
         action_noise = <DTYPE_t*> malloc(max_nb_actions * sizeof(DTYPE_t))
         u2_mina = <DTYPE_t*> malloc(nb_states * sizeof(DTYPE_t))
 
+        # break ties in a random way. For each action select a random (small) noise
+        local_random = np.random.RandomState(self.random_state)
+        # printf('action_noise (SCEVI): ')
+        for a in range(max_nb_actions):
+            action_noise[a] = 1e-4 * local_random.random_sample()
+        #     printf('%f ', action_noise[a])
+        # printf('\n')
+
         with nogil:
             # let's start from the value of the previous episode
             # but recenter the value u1 = u1 -u1[0]
@@ -152,14 +165,9 @@ cdef class SpanConstrainedEVI:
             for i in range(nb_states):
                 u1[i] = u2[i] - c1
                 u2[i] = 0.0
+                # printf('%.7f ', u1[i])
                 sorted_indices[i] = i # reinitialize indices
             get_sorted_indices(u1, nb_states, sorted_indices) # get sorted indices
-
-            # break ties in a random way. For each action select a random (small) noise
-            # printf('action_noise: ')
-            for a in range(max_nb_actions):
-                action_noise[a] = 1e-4 * (<double> rand()) / (<double> RAND_MAX)
-                # printf('%f ', action_noise[a])
             # printf('\n')
 
             while True:
@@ -197,7 +205,7 @@ cdef class SpanConstrainedEVI:
                         ))
                         c1 = v / tau_optimal + gamma * u1[s]
 
-                        # printf('%d, %d: %f\n', s, a_idx, c1)
+                        # printf('%d, %d: %f [%f]\n', s, a_idx, c1, v)
 
                         ########################################################
                         # Update u2[s] (taking the maximum)
@@ -206,7 +214,7 @@ cdef class SpanConstrainedEVI:
                         ########################################################
                         pos_mina = pos2index_2d(nb_states, max_nb_actions, s, 0)
                         pos_maxa = pos2index_2d(nb_states, max_nb_actions, s, 1)
-                        # printf("%f, %f (%d, %d) -> ", u2_mina[s], u2[s], action_max_min_indices[pos_mina], action_max_min_indices[pos_maxa])
+                        # printf("%.3f, %.3f (%d, %d) -> ", u2_mina[s], u2[s], action_max_min_indices[pos_mina], action_max_min_indices[pos_maxa])
                         if first_action:
                             u2[s] = c1
                             u2_mina[s] = c1
@@ -231,14 +239,14 @@ cdef class SpanConstrainedEVI:
                                 action_max_min[pos_mina] = action
                                 action_max_min_indices[pos_mina] = a_idx
 
-                        # printf("%f, %f (%d, %d) \n\n", u2_mina[s], u2[s], action_max_min_indices[pos_mina], action_max_min_indices[pos_maxa])
+                        # printf("%.3f, %.3f (%d, %d) \n\n", u2_mina[s], u2[s], action_max_min_indices[pos_mina], action_max_min_indices[pos_maxa])
 
                         first_action = 0
 
                 counter = counter + 1
                 # printf("**%d\n", counter)
                 # for i in range(nb_states):
-                #     printf("%.2f[%.2f] ", u1[i], u2[i])
+                #     printf("%.7f[%.7f] \n", u1[i], u2[i])
                 # printf("\n")
 
                 ########################################################
@@ -283,11 +291,19 @@ cdef class SpanConstrainedEVI:
 
                     else:
 
-                        if isclose_c(u2_mina[s], truncated_value):
+                        pos_mina = pos2index_2d(nb_states, max_nb_actions, s, 0)
+                        pos_maxa = pos2index_2d(nb_states, max_nb_actions, s, 1)
+                        w1 = w2 = 0.
+
+                        if isclose_c(u2_mina[s], u2[s]):
+                            # if the values are equal pick the action according to the noise
+                            if u2_mina[s] + action_noise[action_max_min_indices[pos_mina]] > u2[s] + action_noise[action_max_min_indices[pos_maxa]]:
+                                w1 = 1
+                            else:
+                                w2 = 1.
+                        elif isclose_c(u2_mina[s], truncated_value):
                             w1 = 1.
-                            w2 = 0.
                         elif isclose_c(u2[s], truncated_value):
-                            w1 = 0.
                             w2 = 1.
                         else:
                             w1 = (u2[s] - truncated_value) / (u2[s] - u2_mina[s])
@@ -298,14 +314,9 @@ cdef class SpanConstrainedEVI:
                             printf('(%d) %.3f %.3f %.3f [%.3f, %.3f]\n',s,u2_mina[s], u2[s], truncated_value, w1, w2)
                             return -22
 
-
-
-
                         ##########################
                         # Compute "greedy" policy
                         ##########################
-                        pos_mina = pos2index_2d(nb_states, max_nb_actions, s, 0)
-                        pos_maxa = pos2index_2d(nb_states, max_nb_actions, s, 1)
                         policy_indices[s, 0] = action_max_min_indices[pos_mina]
                         policy_indices[s, 1] = action_max_min_indices[pos_maxa]
                         policy[s, 0] = w1
@@ -349,3 +360,6 @@ cdef class SpanConstrainedEVI:
             u1n[i] = self.u1[i]
             u2n[i] = self.u2[i]
         return u1n, u2n
+
+    cpdef get_span_constraint(self):
+        return self.span_constraint

@@ -37,7 +37,8 @@ class AbstractUCRL(object):
             self.opt_solver = EVI(nb_states=self.environment.nb_states,
                                   actions_per_state=self.environment.get_state_actions(),
                                   bound_type= bound_type,
-                                  random_state = random_state
+                                  random_state = random_state,
+                                  gamma=1.
                                   )
         else:
             self.opt_solver = solver
@@ -63,6 +64,7 @@ class AbstractUCRL(object):
         self.logger = logger
         self.version = ucrl_version
         self.random_state = random_state
+        self.local_random = np.random.RandomState(seed=random_state)
 
     def clear_before_pickle(self):
         del self.opt_solver
@@ -171,16 +173,24 @@ class UcrlMdp(AbstractUCRL):
             # execute the recovered policy
             t0 = time.perf_counter()
             self.visited_sa.clear()
-            while self.nu_k[self.environment.state][self.policy_indices[self.environment.state]] \
-                    < max(1, self.nb_observations[self.environment.state][self.policy_indices[self.environment.state]]) \
+
+            curr_state = self.environment.state
+            curr_act_idx, curr_act = self.sample_action(curr_state)  # sample action from the policy
+
+            while self.nu_k[curr_state][curr_act_idx] < max(1, self.nb_observations[curr_state][curr_act_idx]) \
                     and self.total_time < duration:
-                self.update()
+                self.update(curr_state=curr_state, curr_act_idx=curr_act_idx, curr_act=curr_act)
                 if self.total_time > threshold:
                     curr_regret = self.total_time * self.environment.max_gain - self.total_reward
                     self.regret.append(curr_regret)
                     self.regret_unit_time.append(self.total_time)
                     self.unit_duration.append(self.total_time/self.iteration)
                     threshold = self.total_time + regret_time_step
+
+                # sample a new action
+                curr_state = self.environment.state
+                curr_act_idx, curr_act = self.sample_action(curr_state)  # sample action from the policy
+
             self.nb_observations += self.nu_k
 
             for (s,a) in self.visited_sa:
@@ -252,9 +262,10 @@ class UcrlMdp(AbstractUCRL):
             # assert np.allclose(beta, ci)
             return beta
 
-    def update(self):
+    def update(self, curr_state, curr_act_idx, curr_act):
         s = self.environment.state  # current state
-        curr_act_idx, curr_act = self.sample_action(s) # sample action from the policy
+        assert np.allclose(curr_state, s)
+        # curr_act_idx, curr_act = self.sample_action(s) # sample action from the policy
 
         # execute the action
         self.environment.execute(curr_act)
@@ -289,9 +300,9 @@ class UcrlMdp(AbstractUCRL):
             action_idx (int): index of the selected action
             action (int): selected action
         """
-        if isinstance(self.policy[s], list):
+        if len(self.policy.shape) > 1:
             # this is a stochastic policy
-            action_idx = np.random.choice(self.policy_indices, p=self.policy)
+            action_idx = self.local_random.choice(self.policy_indices[s], p=self.policy[s])
             action = self.environment.state_actions[s][action_idx]
         else:
             action_idx = self.policy_indices[s]
@@ -325,7 +336,7 @@ class UcrlMdp(AbstractUCRL):
         #     self.logger.info("[%d]OLD EVI: %.3f seconds" % (self.episode, to))
 
         t0 = time.perf_counter()
-        span_value_new = self.opt_solver.evi(
+        span_value_new = self.opt_solver.run(
             self.policy_indices, self.policy,
             self.P, #self.estimated_probabilities,
             self.estimated_rewards,
@@ -343,6 +354,8 @@ class UcrlMdp(AbstractUCRL):
                 self.logger.info(self.policy_indices)
 
         span_value = span_value_new ##############
+
+        assert span_value >= 0
 
         if self.verbose > 1:
             print("{:.2f} / {:.2f}".format(span_value, span_value_new))

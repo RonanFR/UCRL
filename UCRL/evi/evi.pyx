@@ -75,7 +75,6 @@ cdef class EVI:
             for j in range(m):
                 self.actions_per_state[i].values[j] = actions_per_state[i][j]
         self.random_state = random_state
-        srand(random_state)
 
         self.gamma = gamma
 
@@ -130,17 +129,23 @@ cdef class EVI:
 
         action_noise = <DTYPE_t*> malloc(max_nb_actions * sizeof(DTYPE_t))
 
+        local_random = np.random.RandomState(self.random_state)
+        # printf('action_noise (EVI): ')
+        for a in range(max_nb_actions):
+            action_noise[a] = 1e-4 * local_random.random_sample()
+        #     printf('%f ', action_noise[a])
+        # printf('\n')
+
         with nogil:
             c1 = u2[0] if initial_recenter else 0.
             for i in range(nb_states):
                 u1[i] = u2[i] - c1 # 0.0
                 u2[i] = 0.0
+                # printf('%.7f ', u1[i])
                 sorted_indices[i] = i
             get_sorted_indices(u1, nb_states, sorted_indices)
 
-            for a in range(max_nb_actions):
-                action_noise[a] = 1e-4 * (<double> rand()) / (<double> RAND_MAX)
-
+            # printf('\n')
 
             while True: #counter < 5:
                 for s in prange(nb_states):
@@ -167,6 +172,9 @@ cdef class EVI:
                             estimated_holding_times[s][a_idx] - sign(v) * beta_tau[s][a_idx]
                         ))
                         c1 = v / tau_optimal + gamma * u1[s]
+
+                        # printf('%d, %d: %f [%f]\n', s, a_idx, c1, v)
+
                         if first_action:
                             u2[s] = c1
                             policy[s] = action
@@ -181,7 +189,7 @@ cdef class EVI:
                 counter = counter + 1
                 # printf("**%d\n", counter)
                 # for i in range(nb_states):
-                #     printf("%.2f[%.2f] ", u1[i], u2[i])
+                #     printf("%.7f[%.7f] \n", u1[i], u2[i])
                 # printf("\n")
 
                 # stopping condition

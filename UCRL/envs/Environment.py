@@ -17,14 +17,23 @@ class Environment(metaclass=ABCMeta):
         :param initial_state: Index of the first state of the SMDP
         :param state_actions: 2D-array of integers representing the indices of actions available in every state
         """
+        self.initial_state = initial_state
         self.state = initial_state  # Index of the current state
         self.state_actions = state_actions
         self.max_nb_actions_per_state = max(map(len, self.state_actions))  # Maximal number of actions per state
-        self.reward = 0   # Last reward obtained while exploring the SMDP (init = 0)
-        self.holding_time = 0  # Last holding time obtained while exploring the SMDP (init = 0)
+        self.reward = None   # Last reward obtained while exploring the SMDP (init = 0)
+        self.holding_time = None  # Last holding time obtained while exploring the SMDP (init = 0)
         self.nb_states = len(self.state_actions)  # Total number of states
         self.max_nb_actions_per_state = max(map(len, self.state_actions))
         self.max_gain = self.compute_max_gain()  # Optimal gain of the SMDP
+
+    def reset(self):
+        """
+        It is used to reset the mdp to it's initial state.
+        For instance, the intial state is drawn from the initial (reset) distribution.
+        :return:
+        """
+        self.state = self.initial_state
 
     def get_state_actions(self):
         """

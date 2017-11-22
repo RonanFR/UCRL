@@ -28,6 +28,8 @@ cdef class SpanConstrainedEVI:
     cdef BoundType bound_type
     cdef SIZE_t random_state
     cdef DTYPE_t gamma
+    cdef DTYPE_t span_constraint
+    cdef SIZE_t relative_vi
 
     # Methods
 
@@ -43,9 +45,11 @@ cdef class SpanConstrainedEVI:
                      DTYPE_t tau,
                      DTYPE_t tau_min,
                      DTYPE_t epsilon,
-                     DTYPE_t span_constraint,
+                     DTYPE_t span_constraint = *,
                      SIZE_t initial_recenter = *,
                      SIZE_t relative_vi = *,
                      str operator_type = *)
 
     cpdef get_uvectors(self)
+
+    cpdef get_span_constraint(self)
