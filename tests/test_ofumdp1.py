@@ -106,8 +106,8 @@ def test_srevi(seed_0):
     env = Toy3D_1(delta=0.99)
     r_max = max(1, np.asscalar(np.max(env.R_mat)))
 
-    nb_simulations = 2
-    duration = 100000
+    nb_simulations = 1
+    duration = 50000
     regret_time_steps = 1
     np.random.seed(seed_0)
     random.seed(seed_0)
@@ -165,6 +165,10 @@ def test_srevi(seed_0):
         assert np.allclose(ucrl.unit_duration, scucrl.unit_duration)
         assert np.allclose(ucrl.span_values, scucrl.span_values)
         assert np.allclose(ucrl.span_times, scucrl.span_times)
+        assert np.allclose(ucrl.estimated_rewards, scucrl.estimated_rewards)
+        assert np.allclose(ucrl.estimated_holding_times, scucrl.estimated_holding_times)
+        assert np.allclose(ucrl.P, scucrl.P)
+        assert np.allclose(ucrl.nb_observations, scucrl.nb_observations)
 
 
 if __name__ == '__main__':

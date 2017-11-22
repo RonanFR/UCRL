@@ -54,7 +54,10 @@ def test_srevi(params):
     print(rs)
     evi = SpanConstrainedEVI(nb_states=mdp.S,
                              actions_per_state=mdp.A,
-                             bound_type="chernoff", random_state=rs,
+                             bound_type="chernoff",
+                             span_constraint=np.inf,
+                             relative_vi=0,
+                             random_state=rs,
                              gamma=mdp.gamma)
 
     epsi = 0.000001
