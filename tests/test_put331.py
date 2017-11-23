@@ -171,7 +171,9 @@ def test_state_action(count):
     evi2 = SpanConstrainedEVI(nb_states=mdp.S,
                               actions_per_state=mdp.A,
                               bound_type="chernoff", random_state=0,
-                              gamma=mdp.gamma)
+                              gamma=mdp.gamma,
+                              relative_vi=0,
+                              span_constraint=np.random.random_sample())
 
     u2_T, policy_indices_T, policy_T = core_op(mdp, evi2, opT='T')
     u2_N, policy_indices_N, policy_N = core_op(mdp, evi2, opT='N')
@@ -188,7 +190,8 @@ def test_state_action(count):
     assert np.allclose(policy_L, [0,0])
 
     assert np.allclose(policy_indices_T, [[0,1], [0,0]])
-    assert np.allclose(policy_T, [[0,1],[1,0]])
+    assert np.allclose(policy_T, [[0,1],[1,0]])\
+           or np.allclose(policy_T, [[0,1],[0,1]]), policy_T
 
     assert np.allclose(u2_T, u2_N)
     assert np.allclose(policy_indices_T, policy_indices_N)
