@@ -33,4 +33,16 @@
 #   - change simulation of policy in UCRL to account for stochastic policies
 #   - added reset function to environment to reset to clear state
 #   - added test for UCRL and SC-UCRL using toy 3D domain when span_c = inf
-__version__ = '0.20.dev0'
+# 0.21.dev0 (Nov 25, 2017)
+#   - fix SC-EVI
+#       * minimum value for (s,a) is computed in a pessimistic way by
+#         taking min{R} and min {P u1}
+#   - optimized SC-EVI in order to compute the minimum value (s,a)
+#     only when required
+#       * every iteration for N and at convergence for T
+#   - updated test after SC-EVI update
+#   - updated max_proba in order to compute min{P u1} as max{P (-u1)}
+#       * it simply scan the vector in reverse order
+#   - added Dijkstra algorithm for the computation of the shortest path (and diameter)
+#   - added test for diameter
+__version__ = '0.21.dev0'

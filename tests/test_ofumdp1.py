@@ -102,7 +102,8 @@ class TUCRL(Ucrl.UcrlMdp):
 
 
 @pytest.mark.parametrize("seed_0", [12345, 5687, 2363, 8939, 36252, 38598125])
-def test_srevi(seed_0):
+@pytest.mark.parametrize("operator_type", ['T', 'N'])
+def test_srevi(seed_0, operator_type):
     env = Toy3D_1(delta=0.99)
     r_max = max(1, np.asscalar(np.max(env.R_mat)))
 
@@ -157,7 +158,8 @@ def test_srevi(seed_0):
             bound_type="chernoff",
             random_state=seed,
             span_constraint=np.inf,
-            relative_vi=True)  # learning algorithm
+            relative_vi=True,
+            operator_type=operator_type)  # learning algorithm
         scucrl.learn(duration, regret_time_steps)  # learn task
 
         assert np.allclose(ucrl.regret, scucrl.regret)
@@ -172,4 +174,4 @@ def test_srevi(seed_0):
 
 
 if __name__ == '__main__':
-    test_srevi(seed_0=3179336)
+    test_srevi(seed_0=3179336,operator_type='N')

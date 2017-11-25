@@ -10,25 +10,23 @@ from ._utils cimport DTYPE_t, SIZE_t
 cdef void max_proba_purec(DTYPE_t[:] p,
                           SIZE_t n,
                           SIZE_t* asc_sorted_indices,
-                          DTYPE_t beta, DTYPE_t[:] new_p) nogil
+                          DTYPE_t beta, DTYPE_t[:] new_p,
+                          SIZE_t reverse) nogil
 
 cdef void max_proba_purec2(DTYPE_t* p,
                           SIZE_t n,
                           SIZE_t* asc_sorted_indices,
-                          DTYPE_t beta, DTYPE_t[:] new_p) nogil
-
-cdef void max_proba_reduced(DTYPE_t[:] p,
-                            SIZE_t n,
-                            SIZE_t* asc_sorted_indices,
-                            DTYPE_t beta, DTYPE_t[:] new_p) nogil
+                          DTYPE_t beta, DTYPE_t[:] new_p,
+                          SIZE_t reverse) nogil
 
 cdef void max_proba_bernstein(DTYPE_t[:] p,
                           SIZE_t n,
                           SIZE_t* asc_sorted_indices,
-                          DTYPE_t[:] beta, DTYPE_t[:] new_p) nogil
+                          DTYPE_t[:] beta, DTYPE_t[:] new_p,
+                          SIZE_t reverse) nogil
 
 cdef void max_proba_bernstein_cin(DTYPE_t* p,
                           SIZE_t n,
                           SIZE_t* asc_sorted_indices,
-                          DTYPE_t* beta, DTYPE_t[:] new_p) nogil
-
+                          DTYPE_t* beta, DTYPE_t[:] new_p,
+                          SIZE_t reverse) nogil

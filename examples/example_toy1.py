@@ -26,7 +26,7 @@ parser.add_option("-n", "--duration", dest="duration", type="int",
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="chernoff")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
-                  help="Uppper bound to the bias span", default=np.inf)
+                  help="Uppper bound to the bias span", default=1.2)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
                   help="range of transition matrix", default=1.)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
@@ -55,7 +55,7 @@ group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
                        "[UCRL, SCUCRL]",
-                  default="UCRL")
+                  default="SCUCRL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -75,7 +75,7 @@ config = vars(in_options)
 # Relevant code
 # ------------------------------------------------------------------------------
 
-env = Toy3D_1(delta=0.99)
+env = Toy3D_1(delta=0.00001)
 r_max = max(1, np.asscalar(np.max(env.R_mat)))
 
 if in_options.path is None:
@@ -136,7 +136,8 @@ for rep in range(start_sim, end_sim):
             verbose=1,
             logger=ucrl_log,
             bound_type=in_options.bound_type,
-            random_state=seed
+            random_state=seed,
+            operator_type="N"
         )
 
 

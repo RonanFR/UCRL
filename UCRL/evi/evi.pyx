@@ -158,11 +158,11 @@ cdef class EVI:
                             # max_proba_reduced
                             max_proba_purec(estimated_probabilities[s][a_idx], nb_states,
                                         sorted_indices, beta_p[s][a_idx][0],
-                                        mtx_maxprob_memview[s])
+                                        mtx_maxprob_memview[s], 0)
                         else:
                             max_proba_bernstein(estimated_probabilities[s][a_idx], nb_states,
                                         sorted_indices, beta_p[s][a_idx],
-                                        mtx_maxprob_memview[s])
+                                        mtx_maxprob_memview[s], 0)
                         mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
                         r_optimal = min(tau_max*r_max,
                                         estimated_rewards[s][a_idx] + beta_r[s][a_idx])

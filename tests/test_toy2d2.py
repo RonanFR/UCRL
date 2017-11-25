@@ -91,7 +91,8 @@ def test_srevi(params):
             assert np.allclose(u1 - u1[2], [alpha + beta, delta, 0])
             assert np.isclose(np.max(u1) - np.min(u1), c)
 
-            assert np.allclose(policy_indices, [[-1, -1], [0, 1], [0, 0]])
+            assert np.allclose(policy_indices, [[-1, -1], [0, 1], [0, 0]]) or \
+                   np.allclose(policy_indices, [[-1, -1], [1, 1], [0, 0]])
             assert np.allclose(policy, [[-1, -1], [0, 1.], [1., 0]], atol=1e-5)\
                    or np.allclose(policy, [[-1, -1], [0, 1.], [0, 1.]], atol=1e-5), policy
         else:
@@ -100,7 +101,8 @@ def test_srevi(params):
 
             print(policy_indices)
             print(policy)
-            assert np.allclose(policy_indices, [[0, 0], [0, 1], [0, 0]])
+            assert np.allclose(policy_indices, [[0, 0], [0, 1], [0, 0]]) or \
+                   np.allclose(policy_indices, [[0, 0], [1, 1], [0, 0]])
             assert np.allclose(policy, [[1., 0], [0, 1], [1., 0]], atol=1e-5)\
                    or np.allclose(policy, [[1., 0], [0, 1], [0, 1.]], atol=1e-5), policy
 

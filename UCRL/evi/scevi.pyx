@@ -40,7 +40,7 @@ cdef class SpanConstrainedEVI:
 
     def __init__(self, nb_states, list actions_per_state, str bound_type,
                     DTYPE_t span_constraint, SIZE_t relative_vi,
-                    int random_state, DTYPE_t gamma=1.):
+                    int random_state, DTYPE_t gamma=1., str operator_type = "T"):
         cdef SIZE_t n, m, i, j
         self.nb_states = nb_states
         self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
@@ -52,6 +52,13 @@ cdef class SpanConstrainedEVI:
             self.bound_type = BERNSTEIN
         else:
             raise ValueError("Unknown bound type")
+
+        if operator_type == "T":
+            self.operator_type = TOP
+        elif operator_type == "N":
+            self.operator_type = NOP
+        else:
+            raise ValueError("Unknown operator type")
 
         # allocate indices and memoryview (may slow down)
         self.sorted_indices = <SIZE_t *> malloc(nb_states * sizeof(SIZE_t))
@@ -112,12 +119,18 @@ cdef class SpanConstrainedEVI:
                      DTYPE_t span_constraint = -1,
                      SIZE_t initial_recenter = 1,
                      SIZE_t relative_vi = -1,
-                     str operator_type = "T"):
+                     str operator_type = "default"):
 
         span_constraint = self.span_constraint if span_constraint < 0 else span_constraint
         relative_vi = self.relative_vi if relative_vi < 0 else relative_vi
-
-        cdef SIZE_t isT = 1 if operator_type == "T" else 0
+        cdef OperatorType opt_type = self.operator_type
+        if operator_type != "default":
+            if operator_type == "T":
+                opt_type = TOP
+            elif operator_type == "N":
+                opt_type = NOP
+            else:
+                raise ValueError("Unknown operator type")
 
         cdef SIZE_t s, i, a_idx, counter = 0
         cdef SIZE_t first_action
@@ -138,16 +151,18 @@ cdef class SpanConstrainedEVI:
         cdef SIZE_t* action_max_min
         cdef SIZE_t* action_max_min_indices
         cdef SIZE_t pos_mina, pos_maxa
-        cdef DTYPE_t truncated_value, min_v, max_v, w1, w2
+        cdef DTYPE_t th, min_v, max_v, w1, w2
         cdef DTYPE_t* action_noise
-        cdef DTYPE_t* u2_mina
+        cdef DTYPE_t* u3_mina
+        cdef DTYPE_t* u3
 
 
         action_max_min = <SIZE_t*> malloc(nb_states * 2 * sizeof(SIZE_t))
         action_max_min_indices = <SIZE_t*> malloc(nb_states * 2 * sizeof(SIZE_t))
 
         action_noise = <DTYPE_t*> malloc(max_nb_actions * sizeof(DTYPE_t))
-        u2_mina = <DTYPE_t*> malloc(nb_states * sizeof(DTYPE_t))
+        u3_mina = <DTYPE_t*> malloc(nb_states * sizeof(DTYPE_t))
+        u3 = <DTYPE_t*> malloc(nb_states * sizeof(DTYPE_t))
 
         # break ties in a random way. For each action select a random (small) noise
         local_random = np.random.RandomState(self.random_state)
@@ -190,11 +205,11 @@ cdef class SpanConstrainedEVI:
                             # max_proba_reduced
                             max_proba_purec(estimated_probabilities[s][a_idx], nb_states,
                                         sorted_indices, beta_p[s][a_idx][0],
-                                        mtx_maxprob_memview[s])
+                                        mtx_maxprob_memview[s], 0)
                         else:
                             max_proba_bernstein(estimated_probabilities[s][a_idx], nb_states,
                                         sorted_indices, beta_p[s][a_idx],
-                                        mtx_maxprob_memview[s])
+                                        mtx_maxprob_memview[s], 0)
                         mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
                         r_optimal = min(tau_max*r_max,
                                         estimated_rewards[s][a_idx] + beta_r[s][a_idx])
@@ -208,131 +223,240 @@ cdef class SpanConstrainedEVI:
                         # printf('%d, %d: %f [%f]\n', s, a_idx, c1, v)
 
                         ########################################################
-                        # Update u2[s] (taking the maximum)
-                        # Update u_min[s] (taking the minimum)
-                        # Update max and min action in this state
+                        # Update u3[s] (taking the maximum)
+                        # Update max action in this state
                         ########################################################
-                        pos_mina = pos2index_2d(nb_states, max_nb_actions, s, 0)
                         pos_maxa = pos2index_2d(nb_states, max_nb_actions, s, 1)
-                        # printf("%.3f, %.3f (%d, %d) -> ", u2_mina[s], u2[s], action_max_min_indices[pos_mina], action_max_min_indices[pos_maxa])
+                        # printf("%.3f, %.3f (%d, %d) -> ", u3_mina[s], u3[s], action_max_min_indices[pos_mina], action_max_min_indices[pos_maxa])
                         if first_action:
-                            u2[s] = c1
-                            u2_mina[s] = c1
+                            u3[s] = c1 # initialize the maximum
+
                             # update max action (column 1)
                             action_max_min[pos_maxa] = action
                             action_max_min_indices[pos_maxa] = a_idx
-                            # update min action (column 0)
-                            action_max_min[pos_mina] = action
-                            action_max_min_indices[pos_mina] = a_idx
+
                         else:
-                            if c1 + action_noise[a_idx] > u2[s] + action_noise[action_max_min_indices[pos_maxa]]:
-                                u2[s] = c1
+                            if c1 + action_noise[a_idx] > u3[s] + action_noise[action_max_min_indices[pos_maxa]]:
+                                u3[s] = c1
 
                                 # update max action (column 1)
                                 action_max_min[pos_maxa] = action
                                 action_max_min_indices[pos_maxa] = a_idx
 
-                            if c1 + action_noise[a_idx] < u2_mina[s] + action_noise[action_max_min_indices[pos_mina]]:
-                                u2_mina[s] = c1
 
-                                # update min action (column 0)
-                                action_max_min[pos_mina] = action
-                                action_max_min_indices[pos_mina] = a_idx
-
-                        # printf("%.3f, %.3f (%d, %d) \n\n", u2_mina[s], u2[s], action_max_min_indices[pos_mina], action_max_min_indices[pos_maxa])
+                        # printf("%.3f, %.3f (%d, %d) \n\n", u3_mina[s], u3[s], action_max_min_indices[pos_mina], action_max_min_indices[pos_maxa])
 
                         first_action = 0
 
                 counter = counter + 1
                 # printf("**%d\n", counter)
                 # for i in range(nb_states):
-                #     printf("%.7f[%.7f] \n", u1[i], u2[i])
+                #     printf("%.7f[%.7f] \n", u1[i], u3[i])
                 # printf("\n")
 
                 ########################################################
                 # Truncate value function based on span
-                # Compute "greedy" policy
                 ########################################################
-                min_v = u2[0]
-                max_v = u2[0]
+                min_v = u3[0]
+                max_v = u3[0]
                 for s in range(1, nb_states):
-                    if u2[s] < min_v:
-                        min_v = u2[s]
-                    elif u2[s] > max_v:
-                        max_v = u2[s]
+                    if u3[s] < min_v:
+                        min_v = u3[s]
+                    elif u3[s] > max_v:
+                        max_v = u3[s]
 
-                # printf('mm_v: %f, %f\n', min_v, max_v)
+                th = min_v + span_constraint
                 for s in range(nb_states):
-                    truncated_value = min(u2[s], min_v + span_constraint)
-
-                    if u2_mina[s] > truncated_value:
-                        pos_mina = pos2index_2d(nb_states, max_nb_actions, s, 0)
-                        pos_maxa = pos2index_2d(nb_states, max_nb_actions, s, 1)
-
-                        if isT:
-                            # at this iteration does not exist a policy fot T
-                            exists_policy = 0
-
-                            # reset policy
-                            policy_indices[s, 0] = -1
-                            policy_indices[s, 1] = -1
-                            policy[s, 0] = -1
-                            policy[s, 1] = -1
-                        else:
-                            # printf('state: %d\n', s)
-                            # the new value is the one of the min action
-                            truncated_value = u2_mina[s]
-
-                            # the new policy is just the min action
-                            policy_indices[s, 0] = action_max_min_indices[pos_mina]
-                            policy_indices[s, 1] = action_max_min_indices[pos_maxa]
-                            policy[s, 0] = 1.
-                            policy[s, 1] = 0
-
+                    if opt_type == TOP:
+                        u2[s] = min(u3[s], th)
                     else:
+                        ############################################################
+                        # THIS IS FOR OPERATOR N
+                        ############################################################
+                        # for each action available in the state
+                        first_action = 1
+                        for a_idx in range(self.actions_per_state[s].dim):
+                            # get the real action (used to update the policy)
+                            action = self.actions_per_state[s].values[a_idx]
+                            ########################################################
+                            # compute pessimistic value
+                            ########################################################
+                            if self.bound_type == CHERNOFF:
+                                # max_proba_purec
+                                # max_proba_reduced
+                                max_proba_purec(estimated_probabilities[s][a_idx], nb_states,
+                                            sorted_indices, beta_p[s][a_idx][0],
+                                            mtx_maxprob_memview[s], 1)
+                            else:
+                                max_proba_bernstein(estimated_probabilities[s][a_idx], nb_states,
+                                            sorted_indices, beta_p[s][a_idx],
+                                            mtx_maxprob_memview[s], 1)
+                            mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
+                            r_optimal = max(0., estimated_rewards[s][a_idx] - beta_r[s][a_idx])
+                            v = r_optimal + gamma * dot_prod(mtx_maxprob_memview[s], u1, nb_states) * tau
+                            tau_optimal = min(tau_max, max(
+                                max(tau_min, r_optimal/r_max),
+                                estimated_holding_times[s][a_idx] + sign(v) * beta_tau[s][a_idx]
+                            ))
+                            c1 = v / tau_optimal + gamma * u1[s]
 
+                            ########################################################
+                            # Update u3_mina[s] (taking the minimum)
+                            # Update min action in this state
+                            ########################################################
+                            pos_mina = pos2index_2d(nb_states, max_nb_actions, s, 0)
+                            if first_action:
+                                u3_mina[s] = c1 # initialize the maximum
+
+                                # update min action (column 0)
+                                action_max_min[pos_mina] = action
+                                action_max_min_indices[pos_mina] = a_idx
+
+                                first_action = 0
+                            else:
+                                if c1 + action_noise[a_idx] < u3_mina[s] + action_noise[action_max_min_indices[pos_mina]]:
+                                    u3_mina[s] = c1
+
+                                    # update min action (column 0)
+                                    action_max_min[pos_mina] = action
+                                    action_max_min_indices[pos_mina] = a_idx
+
+                        ##### Check value of min action and updated u2 (truncate or not)
+                        if u3_mina[s] > th:
+                            u2[s] = u3_mina[s]
+                        else:
+                            u2[s] = min(u3[s], th)
+
+                ################################################################
+                # stopping condition
+                ################################################################
+                if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
+                    exists_policy = 1
+                    ###############################
+                    # Compute the associated policy
+                    ###############################
+                    for s in range(nb_states):
                         pos_mina = pos2index_2d(nb_states, max_nb_actions, s, 0)
                         pos_maxa = pos2index_2d(nb_states, max_nb_actions, s, 1)
-                        w1 = w2 = 0.
-
-                        if isclose_c(u2_mina[s], u2[s]):
-                            # if the values are equal pick the action according to the noise
-                            if u2_mina[s] + action_noise[action_max_min_indices[pos_mina]] > u2[s] + action_noise[action_max_min_indices[pos_maxa]]:
-                                w1 = 1
-                            else:
-                                w2 = 1.
-                        elif isclose_c(u2_mina[s], truncated_value):
-                            w1 = 1.
-                        elif isclose_c(u2[s], truncated_value):
-                            w2 = 1.
+                        if u3[s] < th:
+                            # the policy is just the greedy action
+                            # we put the same index
+                            # this is true both for T and N (for example i have not computed the min action for T, and I don't need it)
+                            policy_indices[s, 0] = action_max_min_indices[pos_maxa]
+                            policy_indices[s, 1] = action_max_min_indices[pos_maxa]
+                            policy[s, 0] = 0
+                            policy[s, 1] = 1.
                         else:
-                            w1 = (u2[s] - truncated_value) / (u2[s] - u2_mina[s])
-                            w2 = (truncated_value - u2_mina[s]) / (u2[s] - u2_mina[s])
+                            if opt_type == TOP:
+                                ############################################################
+                                # Compute pessimistic action (they were computed only for N)
+                                ############################################################
+                                # for each action available in the state
+                                first_action = 1
+                                for a_idx in range(self.actions_per_state[s].dim):
+                                    # get the real action (used to update the policy)
+                                    action = self.actions_per_state[s].values[a_idx]
+                                    ########################################################
+                                    # compute pessimistic value
+                                    ########################################################
+                                    if self.bound_type == CHERNOFF:
+                                        # max_proba_purec
+                                        # max_proba_reduced
+                                        max_proba_purec(estimated_probabilities[s][a_idx], nb_states,
+                                                    sorted_indices, beta_p[s][a_idx][0],
+                                                    mtx_maxprob_memview[s], 1)
+                                    else:
+                                        max_proba_bernstein(estimated_probabilities[s][a_idx], nb_states,
+                                                    sorted_indices, beta_p[s][a_idx],
+                                                    mtx_maxprob_memview[s], 1)
+                                    mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
+                                    r_optimal = max(0., estimated_rewards[s][a_idx] - beta_r[s][a_idx])
+                                    v = r_optimal + gamma * dot_prod(mtx_maxprob_memview[s], u1, nb_states) * tau
+                                    tau_optimal = min(tau_max, max(
+                                        max(tau_min, r_optimal/r_max),
+                                        estimated_holding_times[s][a_idx] + sign(v) * beta_tau[s][a_idx]
+                                    ))
+                                    c1 = v / tau_optimal + gamma * u1[s]
 
-                        if not isclose_c(truncated_value, w1*u2_mina[s] + w2 * u2[s])\
-                            or w1 < 0 or w2 < 0 or not isclose_c(w1+w2, 1.):
-                            printf('(%d) %.3f %.3f %.3f [%.3f, %.3f]\n',s,u2_mina[s], u2[s], truncated_value, w1, w2)
-                            return -22
+                                    ########################################################
+                                    # Update u3_mina[s] (taking the minimum)
+                                    # Update min action in this state
+                                    ########################################################
+                                    pos_mina = pos2index_2d(nb_states, max_nb_actions, s, 0)
+                                    if first_action:
+                                        u3_mina[s] = c1 # initialize the maximum
 
-                        ##########################
-                        # Compute "greedy" policy
-                        ##########################
-                        policy_indices[s, 0] = action_max_min_indices[pos_mina]
-                        policy_indices[s, 1] = action_max_min_indices[pos_maxa]
-                        policy[s, 0] = w1
-                        policy[s, 1] = w2
+                                        # update min action (column 0)
+                                        action_max_min[pos_mina] = action
+                                        action_max_min_indices[pos_mina] = a_idx
 
-                    # update with truncated value
-                    u2[s] = truncated_value
+                                        first_action = 0
+                                    else:
+                                        if c1 + action_noise[a_idx] < u3_mina[s] + action_noise[action_max_min_indices[pos_mina]]:
+                                            u3_mina[s] = c1
 
-                # stopping condition
-                if check_end(u2, u1, nb_states, &min_u1, &max_u1) < epsilon:
-                    if exists_policy == 0 and isT:
+                                            # update min action (column 0)
+                                            action_max_min[pos_mina] = action
+                                            action_max_min_indices[pos_mina] = a_idx
+
+                            ###### finish to update the policy
+
+                            if u3_mina[s] > th and opt_type == TOP:
+                                exists_policy = 0
+
+                                # reset policy
+                                policy_indices[s, 0] = -1
+                                policy_indices[s, 1] = -1
+                                policy[s, 0] = -1
+                                policy[s, 1] = -1
+                            elif u3_mina[s] > th and opt_type == NOP:
+                                # the new policy is just the min action
+                                policy_indices[s, 0] = action_max_min_indices[pos_mina]
+                                policy_indices[s, 1] = action_max_min_indices[pos_maxa]
+                                policy[s, 0] = 1.
+                                policy[s, 1] = 0
+                            else:
+                                w1 = w2 = 0.
+
+                                if isclose_c(u3_mina[s], u3[s]):
+                                    # if the values are equal pick the action according to the noise
+                                    if u3_mina[s] + action_noise[action_max_min_indices[pos_mina]] > u3[s] + action_noise[action_max_min_indices[pos_maxa]]:
+                                        w1 = 1
+                                    else:
+                                        w2 = 1.
+                                elif isclose_c(u3_mina[s], th):
+                                    w1 = 1.
+                                elif isclose_c(u3[s], th):
+                                    w2 = 1.
+                                else:
+                                    w1 = (u3[s] - th) / (u3[s] - u3_mina[s])
+                                    w2 = (th - u3_mina[s]) / (u3[s] - u3_mina[s])
+
+                                if not isclose_c(th, w1 * u3_mina[s] + w2 * u3[s])\
+                                    or w1 < 0 or w2 < 0 or not isclose_c(w1 + w2, 1.):
+                                    printf('(%d) %.3f %.3f %.3f [%.3f, %.3f]\n',s,u3_mina[s], u3[s], th, w1, w2)
+                                    free(action_max_min)
+                                    free(action_max_min_indices)
+                                    free(u3_mina)
+                                    free(u3)
+                                    free(action_noise)
+                                    return -22
+
+                                ##########################
+                                # Compute "greedy" policy
+                                ##########################
+                                policy_indices[s, 0] = action_max_min_indices[pos_mina]
+                                policy_indices[s, 1] = action_max_min_indices[pos_maxa]
+                                policy[s, 0] = w1
+                                policy[s, 1] = w2
+
+
+                    if exists_policy == 0 and opt_type == TOP:
                         return -21
-
                     free(action_max_min)
                     free(action_max_min_indices)
-                    free(u2_mina)
+                    free(u3_mina)
+                    free(u3)
                     free(action_noise)
                     return max_u1 - min_u1
                 else:
@@ -341,11 +465,12 @@ cdef class SpanConstrainedEVI:
 
                     if relative_vi:
                         c1 = u1[0]
+                    if relative_vi:
+                        c1 = u1[0]
                         for i in range(nb_states):
                             u1[i] = u1[i] - c1
                     #     printf("%d , ", sorted_indices[i])
                     # printf("\n")
-
 
     cpdef get_uvectors(self):
 #        cdef np.npy_intp shape[1]

@@ -16,6 +16,10 @@ cdef enum BoundType:
     CHERNOFF_STATEDIM=1
     BERNSTEIN=2
 
+cdef enum OperatorType:
+    TOP=0
+    NOP=1
+
 cdef class SpanConstrainedEVI:
     cdef DTYPE_t *u1
     cdef DTYPE_t *u2
@@ -30,6 +34,7 @@ cdef class SpanConstrainedEVI:
     cdef DTYPE_t gamma
     cdef DTYPE_t span_constraint
     cdef SIZE_t relative_vi
+    cdef OperatorType operator_type
 
     # Methods
 

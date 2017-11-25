@@ -355,7 +355,7 @@ class UcrlMdp(AbstractUCRL):
 
         span_value = span_value_new ##############
 
-        assert span_value >= 0
+        assert span_value >= 0, "ERROR: {}".format(span_value)
 
         if self.verbose > 1:
             print("{:.2f} / {:.2f}".format(span_value, span_value_new))

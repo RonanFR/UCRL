@@ -344,11 +344,11 @@ cdef class EVI_FSUCRLv1:
                         if self.bound_type != BoundType.BERNSTEIN:
                             max_proba_purec(p_hat[s][a_idx], nb_states,
                                         sorted_indices, beta_p[s][a_idx][0],
-                                        mtx_maxprob_memview[s])
+                                        mtx_maxprob_memview[s], 0)
                         else:
                             max_proba_bernstein(p_hat[s][a_idx], nb_states,
                                         sorted_indices, beta_p[s][a_idx],
-                                        mtx_maxprob_memview[s])
+                                        mtx_maxprob_memview[s], 0)
 
                         mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
 
@@ -374,7 +374,7 @@ cdef class EVI_FSUCRLv1:
 
                             max_proba_purec2(mu_opt[o].values, sub_dim,
                                         &sorted_indices_mu[idx], self.cn_opt[o]*self.beta_mu_p[o],
-                                        mtx_maxprob_memview[s])
+                                        mtx_maxprob_memview[s], 0)
 
                             v = dot_prod(mtx_maxprob_memview[s], &xx[idx], sub_dim)
 
@@ -503,11 +503,11 @@ cdef class EVI_FSUCRLv1:
                 if self.bound_type != BoundType.BERNSTEIN:
                     max_proba_purec(p_hat[s][option_idx], nb_states,
                                 sorted_indices, beta_p[s][option_idx][0],
-                                mtx_maxprob_memview[s])
+                                mtx_maxprob_memview[s], 0)
                 else:
                     max_proba_bernstein(p_hat[s][option_idx], nb_states,
                                 sorted_indices, beta_p[s][option_idx],
-                                mtx_maxprob_memview[s])
+                                mtx_maxprob_memview[s], 0)
 
                 mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
 
@@ -526,7 +526,7 @@ cdef class EVI_FSUCRLv1:
 
                 max_proba_purec2(mu_opt[o].values, sub_dim,
                             &sorted_indices_mu[idx], self.cn_opt[o]*self.beta_mu_p[o],
-                            mtx_maxprob_memview[s])
+                            mtx_maxprob_memview[s], 0)
                 with gil:
                     for i in range(sub_dim):
                         mu_tilde[o][i] = mtx_maxprob_memview[s][i]
@@ -912,11 +912,11 @@ cdef class EVI_FSUCRLv2:
                         # chernoff bound
                         max_proba_purec(p_hat[sprime][option_idx], nb_states,
                                     sorted_indices, beta_p[sprime][option_idx][0],
-                                    mtx_maxprob_opt_memview[o])
+                                    mtx_maxprob_opt_memview[o], 0)
                     else:
                         max_proba_bernstein(p_hat[sprime][option_idx], nb_states,
                                     sorted_indices, beta_p[sprime][option_idx],
-                                    mtx_maxprob_opt_memview[o])
+                                    mtx_maxprob_opt_memview[o], 0)
 
                     mtx_maxprob_opt_memview[o][sprime] = mtx_maxprob_opt_memview[o][sprime] - 1.
                     max_prob_opt = dot_prod(mtx_maxprob_opt_memview[o], u1, nb_states)
@@ -939,14 +939,14 @@ cdef class EVI_FSUCRLv2:
                             if self.bound_type != BoundType.BERNSTEIN:
                                 max_proba_purec2(&(p_hat_opt[o].values[idx]), nb_states_per_options,
                                     sorted_indices_popt[o].values, beta_opt_p[o].values[idx],
-                                    mtx_maxprob_opt_memview[o])
+                                    mtx_maxprob_opt_memview[o], 0)
                             else:
                                 max_proba_bernstein_cin(
                                     &(p_hat_opt[o].values[idx]),
                                     nb_states_per_options,
                                     sorted_indices_popt[o].values,
                                     &(beta_opt_p[o].values[idx]),
-                                    mtx_maxprob_opt_memview[o])
+                                    mtx_maxprob_opt_memview[o], 0)
 
                             v = r_optimal + v + dot_prod(mtx_maxprob_opt_memview[o], w1[o].values, nb_states_per_options)
                             w2[o].values[i] = v
@@ -986,12 +986,12 @@ cdef class EVI_FSUCRLv2:
                                 # chernoff bound
                                 max_proba_purec(p_hat[s][a_idx], nb_states,
                                             sorted_indices, beta_p[s][a_idx][0],
-                                            mtx_maxprob_memview[s])
+                                            mtx_maxprob_memview[s], 0)
                             else:
                                 # bernstein bound
                                 max_proba_bernstein(p_hat[s][a_idx], nb_states,
                                             sorted_indices, beta_p[s][a_idx],
-                                            mtx_maxprob_memview[s])
+                                            mtx_maxprob_memview[s], 0)
 
                             mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
                             r_optimal = min(r_max,
@@ -1094,14 +1094,14 @@ cdef class EVI_FSUCRLv2:
                     if self.bound_type != BoundType.BERNSTEIN:
                         max_proba_purec2(&(p_hat_opt[o].values[idx]), nb_states_per_options,
                             sorted_indices_popt[o].values, beta_opt_p[o].values[idx],
-                            mtx_maxprob_opt_memview[o])
+                            mtx_maxprob_opt_memview[o], 0)
                     else:
                         max_proba_bernstein_cin(
                             &(p_hat_opt[o].values[idx]),
                             nb_states_per_options,
                             sorted_indices_popt[o].values,
                             &(beta_opt_p[o].values[idx]),
-                            mtx_maxprob_opt_memview[o])
+                            mtx_maxprob_opt_memview[o], 0)
                     with gil:
                         for k in range(nb_states_per_options):
                             ptilde_list[o][i,k] = mtx_maxprob_opt_memview[o][k]

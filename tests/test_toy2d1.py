@@ -48,7 +48,8 @@ def test_srevi(count):
                              bound_type="chernoff",
                              span_constraint=np.inf,
                              relative_vi=0, random_state=rs,
-                             gamma=mdp.gamma)
+                             gamma=mdp.gamma,
+                             operator_type='T')
 
     epsi = 0.0001
     for c in constraints:
@@ -84,17 +85,20 @@ def test_srevi(count):
 
         if c < 0.5:
             x, y = 0, 1. / (2 + 2 * c)
-            assert np.allclose(policy_indices, [[0, 1], [0, 1]]), policy_indices
             assert np.allclose(policy, [[x, 1 - x], [y, 1 - y]]), policy
+            assert np.allclose(policy_indices, [[1, 1], [0, 1]]) or\
+                   np.allclose(policy_indices, [[0, 1], [0, 1]]), policy_indices
         elif c < 1.:
             x, y = 1, (1 - c) / (1 + c)
             # note that also the indices of the actions are different
             # since max and min action are inverted
-            assert np.allclose(policy_indices, [[1, 0], [0, 1]]), policy_indices
+            assert np.allclose(policy_indices, [[1, 0], [0, 1]]) or\
+                   np.allclose(policy_indices, [[0, 0], [0, 1]]), policy_indices
             assert np.allclose(policy, [[1 - x, x], [y, 1 - y]]), policy
         else:
+            # in this case is like run the L operator
             x, y = 1, 0
-            assert np.allclose(policy_indices, [[1, 0], [0, 1]]), policy_indices
+            assert np.allclose(policy_indices, [[0, 0], [1, 1]]), policy_indices
             assert np.allclose(policy, [[1 - x, x], [y, 1 - y]]), policy
 
     evi = EVI(nb_states=mdp.S,
