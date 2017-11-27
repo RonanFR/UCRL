@@ -62,3 +62,5 @@ cdef class SpanConstrainedEVI:
     cpdef get_u3vectors(self)
 
     cpdef get_span_constraint(self)
+    cpdef get_operator_type(self)
+    cpdef use_relative_vi(self)

@@ -95,7 +95,7 @@ def load_mean_values(folder, attributes):
             if k not in data:
                 data[k] = []
             if k == 'regret':
-                data[k].append(np.array(getattr(model,k)) / (np.array(getattr(model,'regret_unit_time'))+1))
+                data[k].append(np.array(getattr(model,k))) # / (np.array(getattr(model,'regret_unit_time'))+1))
             else:
                 data[k].append(getattr(model, k))
 

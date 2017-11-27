@@ -22,17 +22,21 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=500000)
+                  help="duration of the experiment", default=5000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="chernoff")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
-                  help="Uppper bound to the bias span", default=1.2)
+                  help="Uppper bound to the bias span", default=50)
+parser.add_option("--operatortype", type="str", dest="operator_type",
+                  help="Select the operator to use for SC-EVI", default="T")
+parser.add_option("--mdp_delta", type="float", dest="mdp_delta",
+                  help="Transition probability mdp", default=0.0001)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
                   help="range of transition matrix", default=1.)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
                   help="range of reward", default=1.)
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
-                  help="regret time steps", default=100)
+                  help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
                   help="Number of repetitions", default=1)
 parser.add_option("--rep_offset", dest="nb_sim_offset", type="int",
@@ -65,6 +69,8 @@ if in_options.id and in_options.path:
 
 assert in_options.algorithm in ["UCRL", "SCUCRL"]
 assert in_options.nb_sim_offset >= 0
+assert 1e-16 <= in_options.mdp_delta <= 1.-1e-16
+assert in_options.operator_type in ['T', 'N']
 
 if in_options.id is None:
     in_options.id = '{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now())
@@ -75,7 +81,7 @@ config = vars(in_options)
 # Relevant code
 # ------------------------------------------------------------------------------
 
-env = Toy3D_1(delta=0.00001)
+env = Toy3D_1(delta=in_options.mdp_delta)
 r_max = max(1, np.asscalar(np.max(env.R_mat)))
 
 if in_options.path is None:
@@ -105,6 +111,8 @@ with open(os.path.join(folder_results, 'settings{}.conf'.format(in_options.nb_si
 start_sim = in_options.nb_sim_offset
 end_sim = start_sim + in_options.nb_simulations
 for rep in range(start_sim, end_sim):
+    env.reset()
+    env_desc = env.description()
     seed = seed_sequence[rep-start_sim]  # set seed
     np.random.seed(seed)
     random.seed(seed)
@@ -115,6 +123,7 @@ for rep in range(start_sim, end_sim):
                                               console=not in_options.quiet,
                                               filename=name,
                                               path=folder_results)
+    ucrl_log.info("mdp desc: {}".format(env_desc))
     ofualg = None
     if in_options.algorithm == "UCRL":
         ofualg = Ucrl.UcrlMdp(
@@ -137,9 +146,8 @@ for rep in range(start_sim, end_sim):
             logger=ucrl_log,
             bound_type=in_options.bound_type,
             random_state=seed,
-            operator_type="T"
+            operator_type=in_options.operator_type
         )
-
 
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ofualg).__name__))
     ucrl_log.info("seed: {}".format(seed))

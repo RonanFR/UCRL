@@ -34,6 +34,7 @@ class Toy3D_1(Environment):
         super(Toy3D_1, self).__init__(initial_state=0,
                                       state_actions=state_actions)
         self.holding_time = 1
+        self.delta = delta
 
     def reset(self):
         self.state = 0
@@ -85,3 +86,10 @@ class Toy3D_1(Environment):
         assert p[next_state] > 0.
         self.reward = self.R_mat[self.state, action_index]
         self.state = next_state
+
+    def description(self):
+        desc = {
+            'name': type(self).__name__,
+            'delta': self.delta
+        }
+        return desc

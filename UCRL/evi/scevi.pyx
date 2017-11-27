@@ -504,3 +504,9 @@ cdef class SpanConstrainedEVI:
 
     cpdef get_span_constraint(self):
         return self.span_constraint
+
+    cpdef get_operator_type(self):
+        return 'T' if self.operator_type == TOP else 'N'
+
+    cpdef use_relative_vi(self):
+        return self.relative_vi

@@ -37,7 +37,9 @@ class SCUCRLMdp(UcrlMdp):
     def description(self):
         super_desc = super().description()
         desc = {
-            "span_constraint": self.span_constraint
+            "span_constraint": self.span_constraint,
+            "operator_type": self.opt_solver.get_operator_type(),
+            "relative_vi": self.opt_solver.use_relative_vi()
         }
         super_desc.update(desc)
         return super_desc
