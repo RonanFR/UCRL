@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=200000)
+                  help="duration of the experiment", default=500000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="chernoff")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
@@ -137,7 +137,7 @@ for rep in range(start_sim, end_sim):
             logger=ucrl_log,
             bound_type=in_options.bound_type,
             random_state=seed,
-            operator_type="N"
+            operator_type="T"
         )
 
 

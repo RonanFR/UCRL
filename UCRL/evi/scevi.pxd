@@ -23,6 +23,8 @@ cdef enum OperatorType:
 cdef class SpanConstrainedEVI:
     cdef DTYPE_t *u1
     cdef DTYPE_t *u2
+    cdef DTYPE_t *u3
+    cdef DTYPE_t *u3_mina
     cdef DTYPE_t *mtx_maxprob
     cdef DTYPE_t[:,:] mtx_maxprob_memview
     cdef SIZE_t *sorted_indices
@@ -56,5 +58,7 @@ cdef class SpanConstrainedEVI:
                      str operator_type = *)
 
     cpdef get_uvectors(self)
+
+    cpdef get_u3vectors(self)
 
     cpdef get_span_constraint(self)

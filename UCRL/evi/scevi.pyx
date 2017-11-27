@@ -45,6 +45,8 @@ cdef class SpanConstrainedEVI:
         self.nb_states = nb_states
         self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
         self.u2 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
+        self.u3_mina = <DTYPE_t*> malloc(nb_states * sizeof(DTYPE_t))
+        self.u3 = <DTYPE_t*> malloc(nb_states * sizeof(DTYPE_t))
 
         if bound_type == "chernoff":
             self.bound_type = CHERNOFF
@@ -65,6 +67,8 @@ cdef class SpanConstrainedEVI:
         for i in range(nb_states):
             self.u1[i] = 0.0
             self.u2[i] = 0.0
+            self.u3_mina[i] = -1.0
+            self.u3[i] = -1.0
             self.sorted_indices[i] = i
 
         # allocate space for matrix of max probabilities and the associated memory view
@@ -95,6 +99,8 @@ cdef class SpanConstrainedEVI:
         free(self.u2)
         free(self.mtx_maxprob)
         free(self.sorted_indices)
+        free(self.u3_mina)
+        free(self.u3)
         for i in range(self.nb_states):
             free(self.actions_per_state[i].values)
         free(self.actions_per_state)
@@ -102,7 +108,9 @@ cdef class SpanConstrainedEVI:
     def reset_u(self, u):
         for i in range(self.nb_states):
             self.u1[i] = u[i]
-            self.u2[i] = 0.0
+            self.u2[i] = u[i]
+            self.u3_mina[i] = -1.0
+            self.u3[i] = -1.0
 
     cpdef DTYPE_t run(self, SIZE_t[:,:] policy_indices, DTYPE_t[:,:] policy,
                      DTYPE_t[:,:,:] estimated_probabilities,
@@ -153,16 +161,16 @@ cdef class SpanConstrainedEVI:
         cdef SIZE_t pos_mina, pos_maxa
         cdef DTYPE_t th, min_v, max_v, w1, w2
         cdef DTYPE_t* action_noise
-        cdef DTYPE_t* u3_mina
-        cdef DTYPE_t* u3
+        cdef DTYPE_t* u3_mina = self.u3_mina
+        cdef DTYPE_t* u3 = self.u3
 
 
         action_max_min = <SIZE_t*> malloc(nb_states * 2 * sizeof(SIZE_t))
         action_max_min_indices = <SIZE_t*> malloc(nb_states * 2 * sizeof(SIZE_t))
 
         action_noise = <DTYPE_t*> malloc(max_nb_actions * sizeof(DTYPE_t))
-        u3_mina = <DTYPE_t*> malloc(nb_states * sizeof(DTYPE_t))
-        u3 = <DTYPE_t*> malloc(nb_states * sizeof(DTYPE_t))
+        # u3_mina = <DTYPE_t*> malloc(nb_states * sizeof(DTYPE_t))
+        # u3 = <DTYPE_t*> malloc(nb_states * sizeof(DTYPE_t))
 
         # break ties in a random way. For each action select a random (small) noise
         local_random = np.random.RandomState(self.random_state)
@@ -292,7 +300,7 @@ cdef class SpanConstrainedEVI:
                                             sorted_indices, beta_p[s][a_idx],
                                             mtx_maxprob_memview[s], 1)
                             mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
-                            r_optimal = max(0., estimated_rewards[s][a_idx] - beta_r[s][a_idx])
+                            r_optimal = max(0., min(r_max, estimated_rewards[s][a_idx]) - beta_r[s][a_idx])
                             v = r_optimal + gamma * dot_prod(mtx_maxprob_memview[s], u1, nb_states) * tau
                             tau_optimal = min(tau_max, max(
                                 max(tau_min, r_optimal/r_max),
@@ -370,7 +378,7 @@ cdef class SpanConstrainedEVI:
                                                     sorted_indices, beta_p[s][a_idx],
                                                     mtx_maxprob_memview[s], 1)
                                     mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
-                                    r_optimal = max(0., estimated_rewards[s][a_idx] - beta_r[s][a_idx])
+                                    r_optimal = max(0., min(r_max, estimated_rewards[s][a_idx]) - beta_r[s][a_idx])
                                     v = r_optimal + gamma * dot_prod(mtx_maxprob_memview[s], u1, nb_states) * tau
                                     tau_optimal = min(tau_max, max(
                                         max(tau_min, r_optimal/r_max),
@@ -437,8 +445,8 @@ cdef class SpanConstrainedEVI:
                                     printf('(%d) %.3f %.3f %.3f [%.3f, %.3f]\n',s,u3_mina[s], u3[s], th, w1, w2)
                                     free(action_max_min)
                                     free(action_max_min_indices)
-                                    free(u3_mina)
-                                    free(u3)
+                                    # free(u3_mina)
+                                    # free(u3)
                                     free(action_noise)
                                     return -22
 
@@ -455,8 +463,8 @@ cdef class SpanConstrainedEVI:
                         return -21
                     free(action_max_min)
                     free(action_max_min_indices)
-                    free(u3_mina)
-                    free(u3)
+                    # free(u3_mina)
+                    # free(u3)
                     free(action_noise)
                     return max_u1 - min_u1
                 else:
@@ -485,6 +493,14 @@ cdef class SpanConstrainedEVI:
             u1n[i] = self.u1[i]
             u2n[i] = self.u2[i]
         return u1n, u2n
+
+    cpdef get_u3vectors(self):
+        u3_mina = -99*np.ones((self.nb_states,))
+        u3_maxa = -99*np.ones((self.nb_states,))
+        for i in range(self.nb_states):
+            u3_mina[i] = self.u3_mina[i]
+            u3_maxa[i] = self.u3[i]
+        return u3_mina, u3_maxa
 
     cpdef get_span_constraint(self):
         return self.span_constraint

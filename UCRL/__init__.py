@@ -45,4 +45,9 @@
 #       * it simply scan the vector in reverse order
 #   - added Dijkstra algorithm for the computation of the shortest path (and diameter)
 #   - added test for diameter
-__version__ = '0.21.dev0'
+# 0.22.dev0 (Nov 26, 2017)
+#   - fix error in SC-EVI
+#       * added truncation of reward to r_max in pessimistic value computation
+#   - adde u3 and u3min as class attributes
+#   - added test for EVI using 3S-domain
+__version__ = '0.22.dev0'

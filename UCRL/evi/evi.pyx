@@ -91,7 +91,7 @@ cdef class EVI:
     def reset_u(self, u):
         for i in range(self.nb_states):
             self.u1[i] = u[i]
-            self.u2[i] = 0.0
+            self.u2[i] = u[i]
 
     cpdef DTYPE_t run(self, SIZE_t[:] policy_indices, SIZE_t[:] policy,
                      DTYPE_t[:,:,:] estimated_probabilities,
