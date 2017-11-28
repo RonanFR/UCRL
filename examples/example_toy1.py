@@ -17,20 +17,40 @@ import matplotlib
 # 'DISPLAY' will be something like this ':0'
 # on your local machine, and None otherwise
 # if os.environ.get('DISPLAY') is None:
-# matplotlib.use('Agg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import copy
+
+
+class ExtendedUCRL(Ucrl.UcrlMdp):
+
+    def solve_optimistic_model(self):
+        span_value = super(ExtendedUCRL, self).solve_optimistic_model()
+        if not hasattr(self, 'policy_history'):
+            self.policy_history = {}
+        self.policy_history.update({self.total_time: (copy.deepcopy(self.policy), copy.deepcopy(self.policy_indices))})
+        return span_value
+
+class ExtendedSC_UCRL(spalg.SCUCRLMdp):
+
+    def solve_optimistic_model(self):
+        span_value = super(ExtendedSC_UCRL, self).solve_optimistic_model()
+        if not hasattr(self, 'policy_history'):
+            self.policy_history = {}
+        self.policy_history.update({self.total_time: (copy.deepcopy(self.policy), copy.deepcopy(self.policy_indices))})
+        return span_value
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=5000000)
+                  help="duration of the experiment", default=10000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="chernoff")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
-                  help="Uppper bound to the bias span", default=50)
+                  help="Uppper bound to the bias span", default=10)
 parser.add_option("--operatortype", type="str", dest="operator_type",
                   help="Select the operator to use for SC-EVI", default="T")
 parser.add_option("--mdp_delta", type="float", dest="mdp_delta",
-                  help="Transition probability mdp", default=0.0001)
+                  help="Transition probability mdp", default=0)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
                   help="range of transition matrix", default=1.)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
@@ -59,7 +79,7 @@ group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
                        "[UCRL, SCUCRL]",
-                  default="SCUCRL")
+                  default="UCRL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -69,7 +89,7 @@ if in_options.id and in_options.path:
 
 assert in_options.algorithm in ["UCRL", "SCUCRL"]
 assert in_options.nb_sim_offset >= 0
-assert 1e-16 <= in_options.mdp_delta <= 1.-1e-16
+#assert 1e-16 <= in_options.mdp_delta <= 1.-1e-16
 assert in_options.operator_type in ['T', 'N']
 
 if in_options.id is None:
@@ -126,7 +146,7 @@ for rep in range(start_sim, end_sim):
     ucrl_log.info("mdp desc: {}".format(env_desc))
     ofualg = None
     if in_options.algorithm == "UCRL":
-        ofualg = Ucrl.UcrlMdp(
+        ofualg = ExtendedUCRL(
             env,
             r_max=r_max,
             alpha_r=in_options.alpha_r,
@@ -136,7 +156,7 @@ for rep in range(start_sim, end_sim):
             bound_type=in_options.bound_type,
             random_state=seed)  # learning algorithm
     elif in_options.algorithm == "SCUCRL":
-        ofualg = spalg.SCUCRLMdp(
+        ofualg = ExtendedSC_UCRL(
             environment=env,
             r_max=r_max,
             span_constraint=in_options.span_constraint,

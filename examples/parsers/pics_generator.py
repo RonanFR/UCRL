@@ -96,22 +96,27 @@ def load_mean_values(folder, attributes):
                 data[k] = []
             if k == 'regret':
                 data[k].append(np.array(getattr(model,k))) # / (np.array(getattr(model,'regret_unit_time'))+1))
+            elif k == 'span_values':
+                data[k].append(np.array(getattr(model, k))/getattr(model, 'tau') * getattr(model, 'r_max'))
             else:
                 data[k].append(getattr(model, k))
 
-    for k in attributes:
-        metric = data[k]
-        max_common_length = min(map(len, metric))
-        m = np.array([x[0:max_common_length] for x in metric])
-        m_mean = np.mean(m, axis=0)
-        m_std = np.std(m, axis=0)
-        m_max = np.max(m, axis=0)
-        m_min = np.min(m, axis=0)
-        data['{}_mean'.format(k)] = m_mean
-        data['{}_std'.format(k)] = m_std
-        data['{}_max'.format(k)] = m_max
-        data['{}_min'.format(k)] = m_min
-        data['{}_num'.format(k)] = m.shape[0]
+    if len(onlyfiles) > 0:
+        for k in attributes:
+            metric = data[k]
+            max_common_length = min(map(len, metric))
+            m = np.array([x[0:max_common_length] for x in metric])
+            m_mean = np.mean(m, axis=0)
+            m_std = np.std(m, axis=0)
+            m_max = np.max(m, axis=0)
+            m_min = np.min(m, axis=0)
+            data['{}_mean'.format(k)] = m_mean
+            data['{}_std'.format(k)] = m_std
+            data['{}_max'.format(k)] = m_max
+            data['{}_min'.format(k)] = m_min
+            data['{}_num'.format(k)] = m.shape[0]
+    else:
+        data = None
 
     return data
 
