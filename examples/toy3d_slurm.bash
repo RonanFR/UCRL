@@ -25,6 +25,7 @@ A_SHORT_NAME=(UCRL-3d SCUCRL-3d)
 SPAN_C=(2 5 10 15 20 25)
 
 # CREATE CONFIGURATIONS
+DELTA=0.0001
 
 ALPHAS=" --p_alpha 1. --r_alpha 1 "
 
@@ -72,7 +73,7 @@ do
             echo "export NUMEXPR_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
             
             #cmdp=" --id c${i}"
-            cmdp="--rep_offset ${off} --path ${ALGS[$j]}_toy3d_c${i} --span_constraint ${CC} --regret_steps 1000 "
+            cmdp="--rep_offset ${off} --path ${ALGS[$j]}_toy3d_c${i} --span_constraint ${CC} --regret_steps 1000 --mdp_delta ${DELTA} "
             
             echo "python ${exe_file} --alg ${ALGS[$j]} ${ALPHAS} -n ${duration} -r ${repetitions} --seed ${init_seed[$pr]} ${cmdp}" >> ${fname}
             i=$((i+1))
