@@ -6,9 +6,9 @@ N_mem=10g
 N_hours=24
 part=24c
 
-duration=160000000
-N_parallel_rep=1
-repetitions=5
+duration=50000000
+N_parallel_rep=2
+repetitions=10
 init_seed=(114364114 679848179 375341576 340061651 311346802 945527102 1028531057 358887046 299813034 472903536 650815502 931560826 391431306 111281634 55536093 484610172 131932607 835579495 82081514 603410165 467299485)
 rmax=1 #${dim}
 exe_file=../example_toy1.py 
@@ -33,7 +33,6 @@ do
     off=$((pr*repetitions))
     for (( j=0; j<${#ALGS[@]}; j++ ))
     do
-        echo ${pr} ${j} ${ALGS[$j]}
         
         i=1
         
@@ -51,6 +50,7 @@ do
             then
                 CC=inf
             fi
+            echo ${pr} ${j} ${ALGS[$j]} ${CC}
         
             out_name="${ALGS[$j]}_${pr}_${CC}_%j.out"
             sname=${ALGS[$j]}_${pr}_${dim}.slurm
@@ -72,7 +72,7 @@ do
             echo "export NUMEXPR_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
             
             #cmdp=" --id c${i}"
-            cmdp="--rep_offset ${off} --path ${ALGS[$j]}_toy3d_c${i} --span_constraint ${CC}"
+            cmdp="--rep_offset ${off} --path ${ALGS[$j]}_toy3d_c${i} --span_constraint ${CC} --regret_steps 1000 "
             
             echo "python ${exe_file} --alg ${ALGS[$j]} ${ALPHAS} -n ${duration} -r ${repetitions} --seed ${init_seed[$pr]} ${cmdp}" >> ${fname}
             i=$((i+1))
