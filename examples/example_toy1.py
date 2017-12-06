@@ -28,7 +28,10 @@ class ExtendedUCRL(Ucrl.UcrlMdp):
         span_value = super(ExtendedUCRL, self).solve_optimistic_model()
         if not hasattr(self, 'policy_history'):
             self.policy_history = {}
+            self.value_history = {}
         self.policy_history.update({self.total_time: (copy.deepcopy(self.policy), copy.deepcopy(self.policy_indices))})
+        u1, u2 = self.opt_solver.get_uvectors()
+        self.value_history.update({self.total_time: u1.copy()})
         return span_value
 
 class ExtendedSC_UCRL(spalg.SCUCRLMdp):
@@ -37,7 +40,10 @@ class ExtendedSC_UCRL(spalg.SCUCRLMdp):
         span_value = super(ExtendedSC_UCRL, self).solve_optimistic_model()
         if not hasattr(self, 'policy_history'):
             self.policy_history = {}
+            self.value_history = {}
         self.policy_history.update({self.total_time: (copy.deepcopy(self.policy), copy.deepcopy(self.policy_indices))})
+        u1, u2 = self.opt_solver.get_uvectors()
+        self.value_history.update({self.total_time: u1.copy()})
         return span_value
 
 parser = OptionParser()
