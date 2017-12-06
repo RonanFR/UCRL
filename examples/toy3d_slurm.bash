@@ -14,7 +14,8 @@ rmax=1 #${dim}
 exe_file=../example_toy1.py 
 
 
-folder=toy3d_$(date '+%Y%m%d_%H%M%S')
+DELTA=0.0001
+folder=toy3d_${DELTA}_$(date '+%Y%m%d_%H%M%S')
 echo ${folder}
 mkdir ${folder}
 
@@ -25,7 +26,6 @@ A_SHORT_NAME=(UCRL-3d SCUCRL-3d)
 SPAN_C=(2 5 10 15 20 25)
 
 # CREATE CONFIGURATIONS
-DELTA=0.0001
 
 ALPHAS=" --p_alpha 1. --r_alpha 1 "
 
