@@ -17,6 +17,7 @@ from libc.stdlib cimport rand, RAND_MAX, srand
 from libc.stdio cimport printf
 
 from cython.parallel import prange
+from cpython cimport bool
 
 import numpy as np
 cimport numpy as np
@@ -40,7 +41,7 @@ cdef class SpanConstrainedEVI:
 
     def __init__(self, nb_states, list actions_per_state, str bound_type,
                     DTYPE_t span_constraint, SIZE_t relative_vi,
-                    int random_state, DTYPE_t gamma=1., str operator_type = "T"):
+                    int random_state, bool augment_reward, DTYPE_t gamma=1., str operator_type = "T"):
         cdef SIZE_t n, m, i, j
         self.nb_states = nb_states
         self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
@@ -61,6 +62,11 @@ cdef class SpanConstrainedEVI:
             self.operator_type = NOP
         else:
             raise ValueError("Unknown operator type")
+
+        if augment_reward:
+            self.augment_reward = 1
+        else:
+            self.augment_reward = 0
 
         # allocate indices and memoryview (may slow down)
         self.sorted_indices = <SIZE_t *> malloc(nb_states * sizeof(SIZE_t))
@@ -300,7 +306,10 @@ cdef class SpanConstrainedEVI:
                                             sorted_indices, beta_p[s][a_idx],
                                             mtx_maxprob_memview[s], 1)
                             mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
-                            r_optimal = max(0., min(r_max, estimated_rewards[s][a_idx]) - beta_r[s][a_idx])
+                            if self.augment_reward == 0:
+                                r_optimal = max(0., min(r_max, estimated_rewards[s][a_idx]) - beta_r[s][a_idx])
+                            else:
+                                r_optimal = 0.
                             v = r_optimal + gamma * dot_prod(mtx_maxprob_memview[s], u1, nb_states) * tau
                             tau_optimal = min(tau_max, max(
                                 max(tau_min, r_optimal/r_max),
@@ -378,7 +387,10 @@ cdef class SpanConstrainedEVI:
                                                     sorted_indices, beta_p[s][a_idx],
                                                     mtx_maxprob_memview[s], 1)
                                     mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
-                                    r_optimal = max(0., min(r_max, estimated_rewards[s][a_idx]) - beta_r[s][a_idx])
+                                    if self.augment_reward == 0:
+                                        r_optimal = max(0., min(r_max, estimated_rewards[s][a_idx]) - beta_r[s][a_idx])
+                                    else:
+                                        r_optimal = 0.
                                     v = r_optimal + gamma * dot_prod(mtx_maxprob_memview[s], u1, nb_states) * tau
                                     tau_optimal = min(tau_max, max(
                                         max(tau_min, r_optimal/r_max),

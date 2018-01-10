@@ -37,6 +37,7 @@ cdef class SpanConstrainedEVI:
     cdef DTYPE_t span_constraint
     cdef SIZE_t relative_vi
     cdef OperatorType operator_type
+    cdef SIZE_t augment_reward
 
     # Methods
 
