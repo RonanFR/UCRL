@@ -56,6 +56,7 @@ def test_srevi(params):
                              actions_per_state=mdp.A,
                              bound_type="chernoff",
                              span_constraint=np.inf,
+                             augmented_reward=0,
                              relative_vi=0,
                              random_state=rs,
                              gamma=mdp.gamma)

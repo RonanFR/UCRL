@@ -41,7 +41,7 @@ cdef class SpanConstrainedEVI:
 
     def __init__(self, nb_states, list actions_per_state, str bound_type,
                     DTYPE_t span_constraint, SIZE_t relative_vi,
-                    int random_state, bool augment_reward, DTYPE_t gamma=1., str operator_type = "T"):
+                    int random_state, int augmented_reward, DTYPE_t gamma=1., str operator_type = "T"):
         cdef SIZE_t n, m, i, j
         self.nb_states = nb_states
         self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
@@ -63,10 +63,7 @@ cdef class SpanConstrainedEVI:
         else:
             raise ValueError("Unknown operator type")
 
-        if augment_reward:
-            self.augment_reward = 1
-        else:
-            self.augment_reward = 0
+        self.augment_reward = augmented_reward
 
         # allocate indices and memoryview (may slow down)
         self.sorted_indices = <SIZE_t *> malloc(nb_states * sizeof(SIZE_t))

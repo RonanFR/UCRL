@@ -10,12 +10,13 @@ class SCUCRLMdp(UcrlMdp):
     """
 
     def __init__(self, environment, r_max, span_constraint, alpha_r=None, alpha_p=None,
-                 bound_type="chernoff", verbose=0, operator_type = "T",
-                 logger=default_logger, random_state=None, relative_vi = True):
+                 bound_type="chernoff", verbose=0, augment_reward=True, operator_type="T",
+                 logger=default_logger, random_state=None, relative_vi=True):
         solver = SpanConstrainedEVI(nb_states=environment.nb_states,
                                     actions_per_state=environment.state_actions,
                                     bound_type=bound_type,
                                     random_state=random_state,
+                                    augmented_reward=1 if augment_reward else 0,
                                     gamma=1.,
                                     span_constraint=span_constraint,
                                     relative_vi=1 if relative_vi else 0,

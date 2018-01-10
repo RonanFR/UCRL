@@ -73,6 +73,7 @@ parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
                   help="Number of repetitions", default=1)
+parser.add_option("--no_aug_rew", dest="augmented_reward", action="store_false", default="True")
 parser.add_option("--rep_offset", dest="nb_sim_offset", type="int",
                   help="Repetitions starts at the given number", default=0)
 parser.add_option("--id", dest="id", type="str",
@@ -93,7 +94,7 @@ group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
                        "[UCRL, SCUCRL]",
-                  default="UCRL")
+                  default="SCUCRL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -170,6 +171,7 @@ for rep in range(start_sim, end_sim):
             bound_type=in_options.bound_type,
             random_state=seed)  # learning algorithm
     elif in_options.algorithm == "SCUCRL":
+        ucrl_log.info("Augmented Reward: {}".format(in_options.augmented_reward))
         ofualg = ExtendedSC_UCRL(
             environment=env,
             r_max=r_max,
@@ -180,7 +182,8 @@ for rep in range(start_sim, end_sim):
             logger=ucrl_log,
             bound_type=in_options.bound_type,
             random_state=seed,
-            operator_type=in_options.operator_type
+            operator_type=in_options.operator_type,
+            augment_reward=in_options.augmented_reward
         )
 
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ofualg).__name__))

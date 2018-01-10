@@ -14,6 +14,7 @@ class TUCRL(Ucrl.UcrlMdp):
         self.scevi = SpanConstrainedEVI(nb_states=self.environment.nb_states,
                                         actions_per_state=self.environment.get_state_actions(),
                                         bound_type=self.bound_type, random_state=self.random_state,
+                                        augmented_reward=0,
                                         gamma=1., span_constraint=np.inf,
                                         relative_vi=0)
         self.policy_indices_sc = np.zeros((self.environment.nb_states, 2), dtype=np.int)
@@ -156,6 +157,7 @@ def test_srevi(seed_0, operator_type):
             alpha_p=1,
             verbose=1,
             bound_type="chernoff",
+            augment_reward=False,
             random_state=seed,
             span_constraint=np.inf,
             relative_vi=True,

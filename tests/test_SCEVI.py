@@ -50,6 +50,7 @@ def test_SCEVI1(count):
                              span_constraint=c,
                              relative_vi=0,
                              random_state=np.random.randint(1, 12451326),
+                             augmented_reward=0,
                              gamma=1,
                              operator_type='T')
     for opt in ['T', 'N']:

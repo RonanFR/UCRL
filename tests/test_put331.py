@@ -172,6 +172,7 @@ def test_state_action(count):
                               actions_per_state=mdp.A,
                               bound_type="chernoff", random_state=0,
                               gamma=mdp.gamma,
+                              augmented_reward=0,
                               relative_vi=0,
                               span_constraint=np.random.random_sample(),
                               operator_type="T"
