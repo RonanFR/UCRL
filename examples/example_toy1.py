@@ -38,7 +38,7 @@ class ExtendedUCRL(Ucrl.UcrlMdp):
         self.P_history.update({self.total_time: self.P.copy()})
         return span_value
 
-class ExtendedSC_UCRL(spalg.SCUCRLMdp):
+class ExtendedSC_UCRL(spalg.SCAL):
 
     def solve_optimistic_model(self):
         span_value = super(ExtendedSC_UCRL, self).solve_optimistic_model()
@@ -58,7 +58,7 @@ parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
                   help="duration of the experiment", default=10000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
-                  help="Selects the bound type", default="chernoff")
+                  help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
                   help="Uppper bound to the bias span", default=10)
 parser.add_option("--operatortype", type="str", dest="operator_type",
@@ -94,7 +94,7 @@ group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
                        "[UCRL, SCUCRL]",
-                  default="SCUCRL")
+                  default="UCRL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -168,7 +168,8 @@ for rep in range(start_sim, end_sim):
             alpha_p=in_options.alpha_p,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
             random_state=seed)  # learning algorithm
     elif in_options.algorithm == "SCUCRL":
         ucrl_log.info("Augmented Reward: {}".format(in_options.augmented_reward))
@@ -180,7 +181,8 @@ for rep in range(start_sim, end_sim):
             alpha_p=in_options.alpha_p,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
             random_state=seed,
             operator_type=in_options.operator_type,
             augment_reward=in_options.augmented_reward

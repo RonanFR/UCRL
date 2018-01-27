@@ -3,8 +3,9 @@ import math as m
 
 
 def chernoff(it, N, delta, sqrt_C, log_C, range=1.):
-    ci = range * np.sqrt(sqrt_C * m.log(log_C * (it + 1) / delta) / np.maximum(1,N))
+    ci = range * np.sqrt(sqrt_C * m.log(log_C * (it + 1) / delta) / np.maximum(1, N))
     return ci
+
 
 def bernstein(it, P, N, delta, log_C, alpha_1, alpha_2, scale_f=4.):
     Z = scale_f * m.log(log_C * m.log(it + 2) / delta)
@@ -14,35 +15,12 @@ def bernstein(it, P, N, delta, log_C, alpha_1, alpha_2, scale_f=4.):
     return alpha_1 * Va + alpha_2 * Vb[:, :, np.newaxis]
 
 
-# def grid_range_r_from_hoeffding(nb_states, nb_actions, nb_observations,
-#                                 iteration=None, delta=1.0, desired_ci=1.):
-#     if iteration is None:
-#         D = 2*(np.sqrt(nb_states) - 1)
-#         iteration = nb_observations * D * nb_states * nb_actions
-#     ci = np.sqrt(7./2. * m.log(2 * nb_states * nb_actions *(iteration+1)/delta) / max(1,nb_observations))
-#     beta = desired_ci / ci
-#     return beta
-#
-#
-# def grid_range_p_from_hoeffding(nb_states, nb_actions, nb_observations,
-#                            iteration=None, delta=1.0, desired_ci=2.):
-#     if iteration is None:
-#         D = 2*(np.sqrt(nb_states) - 1)
-#         iteration = nb_observations * D * nb_states * nb_actions
-#     ci = np.sqrt(14 * nb_states * m.log(2 * nb_actions * (iteration + 1) / delta) / max(1,nb_observations))
-#     beta = desired_ci / ci
-#     return beta
-#
-#
-# def grid_range_p_from_bernstein(nb_states, nb_actions, nb_observations,
-#                            p=0, iteration=None, delta=1.0, desired_ci=2.):
-#     if iteration is None:
-#         D = 2*(np.sqrt(nb_states) - 1)
-#         iteration = nb_observations * D * nb_states * nb_actions
-#     Z = m.log(6 * nb_actions * (iteration + 1) / delta)
-#     print(Z)
-#     n = np.maximum(1, nb_observations)
-#     A = np.sqrt(2 * p * (1 - p) * Z / n)
-#     B = Z * 7 / (3 * n)
-#     range_p = desired_ci / (A + B)
-#     return range_p
+def chernoff2(sqrt_value, log_value):
+    ci = np.sqrt(sqrt_value * m.log(log_value))
+    return ci
+
+
+def bernstein2(scale_a, log_scale_a, scale_b, log_scale_b, alpha_1, alpha_2):
+    A = scale_a * m.log(log_scale_a)
+    B = scale_b * m.log(log_scale_b)
+    return alpha_1 * np.sqrt(A) + alpha_2 * B

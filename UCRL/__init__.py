@@ -50,4 +50,11 @@
 #       * added truncation of reward to r_max in pessimistic value computation
 #   - adde u3 and u3min as class attributes
 #   - added test for EVI using 3S-domain
-__version__ = '0.22.dev0'
+# 0.24.dev0 (Jan 26, 2017)
+#   - renamed span constrained UCRL to SCAL
+#   - added augmentation of the reward for SCAL
+#   - fixed confidence intervals for bernstein inequality (not in the SMDP case)
+#       * added computation of variance of the reward with Welford's method
+#   - added Gaussian, Gamma, Beta and Exp reward distributions
+#   - modified Toy1 in order to have stochastic reward
+__version__ = '0.24.dev0'

@@ -2,9 +2,10 @@ import numpy as np
 from ..Environment import Environment
 from ...evi import EVI
 from ...utils.shortestpath import dijkstra
+from .. import RewardDistributions as Rdists
 
 class Toy3D_1(Environment):
-    def __init__(self, delta=0.99):
+    def __init__(self, delta=0.99, stochastic_reward=False):
         state_actions = [[0], [0], [0, 1]]
         na = max(map(len, state_actions))
         ns = len(state_actions)
@@ -30,6 +31,12 @@ class Toy3D_1(Environment):
         self.P_mat[2, 1, 1] = 0.
         self.P_mat[2, 1, 2] = 1.
         self.R_mat[2, 1] = 0.5
+
+        self.reward_distributions = [[Rdists.BernouilliReward(r_max=self.R_mat[0, 0] / 0.6, proba=0.6)],
+                                     [Rdists.BernouilliReward(r_max=self.R_mat[1, 0] / 0.5, proba=0.3)],
+                                     [Rdists.BernouilliReward(r_max=self.R_mat[2, 0] / 0.4, proba=0.4),
+                                      Rdists.BernouilliReward(r_max=self.R_mat[2, 1] / 0.8, proba=0.8)]]
+        self.stochastic_reward = stochastic_reward
 
         super(Toy3D_1, self).__init__(initial_state=0,
                                       state_actions=state_actions)
@@ -84,7 +91,8 @@ class Toy3D_1(Environment):
         p = self.P_mat[self.state, action_index]
         next_state = np.asscalar(np.random.choice(self.nb_states, 1, p=p))
         assert p[next_state] > 0.
-        self.reward = self.R_mat[self.state, action_index]
+        rdist = self.reward_distributions[self.state][action_index]
+        self.reward = rdist.mean if not self.stochastic_reward else rdist.generate()
         self.state = next_state
 
     def description(self):

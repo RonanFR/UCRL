@@ -19,7 +19,8 @@ class AbstractUCRL(object):
                  solver=None,
                  verbose = 0,
                  logger=default_logger,
-                 bound_type="chernoff"):
+                 bound_type_p="chernoff",
+                 bound_type_rew="chernoff"):
         self.environment = environment
         self.r_max = float(r_max)
 
@@ -36,7 +37,7 @@ class AbstractUCRL(object):
             # create solver for optimistic model
             self.opt_solver = EVI(nb_states=self.environment.nb_states,
                                   actions_per_state=self.environment.get_state_actions(),
-                                  bound_type= bound_type,
+                                  bound_type= bound_type_p,
                                   random_state = random_state,
                                   gamma=1.
                                   )
@@ -58,7 +59,8 @@ class AbstractUCRL(object):
         self.iteration = 0
         self.episode = 0
         self.delta = 1.  # confidence
-        self.bound_type = bound_type
+        self.bound_type_p = bound_type_p
+        self.bound_type_rew = bound_type_rew
 
         self.verbose = verbose
         self.logger = logger
@@ -86,7 +88,7 @@ class UcrlMdp(AbstractUCRL):
     """
 
     def __init__(self, environment, r_max, alpha_r=None, alpha_p=None, solver=None,
-                 bound_type="chernoff", verbose = 0,
+                 bound_type_p="chernoff", bound_type_rew="chernoff", verbose = 0,
                  logger=default_logger, random_state=None):
         """
         :param environment: an instance of any subclass of abstract class Environment which is an MDP
@@ -95,13 +97,15 @@ class UcrlMdp(AbstractUCRL):
         :param alpha_p: multiplicative factor for the concentration bound on transition probabilities (default is 1)
         """
 
-        assert bound_type in ["chernoff",  "bernstein"]
+        assert bound_type_p in ["chernoff",  "bernstein"]
+        assert bound_type_rew in ["chernoff",  "bernstein"]
 
         super(UcrlMdp, self).__init__(environment=environment,
                                       r_max=r_max, alpha_r=alpha_r,
                                       alpha_p=alpha_p, solver=solver,
                                       verbose=verbose,
-                                      logger=logger, bound_type=bound_type,
+                                      logger=logger, bound_type_p=bound_type_p,
+                                      bound_type_rew=bound_type_rew,
                                       random_state=random_state)
         nb_states = self.environment.nb_states
         max_nb_actions = self.environment.max_nb_actions_per_state
@@ -111,6 +115,7 @@ class UcrlMdp(AbstractUCRL):
         self.visited_sa = set()
 
         self.estimated_rewards = np.ones((nb_states, max_nb_actions)) * (r_max + 99)
+        self.variance_proxy_reward = np.zeros((nb_states, max_nb_actions))
         self.estimated_holding_times = np.ones((nb_states, max_nb_actions))
 
         self.nb_observations = np.zeros((nb_states, max_nb_actions), dtype=np.int64)
@@ -216,13 +221,22 @@ class UcrlMdp(AbstractUCRL):
         """
         S = self.environment.nb_states
         A = self.environment.max_nb_actions_per_state
-        ci = bounds.chernoff(it=self.iteration, N=self.nb_observations,
-                             range=self.r_max, delta=self.delta,
-                             sqrt_C=3.5, log_C=2*S*A)
-        # beta = self.r_max * np.sqrt(7/2 * m.log(2 * self.environment.nb_states * self.environment.max_nb_actions_per_state *
-        #                                         (self.iteration+1)/self.delta) / np.maximum(1, self.nb_observations))
-        # assert np.allclose(ci, beta)
-        return self.alpha_r * ci
+        if self.bound_type_rew != "bernstein":
+            ci = bounds.chernoff(it=self.iteration, N=self.nb_observations,
+                                 range=self.r_max, delta=self.delta,
+                                 sqrt_C=3.5, log_C=2 * S * A)
+            return self.alpha_r * ci
+        else:
+            N = np.maximum(1, self.nb_observations)
+            Nm1 = np.maximum(1, self.nb_observations - 1)
+            var_r = self.variance_proxy_reward / Nm1
+            log_value = 2.0 * S * A * (self.iteration + 1) / self.delta
+            beta = bounds.bernstein2(scale_a=14 * var_r / N,
+                                     log_scale_a=log_value,
+                                     scale_b=49.0 * self.r_max / (3.0 * Nm1),
+                                     log_scale_b=log_value,
+                                     alpha_1=1., alpha_2=self.alpha_p)
+            return beta
 
     def beta_tau(self):
         """ Confidence bounds on holding times
@@ -242,24 +256,25 @@ class UcrlMdp(AbstractUCRL):
         """
         S = self.environment.nb_states
         A = self.environment.max_nb_actions_per_state
-        if self.bound_type != "bernstein":
+        if self.bound_type_p != "bernstein":
             beta = bounds.chernoff(it=self.iteration, N=self.nb_observations,
                                    range=1., delta=self.delta,
                                    sqrt_C=14*S, log_C=2*A)
-            # ci = np.sqrt(14 * S * m.log(2 * A
-            #         * (self.iteration + 1)/self.delta) / np.maximum(1, self.nb_observations))
-            # assert np.allclose(ci, beta)
             return self.alpha_p * beta.reshape([S, A, 1])
         else:
-            beta = bounds.bernstein(it=self.iteration, N=self.nb_observations,
-                                    delta=self.delta, P=self.P, log_C=S,
-                                    alpha_1=1., alpha_2=self.alpha_p)
-            # Z = m.log(S * m.log(self.iteration + 2) / self.delta)
-            # n = np.maximum(1, self.nb_observations)
-            # Va = np.sqrt(2 * self.P * (1-self.P) * Z / n[:,:,np.newaxis])
-            # Vb = Z * 7 / (3 * n)
-            # ci = (Va + Vb[:, :, np.newaxis])
-            # assert np.allclose(beta, ci)
+            N = np.maximum(1, self.nb_observations)
+            Nm1 = np.maximum(1, self.nb_observations - 1)
+            var_p = self.P * (1. - self.P)
+            log_value = 2.0 * S * A * (self.iteration + 1) / self.delta
+            beta = bounds.bernstein2(scale_a=14 * var_p / N[:, :, np.newaxis],
+                                     log_scale_a=log_value,
+                                     scale_b=49.0 / (3.0 * Nm1[:, :, np.newaxis]),
+                                     log_scale_b=log_value,
+                                     alpha_1=1., alpha_2=self.alpha_p)
+
+            # beta = bounds.bernstein(it=self.iteration, N=self.nb_observations,
+            #                         delta=self.delta, P=self.P, log_C=S,
+            #                         alpha_1=1., alpha_2=self.alpha_p)
             return beta
 
     def update(self, curr_state, curr_act_idx, curr_act):
@@ -276,8 +291,13 @@ class UcrlMdp(AbstractUCRL):
         # updated observations
         scale_f = self.nb_observations[s][curr_act_idx] + self.nu_k[s][curr_act_idx]
 
+        # update reward and variance estimate
+        old_estimated_reward = self.estimated_rewards[s, curr_act_idx]
         self.estimated_rewards[s, curr_act_idx] *= scale_f / (scale_f + 1.)
         self.estimated_rewards[s, curr_act_idx] += r / (scale_f + 1.)
+        self.variance_proxy_reward[s, curr_act_idx] += (r - old_estimated_reward) * (r - self.estimated_rewards[s, curr_act_idx])
+
+        # update holding time
         self.estimated_holding_times[s, curr_act_idx] *= scale_f / (scale_f + 1.)
         self.estimated_holding_times[s, curr_act_idx] += t / (scale_f + 1)
 
@@ -450,9 +470,10 @@ class UcrlSmdpExp(UcrlMdp):
                  tau_min=1,
                  alpha_r=None, alpha_tau=None, alpha_p=None,
                  b_r=0., b_tau=0.,
-                 bound_type="chernoff",
+                 bound_type_p="chernoff", bound_type_rew="chernoff",
                  verbose=0, logger=default_logger, random_state=None):
-        assert bound_type in ["chernoff",  "bernstein"]
+        assert bound_type_p in ["chernoff",  "bernstein"]
+        assert bound_type_rew in ["chernoff",  "bernstein"]
         assert tau_min >= 1
         if sigma_r is None:
             sigma_r = np.sqrt(sigma_tau * sigma_tau + tau_max) * r_max
@@ -460,7 +481,8 @@ class UcrlSmdpExp(UcrlMdp):
         super(UcrlSmdpExp, self).__init__(
             environment=environment, r_max=r_max,
             alpha_r=alpha_r, alpha_p=alpha_p, solver=None,
-            bound_type=bound_type,
+            bound_type_p=bound_type_p,
+            bound_type_rew=bound_type_rew,
             verbose=verbose, logger=logger,random_state=random_state)
         self.tau = tau_min - 0.1
         self.tau_max = tau_max
@@ -530,7 +552,7 @@ class UcrlSmdpBounded(UcrlSmdpExp):
 
     def __init__(self, environment, r_max, t_max, t_min=1,
                  alpha_r=None, alpha_tau=None, alpha_p=None,
-                 bound_type="chernoff",
+                 bound_type_p="chernoff", bound_type_rew="chernoff",
                  verbose=0, logger=default_logger, random_state=None):
         super(UcrlSmdpBounded, self).__init__(environment=environment,
                                               r_max=r_max, tau_max=t_max,
@@ -539,6 +561,7 @@ class UcrlSmdpBounded(UcrlSmdpExp):
                                               tau_min=t_min,
                                               alpha_r=alpha_r, alpha_tau=alpha_tau, alpha_p=alpha_p,
                                               b_r=0., b_tau=0.,
-                                              bound_type=bound_type,
+                                              bound_type_p=bound_type_p,
+                                              bound_type_rew=bound_type_rew,
                                               verbose=verbose, logger=logger,
                                               random_state=random_state)
