@@ -10,32 +10,34 @@ class Toy3D_1(Environment):
         na = max(map(len, state_actions))
         ns = len(state_actions)
 
+        self.r_max = 1.
+
         self.P_mat = -np.Inf * np.ones((ns, na, ns))
         self.R_mat = -np.Inf * np.ones((ns, na))
 
         self.P_mat[0, 0, 0] = 0.
         self.P_mat[0, 0, 1] = delta
         self.P_mat[0, 0, 2] = 1 - delta
-        self.R_mat[0, 0] = 0.
+        self.R_mat[0, 0] = 0.0
 
         self.P_mat[1, 0, 0] = 1.
         self.P_mat[1, 0, 1] = 0.
         self.P_mat[1, 0, 2] = 0.
-        self.R_mat[1, 0] = 0.
+        self.R_mat[1, 0] = self.r_max / 3.
 
         self.P_mat[2, 0, 0] = 1. - delta
         self.P_mat[2, 0, 1] = delta
         self.P_mat[2, 0, 2] = 0.
-        self.R_mat[2, 0] = 0.5
+        self.R_mat[2, 0] = 2. * self.r_max / 3.
         self.P_mat[2, 1, 0] = 0.
         self.P_mat[2, 1, 1] = 0.
         self.P_mat[2, 1, 2] = 1.
-        self.R_mat[2, 1] = 0.5
+        self.R_mat[2, 1] = 2. * self.r_max / 3.
 
-        self.reward_distributions = [[Rdists.BernouilliReward(r_max=self.R_mat[0, 0] / 0.6, proba=0.6)],
-                                     [Rdists.BernouilliReward(r_max=self.R_mat[1, 0] / 0.5, proba=0.3)],
-                                     [Rdists.BernouilliReward(r_max=self.R_mat[2, 0] / 0.4, proba=0.4),
-                                      Rdists.BernouilliReward(r_max=self.R_mat[2, 1] / 0.8, proba=0.8)]]
+        self.reward_distributions = [[Rdists.ConstantReward(c=self.R_mat[0, 0])],
+                                     [Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[1, 0]/self.r_max)],
+                                     [Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[2, 0]/self.r_max),
+                                      Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[2, 1]/self.r_max)]]
         self.stochastic_reward = stochastic_reward
 
         super(Toy3D_1, self).__init__(initial_state=0,

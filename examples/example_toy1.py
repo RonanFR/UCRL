@@ -56,15 +56,15 @@ class ExtendedSC_UCRL(spalg.SCAL):
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=10000000)
+                  help="duration of the experiment", default=500000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
-                  help="Uppper bound to the bias span", default=10)
+                  help="Uppper bound to the bias span", default=100000)
 parser.add_option("--operatortype", type="str", dest="operator_type",
                   help="Select the operator to use for SC-EVI", default="T")
 parser.add_option("--mdp_delta", type="float", dest="mdp_delta",
-                  help="Transition probability mdp", default=0)
+                  help="Transition probability mdp", default=0.005)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
                   help="range of transition matrix", default=1.)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
@@ -74,6 +74,7 @@ parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
                   help="Number of repetitions", default=1)
 parser.add_option("--no_aug_rew", dest="augmented_reward", action="store_false", default="True")
+parser.add_option("--stochrew", dest="stochastic_reward", action="store_true", default="False")
 parser.add_option("--rep_offset", dest="nb_sim_offset", type="int",
                   help="Repetitions starts at the given number", default=0)
 parser.add_option("--id", dest="id", type="str",
@@ -88,13 +89,13 @@ parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random
 
 alg_desc = """Here the description of the algorithms                                
 |- UCRL                                                                       
-|- SCUCRL                                                                                                                                            
+|- SCAL                                                                                                                                            
 """
 group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
-                       "[UCRL, SCUCRL]",
-                  default="UCRL")
+                       "[UCRL, SCAL]",
+                  default="SCAL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -102,7 +103,7 @@ parser.add_option_group(group1)
 if in_options.id and in_options.path:
     parser.error("options --id and --path are mutually exclusive")
 
-assert in_options.algorithm in ["UCRL", "SCUCRL"]
+assert in_options.algorithm in ["UCRL", "SCAL"]
 assert in_options.nb_sim_offset >= 0
 #assert 1e-16 <= in_options.mdp_delta <= 1.-1e-16
 assert in_options.operator_type in ['T', 'N']
@@ -116,7 +117,8 @@ config = vars(in_options)
 # Relevant code
 # ------------------------------------------------------------------------------
 
-env = Toy3D_1(delta=in_options.mdp_delta)
+env = Toy3D_1(delta=in_options.mdp_delta,
+              stochastic_reward=in_options.stochastic_reward)
 r_max = max(1, np.asscalar(np.max(env.R_mat)))
 
 if in_options.path is None:
@@ -171,7 +173,7 @@ for rep in range(start_sim, end_sim):
             bound_type_p=in_options.bound_type,
             bound_type_rew=in_options.bound_type,
             random_state=seed)  # learning algorithm
-    elif in_options.algorithm == "SCUCRL":
+    elif in_options.algorithm == "SCAL":
         ucrl_log.info("Augmented Reward: {}".format(in_options.augmented_reward))
         ofualg = ExtendedSC_UCRL(
             environment=env,
@@ -213,3 +215,6 @@ for rep in range(start_sim, end_sim):
     plt.savefig(os.path.join(folder_results, "regret_{}.png".format(rep)))
     plt.show()
     plt.close('all')
+
+    print('policy indices: ')
+    print(ofualg.policy_indices)
