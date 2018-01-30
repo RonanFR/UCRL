@@ -20,44 +20,29 @@ import matplotlib
 # if os.environ.get('DISPLAY') is None:
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import copy
 
-
-class ExtendedUCRL(Ucrl.UcrlMdp):
-
-    def solve_optimistic_model(self):
-        span_value = super(ExtendedUCRL, self).solve_optimistic_model()
-        if not hasattr(self, 'policy_history'):
-            self.policy_history = {}
-        self.policy_history.update({self.total_time: (copy.deepcopy(self.policy), copy.deepcopy(self.policy_indices))})
-        return span_value
-
-class ExtendedSC_UCRL(spalg.SCUCRLMdp):
-
-    def solve_optimistic_model(self):
-        span_value = super(ExtendedSC_UCRL, self).solve_optimistic_model()
-        if not hasattr(self, 'policy_history'):
-            self.policy_history = {}
-        self.policy_history.update({self.total_time: (copy.deepcopy(self.policy), copy.deepcopy(self.policy_indices))})
-        return span_value
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=1e8)
+                  help="duration of the experiment", default=2000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
-                  help="Selects the bound type", default="chernoff")
+                  help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
                   help="Uppper bound to the bias span", default=10)
 parser.add_option("--operatortype", type="str", dest="operator_type",
                   help="Select the operator to use for SC-EVI", default="T")
+parser.add_option("--mdp_delta", type="float", dest="mdp_delta",
+                  help="Transition probability mdp", default=0.)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
-                  help="range of transition matrix", default=.1)
+                  help="range of transition matrix", default=1.)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
-                  help="range of reward", default=.8)
+                  help="range of reward", default=1.)
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
                   help="Number of repetitions", default=1)
+parser.add_option("--no_aug_rew", dest="augmented_reward", action="store_false", default="True")
+parser.add_option("--stochrew", dest="stochastic_reward", action="store_true", default="False")
 parser.add_option("--rep_offset", dest="nb_sim_offset", type="int",
                   help="Repetitions starts at the given number", default=0)
 parser.add_option("--id", dest="id", type="str",
@@ -72,13 +57,13 @@ parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random
 
 alg_desc = """Here the description of the algorithms                                
 |- UCRL                                                                       
-|- SCUCRL                                                                                                                                            
+|- SCAL                                                                                                                                            
 """
 group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
-                       "[UCRL, SCUCRL]",
-                  default="UCRL")
+                       "[UCRL, SCAL]",
+                  default="SCAL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -86,8 +71,9 @@ parser.add_option_group(group1)
 if in_options.id and in_options.path:
     parser.error("options --id and --path are mutually exclusive")
 
-assert in_options.algorithm in ["UCRL", "SCUCRL"]
+assert in_options.algorithm in ["UCRL", "SCAL"]
 assert in_options.nb_sim_offset >= 0
+#assert 1e-16 <= in_options.mdp_delta <= 1.-1e-16
 assert in_options.operator_type in ['T', 'N']
 
 if in_options.id is None:
@@ -99,6 +85,11 @@ config = vars(in_options)
 # Relevant code
 # ------------------------------------------------------------------------------
 
+# env = Toy3D_1(delta=in_options.mdp_delta,
+#               stochastic_reward=in_options.stochastic_reward)
+# env = RiverSwim()
+# gym_env = TaxiEnv()
+# r_max = max(1, np.asscalar(np.max(env.R_mat)))
 gym_env = TaxiEnv()
 env = GymDiscreteEnvWrapper(gym_env)
 _, _, Rmat = env.compute_matrix_form()
@@ -146,17 +137,19 @@ for rep in range(start_sim, end_sim):
     ucrl_log.info("mdp desc: {}".format(env_desc))
     ofualg = None
     if in_options.algorithm == "UCRL":
-        ofualg = ExtendedUCRL(
+        ofualg = Ucrl.UcrlMdp(
             env,
             r_max=r_max,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
             random_state=seed)  # learning algorithm
-    elif in_options.algorithm == "SCUCRL":
-        ofualg = ExtendedSC_UCRL(
+    elif in_options.algorithm == "SCAL":
+        ucrl_log.info("Augmented Reward: {}".format(in_options.augmented_reward))
+        ofualg = spalg.SCAL(
             environment=env,
             r_max=r_max,
             span_constraint=in_options.span_constraint,
@@ -164,9 +157,11 @@ for rep in range(start_sim, end_sim):
             alpha_p=in_options.alpha_p,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
             random_state=seed,
-            operator_type=in_options.operator_type
+            operator_type=in_options.operator_type,
+            augment_reward=in_options.augmented_reward
         )
 
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ofualg).__name__))
@@ -183,14 +178,17 @@ for rep in range(start_sim, end_sim):
         pickle.dump(ofualg, f)
 
     plt.figure()
-    plt.plot(ofualg.span_times, ofualg.span_values, '-')
+    plt.plot(ofualg.span_values, '-')
     plt.xlabel("Points")
     plt.ylabel("Span")
     plt.savefig(os.path.join(folder_results, "span_{}.png".format(rep)))
     plt.figure()
-    plt.plot(ofualg.regret_unit_time, ofualg.regret, '-')
+    plt.plot(ofualg.regret, '-')
     plt.xlabel("Points")
     plt.ylabel("Regret")
     plt.savefig(os.path.join(folder_results, "regret_{}.png".format(rep)))
     plt.show()
     plt.close('all')
+
+    print('policy indices: ')
+    print(ofualg.policy_indices)

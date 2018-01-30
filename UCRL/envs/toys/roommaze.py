@@ -247,7 +247,6 @@ class FourRoomsMaze(Environment):
             state_actions += [actions]
         return state_actions, Pkernel
 
-
     def execute(self, action):
         self.lastaction = action
         row, col = state2coord(self.state, self.dimension) # current coordinates
@@ -288,7 +287,7 @@ class FourRoomsMaze(Environment):
                       bound_type="chernoff",
                       random_state=123456)
 
-            span = evi.evi(
+            span = evi.run(
                 policy_indices=policy_indices,
                 policy=policy,
                 estimated_probabilities=self.prob_kernel,
@@ -587,7 +586,6 @@ class EscapeRoom(MixedEnvironment):
             optimal_policies.append(policy)
         return optimal_policies
 
-
     def compute_variance_tau(self):
         nb_options = self.nb_options
         reachable_states = self.reachable_states_per_option
@@ -636,7 +634,6 @@ class EscapeRoom(MixedEnvironment):
                 zerob_opt = opt - self.threshold_options - 1
                 tau_bar[i,j] = self.tau_options[zerob_opt]
         return tau_bar
-
 
     def compute_true_mu_and_ci(self):
         if hasattr(self, 'real_mu_opt'):
@@ -727,5 +724,3 @@ class EscapeRoom(MixedEnvironment):
         outfile.write("\n".join(["".join(row) for row in out]) + "\n")
         outfile.write("\n")
         return outfile
-
-

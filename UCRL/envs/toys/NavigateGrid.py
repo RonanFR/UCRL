@@ -61,7 +61,7 @@ class NavigateGrid(Environment):
                 actions = [0, 1, 2, 3]
             state_actions += [actions]
         state_actions += [range(0, nb_target_actions**2)]  # target state
-        super().__init__(initial_state, state_actions)  # call parent constructor
+        super(NavigateGrid, self).__init__(initial_state=initial_state, state_actions=state_actions)
         self.holding_time = 1
 
     def compute_max_gain(self):

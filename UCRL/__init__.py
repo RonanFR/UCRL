@@ -50,11 +50,15 @@
 #       * added truncation of reward to r_max in pessimistic value computation
 #   - adde u3 and u3min as class attributes
 #   - added test for EVI using 3S-domain
-# 0.24.dev0 (Jan 26, 2017)
+# 0.24.dev0 (Jan 26, 2018)
 #   - renamed span constrained UCRL to SCAL
 #   - added augmentation of the reward for SCAL
 #   - fixed confidence intervals for bernstein inequality (not in the SMDP case)
 #       * added computation of variance of the reward with Welford's method
 #   - added Gaussian, Gamma, Beta and Exp reward distributions
 #   - modified Toy1 in order to have stochastic reward
-__version__ = '0.24.dev0'
+# 0.25.dev0 (Jan 30, 2018)
+#   - fix error in scopt (scevi.pyx)
+#       * checked with valgrind
+#   - added river swim and updated navgrid and 4-rooms to use scal
+__version__ = '0.25.dev0'

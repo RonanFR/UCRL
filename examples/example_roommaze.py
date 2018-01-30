@@ -14,6 +14,7 @@ import UCRL.envs.RewardDistributions as RewardDistributions
 import UCRL.Ucrl as Ucrl
 from UCRL.free_ucrl import FSUCRLv1, FSUCRLv2
 import UCRL.logging as ucrl_logger
+from UCRL.span_algorithms import SCAL
 import UCRL.bounds as tuning
 from optparse import OptionParser, OptionGroup
 
@@ -28,19 +29,22 @@ parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
                   help="dimension of the gridworld", default=6)
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=1000000)
+                  help="duration of the experiment", default=10000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
-                  help="Selects the bound type", default="chernoff")
+                  help="Selects the bound type", default="bernstein")
+parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
+                  help="Uppper bound to the bias span", default=100000)
 parser.add_option("--rmax", dest="r_max", type="float",
                   help="maximum reward", default=1)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
-                  help="range of transition matrix", default=0.02)
+                  help="range of transition matrix", default=0.2)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
                   help="range of reward", default=0.8)
 parser.add_option("--tau_alpha", dest="alpha_tau", type="float",
                   help="range of reward", default=0.5)
 parser.add_option("--mc_alpha", dest="alpha_mc", type="float",
                   help="range for stationary distribution", default=0.02)
+parser.add_option("--no_aug_rew", dest="augmented_reward", action="store_false", default="True")
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
@@ -70,12 +74,13 @@ alg_desc = """Here the description of the algorithms
 .       sigma_R = r_max sqrt(tau_max + max(sigma_tau)^2) -> per option         
 |- FSUCRLv1                                                                      
 |- FSUCRLv2                                                                      
+|- SCAL
 """
 group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
-                       "[UCRL, SUCRL_v2, SUCRL_v3, FSUCRLv1, FSUCRLv2]",
-                  default="FSUCRLv1")
+                       "[UCRL, SUCRL_v2, SUCRL_v3, FSUCRLv1, FSUCRLv2, SCAL]",
+                  default="SCAL")
 # UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2
 
 (in_options, in_args) = parser.parse_args()
@@ -83,7 +88,7 @@ group1.add_option("-a", "--alg", dest="algorithm", type="str",
 if in_options.id and in_options.path:
     parser.error("options --id and --path are mutually exclusive")
 
-assert in_options.algorithm in ["UCRL", "SUCRL_v2", "SUCRL_v3", "FSUCRLv1", "FSUCRLv2"]
+assert in_options.algorithm in ["UCRL", "SUCRL_v2", "SUCRL_v3", "FSUCRLv1", "FSUCRLv2", "SCAL"]
 assert in_options.nb_sim_offset >= 0
 
 if in_options.r_max < 0:
@@ -109,7 +114,7 @@ env = FourRoomsMaze(dimension=in_options.dimension,
                     target_coordinates= [0,0],
                     success_probability=success_probability)
 
-if in_options.algorithm != "UCRL":
+if in_options.algorithm not in ["UCRL", "SCAL"]:
     if in_options.env_pickle_file is not None:
         mixed_env = pickle.load( open( in_options.env_pickle_file, "rb" ) )
         assert np.isclose(mixed_env.environment.p_success, success_probability)
@@ -169,6 +174,9 @@ with open(os.path.join(folder_results, 'settings{}.conf'.format(in_options.nb_si
 start_sim = in_options.nb_sim_offset
 end_sim = start_sim + in_options.nb_simulations
 for rep in range(start_sim, end_sim):
+    env.reset()
+    if mixed_env:
+        mixed_env.reset()
     seed = seed_sequence[rep-start_sim]  # set seed
     #seed = 1011005946
     np.random.seed(seed)
@@ -183,14 +191,31 @@ for rep in range(start_sim, end_sim):
 
     if in_options.algorithm == "UCRL":
         ucrl = Ucrl.UcrlMdp(
-            copy.deepcopy(env),
+            environment=env,
             r_max=in_options.r_max,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
             random_state=seed)  # learning algorithm
+    elif in_options.algorithm == "SCAL":
+        ucrl_log.info("Augmented Reward: {}".format(in_options.augmented_reward))
+        ucrl = SCAL(
+            environment=env,
+            r_max=in_options.r_max,
+            span_constraint=in_options.span_constraint,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            verbose=1,
+            logger=ucrl_log,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
+            random_state=seed,
+            operator_type="T",
+            augment_reward=in_options.augmented_reward
+        )
     elif in_options.algorithm[0:5] == "SUCRL":
         r_max = in_options.r_max
         tau_min = np.min(mixed_env.tau_options)
@@ -208,7 +233,7 @@ for rep in range(start_sim, end_sim):
             raise ValueError("Unknown SUCRL version")
 
         ucrl = Ucrl.UcrlSmdpExp(
-            environment=copy.deepcopy(mixed_env),
+            environment=mixed_env,
             r_max=r_max,
             tau_min=tau_min,
             tau_max=tau_max,
@@ -219,11 +244,12 @@ for rep in range(start_sim, end_sim):
             alpha_tau=in_options.alpha_tau,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
             random_state=seed)  # learning algorithm
     elif in_options.algorithm == "FSUCRLv1":
         ucrl = FSUCRLv1(
-            environment=copy.deepcopy(mixed_env),
+            environment=mixed_env,
             r_max=in_options.r_max,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
@@ -234,7 +260,7 @@ for rep in range(start_sim, end_sim):
             random_state=seed)  # learning algorithm
     elif in_options.algorithm == "FSUCRLv2":
         ucrl = FSUCRLv2(
-            environment=copy.deepcopy(mixed_env),
+            environment=mixed_env,
             r_max=in_options.r_max,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,

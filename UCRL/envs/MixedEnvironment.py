@@ -65,6 +65,9 @@ class MixedEnvironment(OptionEnvironment):
 
         self.max_nb_options_per_state = max(map(len, state_options))
 
+    def reset(self):
+        self.environment.reset()
+
     def execute(self, option):
         """
         :param option: index of the option to be executed

@@ -8,6 +8,9 @@ import shutil
 import json
 import numpy as np
 from UCRL.envs.toys import Toy3D_1
+from UCRL.envs.toys import RiverSwim
+from gym.envs.toy_text.taxi import TaxiEnv
+from UCRL.envs.wrappers import GymDiscreteEnvWrapper
 import UCRL.Ucrl as Ucrl
 import UCRL.span_algorithms as spalg
 import UCRL.logging as ucrl_logger
@@ -56,15 +59,15 @@ class ExtendedSC_UCRL(spalg.SCAL):
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=500000)
+                  help="duration of the experiment", default=2000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
-                  help="Uppper bound to the bias span", default=100000)
+                  help="Uppper bound to the bias span", default=10)
 parser.add_option("--operatortype", type="str", dest="operator_type",
                   help="Select the operator to use for SC-EVI", default="T")
 parser.add_option("--mdp_delta", type="float", dest="mdp_delta",
-                  help="Transition probability mdp", default=0.005)
+                  help="Transition probability mdp", default=0.)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
                   help="range of transition matrix", default=1.)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
@@ -119,6 +122,8 @@ config = vars(in_options)
 
 env = Toy3D_1(delta=in_options.mdp_delta,
               stochastic_reward=in_options.stochastic_reward)
+# env = RiverSwim()
+# gym_env = TaxiEnv()
 r_max = max(1, np.asscalar(np.max(env.R_mat)))
 
 if in_options.path is None:

@@ -168,6 +168,7 @@ cdef class SpanConstrainedEVI:
         cdef DTYPE_t* u3 = self.u3
 
 
+        # note that 2 stands for the number of actions (bernoulli policy)
         action_max_min = <SIZE_t*> malloc(nb_states * 2 * sizeof(SIZE_t))
         action_max_min_indices = <SIZE_t*> malloc(nb_states * 2 * sizeof(SIZE_t))
 
@@ -237,7 +238,8 @@ cdef class SpanConstrainedEVI:
                         # Update u3[s] (taking the maximum)
                         # Update max action in this state
                         ########################################################
-                        pos_maxa = pos2index_2d(nb_states, max_nb_actions, s, 1)
+                        # we have just to actions (pick action 1 [max] in state s)
+                        pos_maxa = pos2index_2d(nb_states, 2, s, 1)
                         # printf("%.3f, %.3f (%d, %d) -> ", u3_mina[s], u3[s], action_max_min_indices[pos_mina], action_max_min_indices[pos_maxa])
                         if first_action:
                             u3[s] = c1 # initialize the maximum
@@ -318,7 +320,8 @@ cdef class SpanConstrainedEVI:
                             # Update u3_mina[s] (taking the minimum)
                             # Update min action in this state
                             ########################################################
-                            pos_mina = pos2index_2d(nb_states, max_nb_actions, s, 0)
+                            # we have just to actions (pick action 0 [min] in state s)
+                            pos_mina = pos2index_2d(nb_states, 2, s, 0)
                             if first_action:
                                 u3_mina[s] = c1 # initialize the maximum
 
@@ -350,8 +353,9 @@ cdef class SpanConstrainedEVI:
                     # Compute the associated policy
                     ###############################
                     for s in range(nb_states):
-                        pos_mina = pos2index_2d(nb_states, max_nb_actions, s, 0)
-                        pos_maxa = pos2index_2d(nb_states, max_nb_actions, s, 1)
+                        # we have just to actions (pick action 0 [min] and 1 [max] in state s)
+                        pos_mina = pos2index_2d(nb_states, 2, s, 0)
+                        pos_maxa = pos2index_2d(nb_states, 2, s, 1)
                         if u3[s] < th:
                             # the policy is just the greedy action
                             # we put the same index
@@ -399,7 +403,8 @@ cdef class SpanConstrainedEVI:
                                     # Update u3_mina[s] (taking the minimum)
                                     # Update min action in this state
                                     ########################################################
-                                    pos_mina = pos2index_2d(nb_states, max_nb_actions, s, 0)
+                                    # we have just to actions (pick action 0 [min] in state s)
+                                    pos_mina = pos2index_2d(nb_states, 2, s, 0)
                                     if first_action:
                                         u3_mina[s] = c1 # initialize the maximum
 

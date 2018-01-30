@@ -15,7 +15,7 @@ import UCRL.Ucrl as Ucrl
 from UCRL.free_ucrl import FSUCRLv1, FSUCRLv2
 from UCRL.envs import OptionEnvironment, MixedEnvironment
 import UCRL.logging as ucrl_logger
-import UCRL.bounds as tuning
+from UCRL.span_algorithms import SCAL
 from optparse import OptionParser, OptionGroup
 
 import matplotlib
@@ -27,13 +27,15 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
-                  help="dimension of the gridworld", default=20)
+                  help="dimension of the gridworld", default=6)
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=40000000)
+                  help="duration of the experiment", default=1000)
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
                   help="t_max for options", default=5)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
-                  help="Selects the bound type", default="chernoff")
+                  help="Selects the bound type", default="bernstein")
+parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
+                  help="Uppper bound to the bias span", default=100000)
 parser.add_option("--rmax", dest="r_max", type="float",
                   help="maximum reward", default=-1)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
@@ -44,6 +46,7 @@ parser.add_option("--tau_alpha", dest="alpha_tau", type="float",
                   help="range of reward", default=0.5)
 parser.add_option("--mc_alpha", dest="alpha_mc", type="float",
                   help="range for stationary distribution", default=0.02)
+parser.add_option("--no_aug_rew", dest="augmented_reward", action="store_false", default="True")
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
@@ -76,13 +79,14 @@ alg_desc = """Here the description of the algorithms
 .       sigma_R = 0         
 |- FSUCRLv1                                                                      
 |- FSUCRLv2                                                                      
+|- SCAL
 """
 group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
-                       "[UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2]",
-                  default="SUCRL_v4")
-# UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2
+                       "[UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2, SCAL]",
+                  default="SCAL")
+# UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2, SCAL
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -90,7 +94,7 @@ parser.add_option_group(group1)
 if in_options.id and in_options.path:
     parser.error("options --id and --path are mutually exclusive")
 
-assert in_options.algorithm in ["UCRL", "SUCRL_v1", "SUCRL_v2", "SUCRL_v3", "SUCRL_v4", "SUCRL_v5", "FSUCRLv1", "FSUCRLv2"]
+assert in_options.algorithm in ["UCRL", "SUCRL_v1", "SUCRL_v2", "SUCRL_v3", "SUCRL_v4", "SUCRL_v5", "FSUCRLv1", "FSUCRLv2", "SCAL"]
 assert in_options.nb_sim_offset >= 0
 
 if in_options.t_max < 1:
@@ -120,7 +124,7 @@ grid = NavigateGrid.NavigateGrid(dimension=in_options.dimension,
                                  nb_target_actions=nb_target_actions)
 
 # Add options
-if in_options.algorithm != 'UCRL':
+if in_options.algorithm not in ['UCRL', 'SCAL']:
     options = OptionGrid.OptionGrid1(grid, in_options.t_max)
     # options = OptionGrid.OptionGrid2(grid, t_max)
     # options = OptionGrid.OptionGrid3(grid=grid, t_max=t_max)
@@ -171,6 +175,7 @@ with open(os.path.join(folder_results, 'settings{}.conf'.format(in_options.nb_si
 start_sim = in_options.nb_sim_offset
 end_sim = start_sim + in_options.nb_simulations
 for rep in range(start_sim, end_sim):
+    grid.reset()
     seed = seed_sequence[rep-start_sim]  # set seed
     np.random.seed(seed)
     random.seed(seed)
@@ -189,8 +194,25 @@ for rep in range(start_sim, end_sim):
             alpha_p=in_options.alpha_p,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
             random_state=seed)  # learning algorithm
+    elif in_options.algorithm == "SCAL":
+        ucrl_log.info("Augmented Reward: {}".format(in_options.augmented_reward))
+        ucrl = SCAL(
+            environment=grid,
+            r_max=in_options.r_max,
+            span_constraint=in_options.span_constraint,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            verbose=1,
+            logger=ucrl_log,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
+            random_state=seed,
+            operator_type="T",
+            augment_reward=in_options.augmented_reward
+        )
     elif in_options.algorithm[0:5] == "SUCRL":
 
         version = in_options.algorithm[-2:]
