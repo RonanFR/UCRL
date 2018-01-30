@@ -1,35 +1,50 @@
 import numpy as np
-import heapq
+from ..evi import EVI
+from tqdm import tqdm
 
 
-def dijkstra(P, state_actions, source):
-    q = []
-    parents = []
-    distances = []
-    start_weight = float("inf")
+def dpshortestpath(P, state_actions):
+    Ns = len(state_actions)
+    Na = max(map(len, state_actions))
 
-    n_vertex = len(state_actions)
-    for i in range(n_vertex):
-        weight = 0 if i == source else start_weight
-        distances.append(weight)
-        parents.append(np.nan)
-        heapq.heappush(q, (weight, i))
+    evi = EVI(nb_states=Ns,
+              actions_per_state=state_actions,
+              bound_type="chernoff",
+              random_state=123456)
+    policy_indices = np.ones(Ns, dtype=np.int)
+    policy = np.ones(Ns, dtype=np.int)
 
-    while q:
-        u_tuple = heapq.heappop(q)  # get item with lowest priority
-        u = u_tuple[1]
+    diameter = -1
 
-        for v in range(n_vertex):
-            if v in [x[1] for x in q]:
-                alt = distances[u]
-                for e in state_actions[u]:
-                    if P[u, e, v] > 0:
-                        alt += 1 / P[u, e, v]
-                if distances[u] < alt < distances[v]:
-                    distances[v] = alt
-                    parents[v] = u
-                    # primitive but effective negative cycle detection
-                    if alt < -1000:
-                        raise Exception("Negative cycle detected")
-                    heapq.heappush(q, (distances[v], v))
-    return distances, parents
+    for target in tqdm(range(Ns)):
+        # set reward
+        R = -np.ones((Ns, Na))
+        R[target] = 0
+        # set self-loop
+        Pshort = P.copy()
+        for a in range(Na):
+            Pshort[target, a] = 0.
+            Pshort[target, a, target] = 1.
+
+        evi.reset_u(np.zeros((Ns)))
+
+        evi.run(policy_indices=policy_indices,
+                policy=policy,
+                estimated_probabilities=Pshort,
+                estimated_rewards=R,
+                estimated_holding_times=np.ones((Ns, Na)),
+                beta_p=np.zeros((Ns, Na, 1)),
+                beta_r=np.zeros((Ns, Na)),
+                beta_tau=np.zeros((Ns, Na)),
+                tau_max=1, tau_min=1, tau=1,
+                r_max=1,
+                epsilon=1e-12,
+                initial_recenter=1, relative_vi=0
+                )
+
+        u1, u2 = evi.get_uvectors()
+        max_gain = 0.5 * (max(u2 - u1) + min(u2 - u1))
+
+        diameter = max(diameter, -np.min(u1))
+
+    return diameter

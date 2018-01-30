@@ -27,9 +27,9 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
-                  help="dimension of the gridworld", default=6)
+                  help="dimension of the gridworld", default=10)
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=10000000)
+                  help="duration of the experiment", default=20000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
@@ -37,9 +37,9 @@ parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint
 parser.add_option("--rmax", dest="r_max", type="float",
                   help="maximum reward", default=1)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
-                  help="range of transition matrix", default=0.2)
+                  help="range of transition matrix", default=0.1)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
-                  help="range of reward", default=0.8)
+                  help="range of reward", default=0.1)
 parser.add_option("--tau_alpha", dest="alpha_tau", type="float",
                   help="range of reward", default=0.5)
 parser.add_option("--mc_alpha", dest="alpha_mc", type="float",
@@ -175,8 +175,8 @@ start_sim = in_options.nb_sim_offset
 end_sim = start_sim + in_options.nb_simulations
 for rep in range(start_sim, end_sim):
     env.reset()
-    if mixed_env:
-        mixed_env.reset()
+    # if mixed_env:
+    #     mixed_env.reset()
     seed = seed_sequence[rep-start_sim]  # set seed
     #seed = 1011005946
     np.random.seed(seed)

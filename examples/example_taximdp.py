@@ -8,7 +8,7 @@ import shutil
 import json
 import numpy as np
 from gym.envs.toy_text.taxi import TaxiEnv
-from UCRL.envs.wrappers import GymDiscreteEnvWrapper
+from UCRL.envs.wrappers import GymDiscreteEnvWrapperTaxi
 import UCRL.Ucrl as Ucrl
 import UCRL.span_algorithms as spalg
 import UCRL.logging as ucrl_logger
@@ -24,17 +24,17 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=100000000)
+                  help="duration of the experiment", default=50000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
-                  help="Uppper bound to the bias span", default=10)
+                  help="Uppper bound to the bias span", default=1000000)
 parser.add_option("--operatortype", type="str", dest="operator_type",
                   help="Select the operator to use for SC-EVI", default="T")
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
-                  help="range of transition matrix", default=0.05)
+                  help="range of transition matrix", default=1)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
-                  help="range of reward", default=0.05)
+                  help="range of reward", default=1)
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=5000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
@@ -71,7 +71,6 @@ if in_options.id and in_options.path:
 
 assert in_options.algorithm in ["UCRL", "SCAL"]
 assert in_options.nb_sim_offset >= 0
-#assert 1e-16 <= in_options.mdp_delta <= 1.-1e-16
 assert in_options.operator_type in ['T', 'N']
 
 if in_options.id is None:
@@ -86,12 +85,11 @@ config = vars(in_options)
 # env = Toy3D_1(delta=in_options.mdp_delta,
 #               stochastic_reward=in_options.stochastic_reward)
 # env = RiverSwim()
-# gym_env = TaxiEnv()
-# r_max = max(1, np.asscalar(np.max(env.R_mat)))
 gym_env = TaxiEnv()
-env = GymDiscreteEnvWrapper(gym_env)
+env = GymDiscreteEnvWrapperTaxi(gym_env)
 _, _, Rmat = env.compute_matrix_form()
-r_max = max(1, np.asscalar(np.max(Rmat)))
+# r_max = max(1, np.asscalar(np.max(Rmat)))
+r_max = 1  # should always be equal to 1 if we rescale
 print(env.compute_max_gain())
 print(env.diameter)
 exit(9)
