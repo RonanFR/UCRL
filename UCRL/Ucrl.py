@@ -235,7 +235,7 @@ class UcrlMdp(AbstractUCRL):
                                      log_scale_a=log_value,
                                      scale_b=49.0 * self.r_max / (3.0 * Nm1),
                                      log_scale_b=log_value,
-                                     alpha_1=1., alpha_2=self.alpha_p)
+                                     alpha_1=m.sqrt(self.alpha_r), alpha_2=self.alpha_r)
             return beta
 
     def beta_tau(self):
@@ -270,7 +270,7 @@ class UcrlMdp(AbstractUCRL):
                                      log_scale_a=log_value,
                                      scale_b=49.0 / (3.0 * Nm1[:, :, np.newaxis]),
                                      log_scale_b=log_value,
-                                     alpha_1=1., alpha_2=self.alpha_p)
+                                     alpha_1=m.sqrt(self.alpha_p), alpha_2=self.alpha_p)
 
             # beta = bounds.bernstein(it=self.iteration, N=self.nb_observations,
             #                         delta=self.delta, P=self.P, log_C=S,

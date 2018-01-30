@@ -3,14 +3,13 @@
 # N_mem=50g
 N_cpu=8
 N_mem=10g
-N_hours=580
+N_hours=200
 part=24c
 
 duration=160000000
 N_parallel_rep=1
 repetitions=5
 init_seed=(114364114 679848179 375341576 340061651 311346802 945527102 1028531057 358887046 299813034 472903536 650815502 931560826 391431306 111281634 55536093 484610172 131932607 835579495 82081514 603410165 467299485)
-rmax=1 #${dim}
 exe_file=../example_taximdp.py 
 
 
@@ -75,7 +74,7 @@ do
             #cmdp=" --id c${i}"
             cmdp="--rep_offset ${off} --path ${ALGS[$j]}_toy3d_c${i} --span_constraint ${CC} --regret_steps 2000 "
             
-            echo "python ${exe_file} --alg ${ALGS[$j]} ${ALPHAS} -n ${duration} --rmax ${rmax} -r ${repetitions} --seed ${init_seed[$pr]} ${cmdp}" >> ${fname}
+            echo "python ${exe_file} --alg ${ALGS[$j]} ${ALPHAS} -n ${duration} -r ${repetitions} --seed ${init_seed[$pr]} ${cmdp}" >> ${fname}
             i=$((i+1))
             # echo "python ${exe_file} -b --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
             # i=$((i+1))
