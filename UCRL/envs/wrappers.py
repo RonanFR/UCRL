@@ -1,12 +1,12 @@
 import numpy as np
 from UCRL.evi.evi import EVI
 from . import Environment
+from ..utils.shortestpath import dijkstra
 
 
 class GymDiscreteEnvWrapper(Environment):
     def __init__(self, env):
         self.gym_env = env
-        self.need_reset = False
         nS = self.gym_env.nS
         nA = self.gym_env.nA
         state_actions = [list(range(nA)) for _ in range(nS)]
@@ -17,11 +17,13 @@ class GymDiscreteEnvWrapper(Environment):
 
     def reset(self):
         self.state = self.gym_env.reset()
-        self.need_reset = False
 
     def execute(self, action):
-        next_state, self.reward, self.need_reset, _ = self.gym_env.step(action)
-        if self.need_reset:
+        done = False
+        next_state, reward, done, _ = self.gym_env.step(action)
+        # bound reward between [0,1]
+        self.reward = (reward - self.minr) / (self.maxr - self.minr)
+        if done:
             self.state = self.gym_env.reset()
         else:
             self.state = next_state
@@ -44,9 +46,13 @@ class GymDiscreteEnvWrapper(Environment):
                     P[s, a, nextstate] = probability
                     R[s, a] += probability * reward
                     if done:
-                        for aprime in range(nA):
-                            P[nextstate, aprime] = isd
+                        P[s, a] = isd
+                tot = np.sum(P[s, a])
+                assert np.isclose(tot, 1)
+
         R = (R - minr) / (maxr - minr)
+        self.maxr = maxr
+        self.minr = minr
         return self.state_actions, P, R
 
     def compute_max_gain(self):
@@ -83,6 +89,7 @@ class GymDiscreteEnvWrapper(Environment):
 
             diameter = -1
             # for s in range(nS):
+            #     print("{} ".format(s), end=' ')
             #     dist, _ = dijkstra(P, state_actions, s)
             #     diameter = max(diameter, np.max(dist))
             self.diameter = diameter
