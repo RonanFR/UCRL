@@ -123,7 +123,7 @@ class GymDiscreteEnvWrapperTaxi(Environment):
 
     def reset(self):
         self.fictitious_state = self.gym_env.reset()
-        self.state = self.convert_fictitious_real_state()
+        self.state = self.convert_fictitious_real_state(self.fictitious_state)
 
     def execute(self, action):
         done = False
@@ -155,7 +155,7 @@ class GymDiscreteEnvWrapperTaxi(Environment):
                     P[s, a, self.convert_fictitious_real_state(fictitious_nextstate)] = probability
                     R[s, a] += probability * reward
                     if done:
-                        P[s, a] = [np.delete(a, range(0,500,5)) for a in isd]
+                        P[s, a] = np.delete(isd, range(0,500,5))
                 tot = np.sum(P[s, a])
                 assert np.isclose(tot, 1)
 
