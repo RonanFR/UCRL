@@ -24,21 +24,19 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=2000000)
+                  help="duration of the experiment", default=100000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
                   help="Uppper bound to the bias span", default=10)
 parser.add_option("--operatortype", type="str", dest="operator_type",
                   help="Select the operator to use for SC-EVI", default="T")
-parser.add_option("--mdp_delta", type="float", dest="mdp_delta",
-                  help="Transition probability mdp", default=0.)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
-                  help="range of transition matrix", default=1.)
+                  help="range of transition matrix", default=0.05)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
-                  help="range of reward", default=1.)
+                  help="range of reward", default=0.05)
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
-                  help="regret time steps", default=1000)
+                  help="regret time steps", default=5000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
                   help="Number of repetitions", default=1)
 parser.add_option("--no_aug_rew", dest="augmented_reward", action="store_false", default="True")
@@ -63,7 +61,7 @@ group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
                        "[UCRL, SCAL]",
-                  default="SCAL")
+                  default="UCRL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -94,6 +92,33 @@ gym_env = TaxiEnv()
 env = GymDiscreteEnvWrapper(gym_env)
 _, _, Rmat = env.compute_matrix_form()
 r_max = max(1, np.asscalar(np.max(Rmat)))
+print(env.compute_max_gain())
+print(env.diameter)
+exit(9)
+
+# fps = 2 #gym_env.metadata.get('video.frames_per_second') or 100
+# # for i in range(100):
+# #     print('-'*70)
+# #     s = gym_env.reset()
+# #     gym_env.render(mode='human')
+# #     while True:
+# #         a = env.optimal_policy_indices[s]
+# #         s, r, done, _ = gym_env.step(a)
+# #         gym_env.render()
+# #         time.sleep(1.0 / fps)
+# #         if done:
+# #             break
+# env.reset()
+# s = env.state
+# gym_env.render(mode='human')
+# for i in range(100):
+#     a = env.optimal_policy_indices[s]
+#     env.execute(a)
+#     print("{} {:.3f}".format(a, env.reward))
+#     gym_env.render()
+#     time.sleep(1.0 / fps)
+#     s = env.state
+# exit(10)
 
 if in_options.path is None:
     folder_results = os.path.abspath('{}_{}_{}'.format(in_options.algorithm, type(env).__name__,
@@ -189,6 +214,3 @@ for rep in range(start_sim, end_sim):
     plt.savefig(os.path.join(folder_results, "regret_{}.png".format(rep)))
     plt.show()
     plt.close('all')
-
-    print('policy indices: ')
-    print(ofualg.policy_indices)

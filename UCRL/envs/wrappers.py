@@ -1,7 +1,7 @@
 import numpy as np
 from UCRL.evi.evi import EVI
 from . import Environment
-from ..utils.shortestpath import dijkstra
+from ..utils.shortestpath import dpshortestpath
 
 
 class GymDiscreteEnvWrapper(Environment):
@@ -87,11 +87,7 @@ class GymDiscreteEnvWrapper(Environment):
             self.optimal_policy_indices = policy_indices
             self.optimal_policy = policy
 
-            diameter = -1
-            # for s in range(nS):
-            #     print("{} ".format(s), end=' ')
-            #     dist, _ = dijkstra(P, state_actions, s)
-            #     diameter = max(diameter, np.max(dist))
+            diameter = dpshortestpath(P, self.state_actions)
             self.diameter = diameter
 
         return self.max_gain
