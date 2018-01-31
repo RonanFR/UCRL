@@ -16,7 +16,9 @@ MAP = [
 ]
 
 class ResourceCollection(Environment):
-    def __init__(self):
+    def __init__(self,
+                 armor_move_prob = 0.5,
+                 armor_collect_prob = 0.01):
         self.desc = np.asarray(MAP,dtype='c')
 
         self.action_names = np.array(['right', 'down', 'left', 'up', 'collect', 'buy_pass', 'buy_armor', 'stay'])
@@ -31,8 +33,9 @@ class ResourceCollection(Environment):
         self.n_golds = 2
         maxR = self.n_rows - 1
         maxC = self.n_cols - 1
-        armor_move_prob = 0.5
-        armor_collect_prob = 0.01
+
+        self.armor_collect_prob = armor_collect_prob
+        self.armor_move_prob = armor_move_prob
 
         nA = len(self.action_names)
 
@@ -440,6 +443,8 @@ class ResourceCollection(Environment):
 
     def description(self):
         desc = {
-            'name': type(self).__name__
+            'name': type(self).__name__,
+            'armor_move_prob': self.armor_move_prob,
+            'armor_collect_prob': self.armor_collect_prob
         }
         return desc
