@@ -1,8 +1,8 @@
 import numpy as np
 from ..Environment import Environment
 from ...evi import EVI
-from ...utils.shortestpath import dijkstra
 from .. import RewardDistributions as Rdists
+from ...utils.shortestpath import dpshortestpath
 
 
 class RiverSwim(Environment):
@@ -80,11 +80,7 @@ class RiverSwim(Environment):
             self.optimal_policy_indices = policy_indices
             self.optimal_policy = policy
 
-            diameter = -1
-            for s in range(self.nb_states):
-                dist, _ = dijkstra(self.P_mat, self.state_actions, s)
-                diameter = max(diameter, np.max(dist))
-            self.diameter = diameter
+            self.diameter = diameter = dpshortestpath(self.P_mat, self.state_actions)
 
         return self.max_gain
 

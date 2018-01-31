@@ -1,7 +1,6 @@
 import numpy as np
 from ..Environment import Environment
 from ...evi import EVI
-from ...utils.shortestpath import dijkstra
 from .. import RewardDistributions as Rdists
 
 class Toy3D_1(Environment):

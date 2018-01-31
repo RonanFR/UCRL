@@ -83,6 +83,31 @@ def ordered(obj):
         return sorted(ordered(x) for x in obj)
     else:
         return obj
+    
+def replace_equal(x, y, eps=0.2):
+    nel = len(x)
+    i = 0
+    new_y = []
+    new_x = []
+    indeces = []
+    while i < nel-1:
+        j = i+1
+        while j < nel and np.abs(y[i] - y[j]) < eps:
+            j+=1
+        if j > i+1:
+            new_y += [y[i], y[j-1]]
+            new_x += [x[i], x[j-1]]
+            indeces += [i, j-i]
+        else:
+            new_y += [y[i]]
+            new_x += [x[i]]
+            indeces += [i]
+        i = j
+    if i < nel:
+        new_y += [y[i]]
+        new_x += [x[i]]
+        indeces += [i]
+    return np.array(new_x), np.array(new_y), np.array(indeces)
 
 def load_mean_values(folder, attributes):
     onlyfiles = [f for f in os.listdir(folder) if
@@ -90,6 +115,7 @@ def load_mean_values(folder, attributes):
     print("{}: {} files".format(folder, len(onlyfiles)))
     data = {}
     for f in onlyfiles:
+        print(f)
         model = pickle.load(open(os.path.join(folder, f), "rb"))
         for k in attributes:
             if k not in data:

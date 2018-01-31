@@ -61,4 +61,7 @@
 #   - fix error in scopt (scevi.pyx)
 #       * checked with valgrind
 #   - added river swim and updated navgrid and 4-rooms to use scal
-__version__ = '0.25.dev0'
+# 0.26.dev0 (Jan 31, 2018)
+#   - added value iteration approach to compute diameter
+#   - added resource collection domain
+__version__ = '0.26.dev0'

@@ -87,10 +87,14 @@ class GymDiscreteEnvWrapper(Environment):
             self.optimal_policy_indices = policy_indices
             self.optimal_policy = policy
 
-            diameter = dpshortestpath(P, self.state_actions)
-            self.diameter = diameter
-
         return self.max_gain
+
+    def compute_diameter(self):
+        if not hasattr(self, "diameter"):
+            state_actions, P, R = self.compute_matrix_form()
+            diameter = dpshortestpath(P, state_actions)
+            self.diameter = diameter
+        return self.diameter
 
     def description(self):
         desc = {
@@ -192,14 +196,14 @@ class GymDiscreteEnvWrapperTaxi(Environment):
             self.optimal_policy_indices = policy_indices
             self.optimal_policy = policy
 
-            diameter = -1
-            # for s in range(nS):
-            #     print("{} ".format(s), end=' ')
-            #     dist, _ = dijkstra(P, state_actions, s)
-            #     diameter = max(diameter, np.max(dist))
-            self.diameter = diameter
-
         return self.max_gain
+
+    def compute_diameter(self):
+        if not hasattr(self, "diameter"):
+            state_actions, P, R = self.compute_matrix_form()
+            diameter = dpshortestpath(P, state_actions)
+            self.diameter = diameter
+        return self.diameter
 
     def description(self):
         desc = {

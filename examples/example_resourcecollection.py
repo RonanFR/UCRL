@@ -9,6 +9,7 @@ import json
 import numpy as np
 from gym.envs.toy_text.taxi import TaxiEnv
 from UCRL.envs.wrappers import GymDiscreteEnvWrapperTaxi
+from UCRL.envs.toys import ResourceCollection
 import UCRL.Ucrl as Ucrl
 import UCRL.span_algorithms as spalg
 import UCRL.logging as ucrl_logger
@@ -81,37 +82,19 @@ config = vars(in_options)
 # ------------------------------------------------------------------------------
 # Relevant code
 # ------------------------------------------------------------------------------
-
-# env = Toy3D_1(delta=in_options.mdp_delta,
-#               stochastic_reward=in_options.stochastic_reward)
-# env = RiverSwim()
-gym_env = TaxiEnv()
-env = GymDiscreteEnvWrapperTaxi(gym_env)
-_, _, Rmat = env.compute_matrix_form()
-# r_max = max(1, np.asscalar(np.max(Rmat)))
 r_max = 1  # should always be equal to 1 if we rescale
 
+env = ResourceCollection()
 
-# fps = 2 #gym_env.metadata.get('video.frames_per_second') or 100
-# # for i in range(100):
-# #     print('-'*70)
-# #     s = gym_env.reset()
-# #     gym_env.render(mode='human')
-# #     while True:
-# #         a = env.optimal_policy_indices[s]
-# #         s, r, done, _ = gym_env.step(a)
-# #         gym_env.render()
-# #         time.sleep(1.0 / fps)
-# #         if done:
-# #             break
-# env.reset()
+# fps = 2
 # s = env.state
-# gym_env.render(mode='human')
-# for i in range(100):
+# env.reset()
+# env.render(mode='human')
+# for i in range(1000):
 #     a = env.optimal_policy_indices[s]
 #     env.execute(a)
 #     print("{} {:.3f}".format(a, env.reward))
-#     gym_env.render()
+#     env.render(mode='human')
 #     time.sleep(1.0 / fps)
 #     s = env.state
 # exit(10)
