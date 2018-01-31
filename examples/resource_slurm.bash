@@ -53,7 +53,7 @@ do
             echo ${pr} ${j} ${ALGS[$j]} ${CC}
         
             out_name="${ALGS[$j]}_${pr}_${CC}_%j.out"
-            sname=${ALGS[$j]}_${pr}_${dim}.slurm
+            sname=${ALGS[$j]}_${pr}.slurm
             fname=${folder}/${sname}
             
             echo "#!/bin/bash" > ${fname}                                                                                                      
@@ -62,7 +62,7 @@ do
             echo "#SBATCH --ntasks-per-node=1" >> ${fname}
             echo "#SBATCH --cpus-per-task=${N_cpu}" >> ${fname}
             echo "#SBATCH --time=${N_hours}:00:00" >> ${fname}
-            echo "#SBATCH --job-name=${A_SHORT_NAME[$j]}_${dim}" >> ${fname}
+            echo "#SBATCH --job-name=${A_SHORT_NAME[$j]}_${ACP}" >> ${fname}
             echo "#SBATCH --mem=${N_mem}" >> ${fname}
             echo "#SBATCH --output=${out_name}" >> ${fname}
             echo "pwd; hostname; date" >> ${fname}
