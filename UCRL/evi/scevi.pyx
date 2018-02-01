@@ -177,11 +177,13 @@ cdef class SpanConstrainedEVI:
         # u3_mina = <DTYPE_t*> malloc(nb_states * sizeof(DTYPE_t))
         # u3 = <DTYPE_t*> malloc(nb_states * sizeof(DTYPE_t))
 
+        epsilon = max(1e-12, epsilon)
+
         # break ties in a random way. For each action select a random (small) noise
         local_random = np.random.RandomState(self.random_state)
         # printf('action_noise (SCEVI): ')
         for a in range(max_nb_actions):
-            action_noise[a] = 1e-4 * local_random.random_sample()
+            action_noise[a] = 0.1 * epsilon * local_random.random_sample()
         #     printf('%f ', action_noise[a])
         # printf('\n')
 

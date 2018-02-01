@@ -131,10 +131,12 @@ cdef class EVI:
 
         action_noise = <DTYPE_t*> malloc(max_nb_actions * sizeof(DTYPE_t))
 
+        epsilon = max(1e-12, epsilon)
+
         local_random = np.random.RandomState(self.random_state)
         # printf('action_noise (EVI): ')
         for a in range(max_nb_actions):
-            action_noise[a] = 1e-4 * local_random.random_sample()
+            action_noise[a] = 0.1 * epsilon * local_random.random_sample()
         #     printf('%f ', action_noise[a])
         # printf('\n')
 
