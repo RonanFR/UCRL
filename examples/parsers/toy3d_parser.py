@@ -138,7 +138,7 @@ plot_P = False
 plot_every = 100
 log_scale = False
 gtype = 'confidence'
-gtype = None
+# gtype = None
 y_lim = None
 generate_tex = True
 

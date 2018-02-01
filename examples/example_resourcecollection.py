@@ -141,6 +141,8 @@ for rep in range(start_sim, end_sim):
                                               filename=name,
                                               path=folder_results)
     ucrl_log.info("mdp desc: {}".format(env_desc))
+    ucrl_log.info("optimal bias span: {}".format(env.span))
+    ucrl_log.info("optimal gain: {}".format(env.max_gain))
     ofualg = None
     if in_options.algorithm == "UCRL":
         ofualg = Ucrl.UcrlMdp(
