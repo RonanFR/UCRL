@@ -132,7 +132,8 @@ cdef class SpanConstrainedEVI:
                      SIZE_t relative_vi = -1,
                      str operator_type = "default"):
 
-        span_constraint = tau*self.span_constraint if span_constraint < 0 else tau*span_constraint
+        cdef SIZE_t ITERATIONS_LIMIT = 1000000
+        span_constraint = tau * self.span_constraint if span_constraint < 0 else tau * span_constraint
         relative_vi = self.relative_vi if relative_vi < 0 else relative_vi
         cdef OperatorType opt_type = self.operator_type
         if operator_type != "default":
@@ -183,6 +184,9 @@ cdef class SpanConstrainedEVI:
             action_noise[a] = 1e-4 * local_random.random_sample()
         #     printf('%f ', action_noise[a])
         # printf('\n')
+
+
+        ITERATIONS_LIMIT = min(ITERATIONS_LIMIT, nb_states * max_nb_actions * 200)
 
         with nogil:
             # let's start from the value of the previous episode
@@ -493,6 +497,12 @@ cdef class SpanConstrainedEVI:
                             u1[i] = u1[i] - c1
                     #     printf("%d , ", sorted_indices[i])
                     # printf("\n")
+
+                if counter > ITERATIONS_LIMIT:
+                    free(action_max_min)
+                    free(action_max_min_indices)
+                    free(action_noise)
+                    return -54
 
     cpdef get_uvectors(self):
 #        cdef np.npy_intp shape[1]
