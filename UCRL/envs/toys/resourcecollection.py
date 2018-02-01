@@ -5,6 +5,7 @@ from six import StringIO
 from ...evi import EVI
 from ...utils.shortestpath import dpshortestpath
 from gym import utils
+import time
 
 MAP = [
     "+-------+",
@@ -414,6 +415,7 @@ class ResourceCollection(Environment):
                       bound_type="chernoff",
                       random_state=123456)
 
+            t0 = time.perf_counter()
             span = evi.run(policy_indices=policy_indices,
                            policy=policy,
                            estimated_probabilities=self.P_mat,
@@ -424,9 +426,12 @@ class ResourceCollection(Environment):
                            beta_tau=np.zeros((nS, nA)),
                            tau_max=1, tau_min=1, tau=1,
                            r_max=1.,
-                           epsilon=1e-4,
+                           epsilon=1e-6,
                            initial_recenter=1, relative_vi=0
                            )
+            t1 = time.perf_counter()
+            tn = t1 - t0
+            print("Solved in {}s".format(tn))
             u1, u2 = evi.get_uvectors()
             self.span = span
             self.max_gain = 0.5 * (max(u2 - u1) + min(u2 - u1))

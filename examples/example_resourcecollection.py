@@ -88,6 +88,7 @@ r_max = 1  # should always be equal to 1 if we rescale
 
 env = ResourceCollection(armor_collect_prob=in_options.armor_collect_prob)
 
+
 # fps = 2
 # s = env.state
 # env.reset()
@@ -179,22 +180,18 @@ for rep in range(start_sim, end_sim):
     alg_desc = ofualg.description()
     ucrl_log.info("alg desc: {}".format(alg_desc))
 
+    pickle_name = 'ucrl_{}.pickle'.format(rep)
     try:
         h = ofualg.learn(in_options.duration, in_options.regret_time_steps)  # learn task
     except Ucrl.EVIException as valerr:
         ucrl_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))
-        ofualg.clear_before_pickle()
-        with open(os.path.join(folder_results, 'exception_model_{}.pickle'.format(rep)), 'wb') as f:
-            pickle.dump(ofualg, f)
+        pickle_name = 'exception_model_{}.pickle'.format(rep)
     except:
         ucrl_log.info("EXCEPTION")
-        ofualg.clear_before_pickle()
-        with open(os.path.join(folder_results, 'exception_model_{}.pickle'.format(rep)), 'wb') as f:
-            pickle.dump(ofualg, f)
+        pickle_name = 'exception_model_{}.pickle'.format(rep)
 
     ofualg.clear_before_pickle()
-
-    with open(os.path.join(folder_results, 'ucrl_{}.pickle'.format(rep)), 'wb') as f:
+    with open(os.path.join(folder_results, pickle_name), 'wb') as f:
         pickle.dump(ofualg, f)
 
     plt.figure()
