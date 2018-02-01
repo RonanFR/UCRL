@@ -11,6 +11,14 @@ import numpy as np
 import time
 
 
+class EVIException(Exception):
+    def __init__(self, error_value):
+        self.error_value = error_value
+
+    def __str__(self):
+        return repr(self.error_value)
+
+
 class AbstractUCRL(object):
 
     def __init__(self, environment,
@@ -375,7 +383,8 @@ class UcrlMdp(AbstractUCRL):
 
         span_value = span_value_new ##############
 
-        assert span_value >= 0, "ERROR: {}".format(span_value)
+        if span_value < 0:
+            raise EVIException(error_value=span_value)
 
         if self.verbose > 1:
             print("{:.2f} / {:.2f}".format(span_value, span_value_new))

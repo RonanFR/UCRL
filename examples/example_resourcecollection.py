@@ -179,7 +179,19 @@ for rep in range(start_sim, end_sim):
     alg_desc = ofualg.description()
     ucrl_log.info("alg desc: {}".format(alg_desc))
 
-    h = ofualg.learn(in_options.duration, in_options.regret_time_steps)  # learn task
+    try:
+        h = ofualg.learn(in_options.duration, in_options.regret_time_steps)  # learn task
+    except Ucrl.EVIException as valerr:
+        ucrl_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))
+        ofualg.clear_before_pickle()
+        with open(os.path.join(folder_results, 'exception_model_{}.pickle'.format(rep)), 'wb') as f:
+            pickle.dump(ofualg, f)
+    except:
+        ucrl_log.info("EXCEPTION")
+        ofualg.clear_before_pickle()
+        with open(os.path.join(folder_results, 'exception_model_{}.pickle'.format(rep)), 'wb') as f:
+            pickle.dump(ofualg, f)
+
     ofualg.clear_before_pickle()
 
     with open(os.path.join(folder_results, 'ucrl_{}.pickle'.format(rep)), 'wb') as f:

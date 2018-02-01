@@ -64,4 +64,7 @@
 # 0.26.dev0 (Jan 31, 2018)
 #   - added value iteration approach to compute diameter
 #   - added resource collection domain
-__version__ = '0.26.dev0'
+# 0.27.dev0 (Jan 31, 2018)
+#   - added exception in evi when number of iterations is too big
+#     i.e., it > min(1M, ns*na*200)
+__version__ = '0.27.dev0'

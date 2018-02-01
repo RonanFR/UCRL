@@ -110,6 +110,8 @@ cdef class EVI:
                      SIZE_t relative_vi = 0
                      ):
 
+        cdef SIZE_t ITERATIONS_LIMIT = 1000000
+
         cdef SIZE_t s, i, a_idx, counter = 0
         cdef SIZE_t first_action
         cdef DTYPE_t c1
@@ -135,6 +137,8 @@ cdef class EVI:
             action_noise[a] = 1e-4 * local_random.random_sample()
         #     printf('%f ', action_noise[a])
         # printf('\n')
+
+        ITERATIONS_LIMIT = min(ITERATIONS_LIMIT, nb_states * max_nb_actions * 200)
 
         with nogil:
             c1 = u2[0] if initial_recenter else 0.
@@ -207,6 +211,11 @@ cdef class EVI:
                             u1[i] = u1[i] - c1
                     #     printf("%d , ", sorted_indices[i])
                     # printf("\n")
+
+
+                if counter > ITERATIONS_LIMIT:
+                    free(action_noise)
+                    return -54
 
 
     cpdef get_uvectors(self):
