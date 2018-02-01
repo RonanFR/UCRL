@@ -132,7 +132,7 @@ cdef class SpanConstrainedEVI:
                      SIZE_t relative_vi = -1,
                      str operator_type = "default"):
 
-        span_constraint = self.span_constraint if span_constraint < 0 else span_constraint
+        span_constraint = tau*self.span_constraint if span_constraint < 0 else tau*span_constraint
         relative_vi = self.relative_vi if relative_vi < 0 else relative_vi
         cdef OperatorType opt_type = self.operator_type
         if operator_type != "default":
