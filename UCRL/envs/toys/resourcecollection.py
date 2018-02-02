@@ -133,107 +133,15 @@ class ResourceCollection(Environment):
                                             if a == 0:
                                                 agent_pos_prob = [(newrow, min(col + 1, maxC), armor_move_prob),
                                                                   (newrow, col, 1-armor_move_prob)]
-                                                # for newcol, p in [(min(col + 1, maxC), armor_move_prob),
-                                                #                   (col, 1-armor_move_prob)]:
-                                                #
-                                                #     if (newrow, newcol) == self.enemy_locs[newenemypos] and newobject not in [2, 3]:
-                                                #         # agent moves in the same position of the enemy
-                                                #         # but she does not have the armor => reset
-                                                #         reward = -20
-                                                #         for state_id, prob in isd:
-                                                #             P[real_nS][a] += [(state_id, prob * p * newenemyposprob, reward)]
-                                                #             # P[state, a, state_id] += prob * p
-                                                #     elif (newrow, newcol) == self.target and newobject in [1, 3]:
-                                                #         # the agent reaches the target (princess) and has the key => reset
-                                                #         reward = 20
-                                                #         for state_id, prob in isd:
-                                                #             P[real_nS][a] += [(state_id, prob * p * newenemyposprob, reward)]
-                                                #             # P[state, a, state_id] += prob * p
-                                                #     else:
-                                                #         # normal transition
-                                                #         reward = -1
-                                                #         if self.is_valid_state(newrow, newcol, newgoldlevel, newenemypos, newobject):
-                                                #             nextstate = self.encode(newrow, newcol, newgoldlevel, newenemypos, newobject)
-                                                #             P[real_nS][a] += [(nextstate, newenemyposprob * p, reward)]
-                                                #             # P[state, a, nextstate] += newenemyposprob * p
                                             elif a == 1:
                                                 agent_pos_prob = [(min(row + 1, maxR), newcol, armor_move_prob),
                                                                   (row, newcol, 1-armor_move_prob)]
-                                                # for newrow, p in [(min(row + 1, maxR), armor_move_prob),
-                                                #                   (row, 1-armor_move_prob)]:
-                                                #
-                                                #     if (newrow, newcol) == self.enemy_locs[newenemypos] and newobject not in [2, 3]:
-                                                #         # agent moves in the same position of the enemy
-                                                #         # but she does not have the armor => reset
-                                                #         reward = -20
-                                                #         for state_id, prob in isd:
-                                                #             P[real_nS][a] += [(state_id, prob * p * newenemyposprob, reward)]
-                                                #             # P[state, a, state_id] += prob * p
-                                                #     elif (newrow, newcol) == self.target and newobject in [1, 3]:
-                                                #         # the agent reaches the target (princess) and has the key => reset
-                                                #         reward = 20
-                                                #         for state_id, prob in isd:
-                                                #             P[real_nS][a] += [(state_id, prob * p * newenemyposprob, reward)]
-                                                #             # P[state, a, state_id] += prob * p
-                                                #     else:
-                                                #         # normal transition
-                                                #         reward = -1
-                                                #         if self.is_valid_state(newrow, newcol, newgoldlevel, newenemypos, newobject):
-                                                #             nextstate = self.encode(newrow, newcol, newgoldlevel, newenemypos, newobject)
-                                                #             P[real_nS][a] += [(nextstate, newenemyposprob * p, reward)]
-                                                #             # P[state, a, nextstate] += newenemyposprob * p
                                             elif a == 2:
                                                 agent_pos_prob = [(newrow, max(col - 1, 0), armor_move_prob),
                                                                   (newrow, col, 1-armor_move_prob)]
-                                                # for newcol, p in [(max(col - 1, 0), armor_move_prob),
-                                                #                   (col, 1-armor_move_prob)]:
-                                                #
-                                                #     if (newrow, newcol) == self.enemy_locs[newenemypos] and newobject not in [2, 3]:
-                                                #         # agent moves in the same position of the enemy
-                                                #         # but she does not have the armor => reset
-                                                #         reward = -20
-                                                #         for state_id, prob in isd:
-                                                #             P[real_nS][a] += [(state_id, prob * p * newenemyposprob, reward)]
-                                                #             # P[state, a, state_id] += prob * p
-                                                #     elif (newrow, newcol) == self.target and newobject in [1, 3]:
-                                                #         # the agent reaches the target (princess) and has the key => reset
-                                                #         reward = 20
-                                                #         for state_id, prob in isd:
-                                                #             P[real_nS][a] += [(state_id, prob * p * newenemyposprob, reward)]
-                                                #             # P[state, a, state_id] += prob * p
-                                                #     else:
-                                                #         # normal transition
-                                                #         reward = -1
-                                                #         if self.is_valid_state(newrow, newcol, newgoldlevel, newenemypos, newobject):
-                                                #             nextstate = self.encode(newrow, newcol, newgoldlevel, newenemypos, newobject)
-                                                #             P[real_nS][a] += [(nextstate, newenemyposprob * p, reward)]
-                                                #             # P[state, a, nextstate] += newenemyposprob * p
                                             elif a == 3:
                                                 agent_pos_prob = [(max(row - 1, 0), newcol, armor_move_prob),
                                                                   (row, newcol, 1-armor_move_prob)]
-                                                # for newrow, p in [(max(row - 1, 0), armor_move_prob),
-                                                #                   (row, 1-armor_move_prob)]:
-                                                #
-                                                #     if (newrow, newcol) == self.enemy_locs[newenemypos] and newobject not in [2, 3]:
-                                                #         # agent moves in the same position of the enemy
-                                                #         # but she does not have the armor => reset
-                                                #         reward = -20
-                                                #         for state_id, prob in isd:
-                                                #             P[real_nS][a] += [(state_id, prob * p * newenemyposprob, reward)]
-                                                #             # P[state, a, state_id] += prob * p
-                                                #     elif (newrow, newcol) == self.target and newobject in [1, 3]:
-                                                #         # the agent reaches the target (princess) and has the key => reset
-                                                #         reward = 20
-                                                #         for state_id, prob in isd:
-                                                #             P[real_nS][a] += [(state_id, prob * p * newenemyposprob, reward)]
-                                                #             # P[state, a, state_id] += prob * p
-                                                #     else:
-                                                #         # normal transition
-                                                #         reward = -1
-                                                #         if self.is_valid_state(newrow, newcol, newgoldlevel, newenemypos, newobject):
-                                                #             nextstate = self.encode(newrow, newcol, newgoldlevel, newenemypos, newobject)
-                                                #             P[real_nS][a] += [(nextstate, newenemyposprob * p, reward)]
-                                                #             # P[state, a, nextstate] += newenemyposprob * p
                                             elif a == 4:  # collect
                                                 if (agentloc == self.goldloc):
                                                     for newgoldlevel, p in [(min(goldlevel+1, self.n_golds - 1), armor_collect_prob),
@@ -309,14 +217,26 @@ class ResourceCollection(Environment):
             for a in range(nA):
                 # print(s, self.fromCompactToExtended[s], self.decode(self.fromCompactToExtended[s]), a)
                 tot = 0.
+                L = {}
+                expected_r = 0
                 for next_state, p, reward in P[s][a]:
                     next = fromExtendedToCompactIdxs[next_state]
+                    if next not in L.keys():
+                        L[next] = p
+                    else:
+                        L[next] = L[next] + p
                     self.P_mat[s,a,next] += p
                     self.R_mat[s,a] += p * reward
+                    expected_r += p * reward
                     tot += p
                 assert np.isclose(tot, 1.), tot
+                P[s][a] = ([],[])
+                for k, v in L.items():
+                    P[s][a][0].append(k)
+                    P[s][a][1].append(v)
             state_actions.append(list(range(nA)))
 
+        # self.P = P
         self.R_mat = (self.R_mat + 20) / 40.
 
         super(ResourceCollection, self).__init__(initial_state=0,
@@ -373,9 +293,15 @@ class ResourceCollection(Environment):
         self.lastaction = action
         p = self.P_mat[self.state, action]
         next_state = np.asscalar(np.random.choice(self.nb_states, 1, p=p))
-        assert p[next_state] > 0.
         self.reward = self.R_mat[self.state, action]
         self.state = next_state
+
+    # def execute2(self, action):
+    #     self.lastaction = action
+    #     list_of_nextstates = self.P[self.state][action]
+    #     next_state = np.asscalar(np.random.choice(list_of_nextstates[0], 1, p=list_of_nextstates[1]))
+    #     self.reward = self.R_mat[self.state, action]
+    #     self.state = next_state
 
     def render(self, mode='human'):
 
@@ -403,10 +329,22 @@ class ResourceCollection(Environment):
         else:
             outfile.write("  (-) [gold: {}, object: {}]\n".format(goldlevel,['None', 'key', 'armor', 'key/armor'][objectidx]))
 
+    # def compute_matrix_form(self):
+    #     nS = self.nb_states
+    #     nA = self.max_nb_actions_per_state
+    #     P_mat = np.zeros((nS,nA,nS), dtype=np.float)
+    #     for s in range(nS):
+    #         for a in range(nA):
+    #             for next_state, p in zip(self.P[s][a][0], self.P[s][a][1]):
+    #                 P_mat[s,a,next_state] += p
+    #     return nS, nA, P_mat, self.R_mat
+
     def compute_max_gain(self):
         if not hasattr(self, "max_gain"):
+            # nS, nA, P_mat, R_mat = self.compute_matrix_form()
             nS = self.P_mat.shape[0]
             nA = self.P_mat.shape[1]
+
             policy_indices = np.ones(nS, dtype=np.int)
             policy = np.ones(nS, dtype=np.int)
 
