@@ -284,9 +284,11 @@ for rep in range(start_sim, end_sim):
     except Ucrl.EVIException as valerr:
         ucrl_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))
         pickle_name = 'exception_model_{}.pickle'.format(rep)
-    except:
-        ucrl_log.info("EXCEPTION")
-        pickle_name = 'exception_model_{}.pickle'.format(rep)
+    except Exception as e:
+        ofualg.clear_before_pickle()
+        with open(os.path.join(folder_results, pickle_name), 'wb') as f:
+            pickle.dump(ofualg, f)
+        raise e
 
     ofualg.clear_before_pickle()
     with open(os.path.join(folder_results, pickle_name), 'wb') as f:
