@@ -123,7 +123,7 @@ def load_mean_values(folder, attributes):
             if k == 'regret':
                 data[k].append(np.array(getattr(model,k))) # / (np.array(getattr(model,'regret_unit_time'))+1))
             elif k == 'span_values':
-                data[k].append(np.array(getattr(model, k))/getattr(model, 'tau') * getattr(model, 'r_max'))
+                data[k].append(np.array(getattr(model, k)))#/getattr(model, 'tau') * getattr(model, 'r_max'))
             else:
                 data[k].append(getattr(model, k))
 

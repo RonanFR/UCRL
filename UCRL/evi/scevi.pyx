@@ -133,7 +133,7 @@ cdef class SpanConstrainedEVI:
                      str operator_type = "default"):
 
         cdef SIZE_t ITERATIONS_LIMIT = 1000000
-        span_constraint = tau * self.span_constraint if span_constraint < 0 else tau * span_constraint
+        span_constraint = self.span_constraint / tau if span_constraint < 0 else span_constraint / tau
         relative_vi = self.relative_vi if relative_vi < 0 else relative_vi
         cdef OperatorType opt_type = self.operator_type
         if operator_type != "default":
