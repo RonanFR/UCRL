@@ -36,7 +36,6 @@ class UCRLforRC(Ucrl.UcrlMdp):
             os.remove(self.state_log)
         except OSError:
             pass
-        self.statefp = open(self.state_log, 'a+', buffering=1)
 
     def solve_optimistic_model(self):
         if self.episode == 2 or (self.episode > 1 and (self.episode-1) % 50 == 0):
@@ -60,12 +59,13 @@ class UCRLforRC(Ucrl.UcrlMdp):
 
     def update(self, curr_state, curr_act_idx, curr_act):
         if self.iteration % self.every_state == 0:
+            self.statefp = open(self.state_log, 'a+')
             self.statefp.write('{}\n'.format(curr_state))
+            self.statefp.close()
         super(UCRLforRC, self).update(curr_state, curr_act_idx, curr_act)
 
     def clear_before_pickle(self):
         super(UCRLforRC, self).clear_before_pickle()
-        self.statefp.close()
         del self.statefp
         del self.old_state
         del self.old_time
@@ -84,12 +84,12 @@ class SCALforRC(spalg.SCAL):
             os.remove(self.state_log)
         except OSError:
             pass
-        self.statefp = open(self.state_log, 'a+', buffering=1)
 
     def solve_optimistic_model(self):
         if self.episode == 2 or (self.episode > 1 and (self.episode - 1) % 50 == 0):
             output_dict = {
                 'policy': self.policy.tolist(),
+                'policy_indices': self.policy_indices.tolist(),
                 'state_tk': self.old_state,
                 'episode_start': self.old_state,
                 'episode_end': self.iteration,
@@ -98,7 +98,7 @@ class SCALforRC(spalg.SCAL):
             import json
             fname = "{}_policy_ep_{}.json".format(self.log_file_prefix, self.episode-1)
             with open(fname, 'w') as ff:
-                json.dump(output_dict, ff, indent=4, sort_keys=True)
+                json.dump(output_dict, ff, sort_keys=True)
 
         self.old_time = self.iteration
         self.old_state = self.environment.state
@@ -108,12 +108,13 @@ class SCALforRC(spalg.SCAL):
 
     def update(self, curr_state, curr_act_idx, curr_act):
         if self.iteration % self.every_state == 0:
+            self.statefp = open(self.state_log, 'a+')
             self.statefp.write('{}\n'.format(curr_state))
+            self.statefp.close()
         super(SCALforRC, self).update(curr_state, curr_act_idx, curr_act)
 
     def clear_before_pickle(self):
         super(SCALforRC, self).clear_before_pickle()
-        self.statefp.close()
         del self.statefp
         del self.old_state
         del self.old_time
