@@ -8,8 +8,11 @@ In particular we have implemented
 All the implementations uses both Hoeffding's or Bernstein's confidence intervals.
 
 References:
+
 [1] Jaksch, Ortner, and Auer. Near-optimal regret bounds for reinforcement learning. Journal of Machine Learning Research, 11:1563–1600, 2010.
+
 [2] Fruit, Pirotta, Lazaric, Brunskill. Regret Minimization in MDPs with Options without Prior Knowledge. NIPS 2017
+
 [3] Fruit, Pirotta, Lazaric, Ortner. Efficient Bias-Span-Constrained Exploration-Exploitation in Reinforcement Learning. arXiv:1802.04020
 
 
@@ -47,9 +50,9 @@ For the ICML paper
 
 What's new
 ==========
-For a complete list of changes you can check `relative link`_.
+For a complete list of changes you can check `UCRL/__init__.py`_.
 
-.. _relative link: UCRL/__init__.py
+.. _UCRL/__init__.py: UCRL/__init__.py
 
 - 2018-02-08: Release (v0.28.dev0)
     Contains SCAL and SCOPT (see Fruit, Pirotta, Lazaric, Ortner. Efficient Bias-Span-Constrained Exploration-Exploitation in Reinforcement Learning. arXiv:1802.04020)
