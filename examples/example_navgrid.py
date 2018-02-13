@@ -29,7 +29,7 @@ parser = OptionParser()
 parser.add_option("-d", "--dimension", dest="dimension", type="int",
                   help="dimension of the gridworld", default=6)
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=1000)
+                  help="duration of the experiment", default=10000)
 parser.add_option("-t", "--tmax", dest="t_max", type="int",
                   help="t_max for options", default=5)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
@@ -85,7 +85,7 @@ group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
                        "[UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2, SCAL]",
-                  default="SCAL")
+                  default="SUCRL_v1")
 # UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2, SCAL
 parser.add_option_group(group1)
 
@@ -226,7 +226,8 @@ for rep in range(start_sim, end_sim):
                 alpha_tau=in_options.alpha_tau,
                 verbose=1,
                 logger=ucrl_log,
-                bound_type=in_options.bound_type,
+                bound_type_p=in_options.bound_type,
+                bound_type_rew=in_options.bound_type,
                 random_state=seed)  # learning algorithm
         else:
             r_max = in_options.r_max
@@ -260,7 +261,8 @@ for rep in range(start_sim, end_sim):
                 alpha_tau=in_options.alpha_tau,
                 verbose=1,
                 logger=ucrl_log,
-                bound_type=in_options.bound_type,
+                bound_type_p=in_options.bound_type,
+                bound_type_rew=in_options.bound_type,
                 random_state=seed)  # learning algorithm
     elif in_options.algorithm == "FSUCRLv1":
         ucrl = FSUCRLv1(

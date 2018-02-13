@@ -1,4 +1,4 @@
-from .Ucrl import AbstractUCRL
+from .Ucrl import AbstractUCRL, EVIException
 from .envs import MixedEnvironment
 import numpy as np
 import math as m
@@ -56,7 +56,8 @@ class FSUCRLv1(AbstractUCRL):
                                        alpha_p=alpha_p, solver=evi_solver,
                                        verbose=verbose,
                                        logger=logger,
-                                       bound_type=bound_type,
+                                       bound_type_p=bound_type,
+                                       bound_type_rew=bound_type,
                                        random_state=random_state)
 
         nb_states = self.environment.nb_states
@@ -84,6 +85,7 @@ class FSUCRLv1(AbstractUCRL):
 
         # reward info
         self.estimated_rewards_mdp = np.ones((nb_states, max_nb_mdp_actions)) * (r_max + 99)
+        self.variance_proxy_reward = np.zeros((nb_states, max_nb_actions))
 
         if alpha_mc is None:
             self.alpha_mc = 1.
@@ -168,17 +170,26 @@ class FSUCRLv1(AbstractUCRL):
 
     def beta_r(self):
         S, A = self.estimated_rewards_mdp.shape
-        ci = bounds.chernoff(it=self.total_time, N=self.nb_observations_mdp,
-                             range=self.r_max, delta=self.delta,
-                             sqrt_C=3.5, log_C=2*S*A)
-        # beta = self.r_max * np.sqrt(7 / 2 * m.log(2 * S * A * (self.total_time + 1) / self.delta) / np.maximum(1, self.nb_observations_mdp))
-        # assert np.allclose(ci, beta)
-        beta_r =  np.multiply(self.alpha_r, ci)
-        return beta_r
+        if self.bound_type_rew != "bernstein":
+            ci = bounds.chernoff(it=self.iteration, N=self.nb_observations,
+                                 range=self.r_max, delta=self.delta,
+                                 sqrt_C=3.5, log_C=2 * S * A)
+            return self.alpha_r * ci
+        else:
+            N = np.maximum(1, self.nb_observations)
+            Nm1 = np.maximum(1, self.nb_observations - 1)
+            var_r = self.variance_proxy_reward / Nm1
+            log_value = 2.0 * S * A * (self.iteration + 1) / self.delta
+            beta = bounds.bernstein2(scale_a=14 * var_r / N,
+                                     log_scale_a=log_value,
+                                     scale_b=49.0 * self.r_max / (3.0 * Nm1),
+                                     log_scale_b=log_value,
+                                     alpha_1=m.sqrt(self.alpha_r), alpha_2=self.alpha_r)
+            return beta
 
     def beta_p(self):
         S, A = self.nb_observations.shape
-        if self.bound_type != "bernstein":
+        if self.bound_type_p != "bernstein":
             beta = bounds.chernoff(it=self.iteration, N=self.nb_observations,
                                    range=1., delta=self.delta,
                                    sqrt_C=14*S, log_C=2*A)
@@ -254,7 +265,8 @@ class FSUCRLv1(AbstractUCRL):
         scale_factor = nb_observations_mdp_temp + nu_k_mdp_temp
 
         r_old = self.estimated_rewards_mdp[s, mdp_index]
-        self.estimated_rewards_mdp[s, mdp_index] = ( r_old*scale_factor + r ) / (scale_factor + 1.) #+ r / (scale_factor + 1.)
+        self.estimated_rewards_mdp[s, mdp_index] = ( r_old * scale_factor + r ) / (scale_factor + 1.) #+ r / (scale_factor + 1.)
+        self.variance_proxy_reward[s, mdp_index] += (r - r_old) * (r - self.estimated_rewards_mdp[s, mdp_index])
         # self.estimated_rewards_mdp[s, mdp_index] *= scale_factor / (scale_factor + 1.)
         # self.estimated_rewards_mdp[s, mdp_index] += r / (scale_factor + 1.)
         # self.estimated_probabilities_mdp[s][mdp_index] *= scale_factor / (scale_factor + 1.)
@@ -280,32 +292,6 @@ class FSUCRLv1(AbstractUCRL):
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
         max_nb_actions = self.nb_observations.shape[1]
 
-
-
-        # CHECK WHEN T_MAX=1
-        # # # from UCRL.cython import  extended_value_iteration
-        # # # import copy
-        # # # new_pol = copy.deepcopy(self.policy)
-        # # # new_pol_ind = copy.deepcopy(self.policy_indices)
-        # # # from UCRL.Ucrl import UcrlMdp
-        # # # uuuu = UcrlMdp(self.environment.environment, self.r_max, range_r=self.range_r, range_p=self.range_p)
-        # # # uuuu.policy = new_pol
-        # # # uuuu.policy_indices = new_pol_ind
-        # # # uuuu.estimated_probabilities = copy.deepcopy(self.estimated_probabilities_mdp)
-        # # # uuuu.estimated_rewards=copy.deepcopy(self.estimated_rewards_mdp)
-        # # # uuuu.estimated_holding_times=np.ones_like(self.estimated_rewards_mdp)
-        # # # uuuu.tau = 1.
-        # # # uuuu.tau_max= 1.
-        # # # uuuu.tau_min = 1.
-        # # #
-        # # # sp, u1n, u2n = uuuu.extended_value_iteration(
-        # # #                          beta_r=beta_r,
-        # # #                          beta_p=beta_p,
-        # # #                          beta_tau=np.zeros_like(self.estimated_rewards_mdp),
-        # # #                          epsilon=self.r_max / m.sqrt(self.iteration + 1))
-        # # # assert np.isclose(span_value, sp)
-        # # # assert np.allclose(u1, u1n)
-        # # # assert np.allclose(uuuu.policy_indices, self.policy_indices)
 
         t0 = time.perf_counter()
         check_v = self.opt_solver.compute_mu_info2(  # environment=self.environment,
@@ -337,7 +323,7 @@ class FSUCRLv1(AbstractUCRL):
         self.solver_times.append((t1-t0, t2-t1))
 
         if new_span < 0:
-            raise ValueError("[FSUCRLv1] Error in EVI")
+            raise EVIException(error_value=new_span)
 
         # # CHECK WITH PYTHON IMPL
         if self.check_with_py:
@@ -398,6 +384,7 @@ class FSUCRLv2(FSUCRLv1):
         self.check_with_py = False
         run_py = False if self.check_with_py else run_py
 
+        evi_solver = None
         if run_py or self.check_with_py:
             evi_solver = PyEVI_FSUCRLv2(nb_states=environment.nb_states,
                                     nb_options=environment.nb_options,
@@ -414,14 +401,14 @@ class FSUCRLv2(FSUCRLv1):
 
         if not run_py:
             evi_solver = EVI_FSUCRLv2(nb_states=environment.nb_states,
-                                  nb_options=environment.nb_options,
-                                  threshold=environment.threshold_options,
-                                  macro_actions_per_state=environment.get_state_actions(),
-                                  reachable_states_per_option=environment.reachable_states_per_option,
-                                  option_policies=environment.options_policies,
-                                  options_terminating_conditions=environment.options_terminating_conditions,
-                                  mdp_actions_per_state=environment.environment.get_state_actions(),
-                                  bound_type=bound_type,
+                                      nb_options=environment.nb_options,
+                                      threshold=environment.threshold_options,
+                                      macro_actions_per_state=environment.get_state_actions(),
+                                      reachable_states_per_option=environment.reachable_states_per_option,
+                                      option_policies=environment.options_policies,
+                                      options_terminating_conditions=environment.options_terminating_conditions,
+                                      mdp_actions_per_state=environment.environment.get_state_actions(),
+                                      bound_type=bound_type,
                                       random_state=random_state)
 
         super(FSUCRLv2, self).__init__(
@@ -434,16 +421,16 @@ class FSUCRLv2(FSUCRLv1):
             random_state=random_state
         )
 
-        self.v1solver = EVI_FSUCRLv1(nb_states=environment.nb_states,
-                     nb_options=environment.nb_options,
-                     threshold=environment.threshold_options,
-                     macro_actions_per_state=environment.get_state_actions(),
-                     reachable_states_per_option=environment.reachable_states_per_option,
-                     option_policies=environment.options_policies,
-                     options_terminating_conditions=environment.options_terminating_conditions,
-                     mdp_actions_per_state=environment.environment.get_state_actions(),
-                     bound_type=bound_type,
-                                     random_state=random_state)
+        # self.v1solver = EVI_FSUCRLv1(nb_states=environment.nb_states,
+        #                              nb_options=environment.nb_options,
+        #                              threshold=environment.threshold_options,
+        #                              macro_actions_per_state=environment.get_state_actions(),
+        #                              reachable_states_per_option=environment.reachable_states_per_option,
+        #                              option_policies=environment.options_policies,
+        #                              options_terminating_conditions=environment.options_terminating_conditions,
+        #                              mdp_actions_per_state=environment.environment.get_state_actions(),
+        #                              bound_type=bound_type,
+        #                              random_state=random_state)
 
     def solve_optimistic_model(self):
         beta_r = self.beta_r()  # confidence bounds on rewards
@@ -463,7 +450,6 @@ class FSUCRLv2(FSUCRLv1):
             r_max=self.r_max)
         t1 = time.perf_counter()
 
-
         if check_v != 0:
             raise ValueError("[FSUCRLv1] Error in the computation of P_MC")
 
@@ -481,12 +467,7 @@ class FSUCRLv2(FSUCRLv1):
         self.logger.info("{}".format((t1 - t0, t2 - t1)))
 
         if new_span < 0:
-            raise ValueError("[FSUCRLv2] Error in EVI")
-
-        if new_span < 0:
-            self.logger.info("ERROR {}".format(new_span))
-
-        assert new_span > -0.00001, "{}".format(new_span)
+            raise EVIException(error_value=new_span)
 
         # if self.episode >= 100:
         #     self.solve_with_v1()

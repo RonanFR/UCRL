@@ -344,25 +344,6 @@ class UcrlMdp(AbstractUCRL):
         beta_tau = self.beta_tau()  # confidence bounds on holding times
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
 
-        # span_value = self.extended_value_iteration(beta_r, beta_p, beta_tau, 1 / m.sqrt(self.iteration + 1))  # python implementation: slow
-        # t0 = time.perf_counter()
-        # span_value, u1, u2 = extended_value_iteration(
-        #     self.policy_indices, self.policy,
-        #     int(self.environment.nb_states),
-        #     self.environment.get_state_actions(),
-        #     self.estimated_probabilities,
-        #     self.estimated_rewards,
-        #     self.estimated_holding_times,
-        #     beta_r, beta_p, beta_tau,
-        #     self.tau_max, self.r_max,
-        #     self.tau, self.tau_min,
-        #     self.r_max / m.sqrt(self.iteration + 1)
-        # )
-        # t1 = time.perf_counter()
-        # to = t1 - t0
-        # if self.verbose > 1:
-        #     self.logger.info("[%d]OLD EVI: %.3f seconds" % (self.episode, to))
-
         t0 = time.perf_counter()
         span_value_new = self.opt_solver.run(
             self.policy_indices, self.policy,
