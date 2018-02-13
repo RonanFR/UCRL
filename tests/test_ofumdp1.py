@@ -1,5 +1,5 @@
 import UCRL.Ucrl as Ucrl
-from UCRL.span_algorithms import SCUCRLMdp
+from UCRL.span_algorithms import SCAL
 from UCRL.evi.scevi import SpanConstrainedEVI
 import time
 import numpy as np
@@ -13,7 +13,7 @@ class TUCRL(Ucrl.UcrlMdp):
     def learn(self, duration, regret_time_step, render=False):
         self.scevi = SpanConstrainedEVI(nb_states=self.environment.nb_states,
                                         actions_per_state=self.environment.get_state_actions(),
-                                        bound_type=self.bound_type, random_state=self.random_state,
+                                        bound_type=self.bound_type_p, random_state=self.random_state,
                                         augmented_reward=0,
                                         gamma=1., span_constraint=np.inf,
                                         relative_vi=0)
@@ -126,7 +126,8 @@ def test_srevi(seed_0, operator_type):
             alpha_r=1,
             alpha_p=1,
             verbose=1,
-            bound_type="chernoff",
+            bound_type_p="chernoff",
+            bound_type_rew="chernoff",
             random_state=seed)  # learning algorithm
 
         alg_desc = ofualg.description()
@@ -143,20 +144,22 @@ def test_srevi(seed_0, operator_type):
             alpha_r=1,
             alpha_p=1,
             verbose=1,
-            bound_type="chernoff",
+            bound_type_p="chernoff",
+            bound_type_rew="chernoff",
             random_state=seed)  # learning algorithm
         ucrl.learn(duration, regret_time_steps)  # learn task
 
         np.random.seed(seed)
         random.seed(seed)
         env.reset()
-        scucrl = SCUCRLMdp(
+        scucrl = SCAL(
             env,
             r_max=r_max,
             alpha_r=1,
             alpha_p=1,
             verbose=1,
-            bound_type="chernoff",
+            bound_type_p="chernoff",
+            bound_type_rew="chernoff",
             augment_reward=False,
             random_state=seed,
             span_constraint=np.inf,

@@ -67,7 +67,7 @@ def core_op(mdp, evi, constraint=np.inf, opT="T"):
         if i in real_v.keys():
             assert np.allclose(u1, real_v[i])
         if i + 1 in real_v.keys():
-            assert np.allclose(u2, real_v[i + 1])
+            assert np.allclose(u2, real_v[i + 1]),(u2, real_v[i + 1])
         stop = np.linalg.norm(u2 - u1, ord=np.inf) < accuracy
         stats['stopvalues'].append(np.linalg.norm(u2 - u1, ord=np.inf))
         stats['values'].append(u2)

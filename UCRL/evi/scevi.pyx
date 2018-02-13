@@ -182,8 +182,9 @@ cdef class SpanConstrainedEVI:
         # break ties in a random way. For each action select a random (small) noise
         local_random = np.random.RandomState(self.random_state)
         # printf('action_noise (SCEVI): ')
+        cdef DTYPE_t noise_factor = 0.1 * min(1e-6, epsilon)
         for a in range(max_nb_actions):
-            action_noise[a] = 0.1 * epsilon * local_random.random_sample()
+            action_noise[a] = noise_factor * local_random.random_sample()
         #     printf('%f ', action_noise[a])
         # printf('\n')
 
