@@ -13,11 +13,11 @@ All the implementations uses both Hoeffding's or Bernstein's confidence interval
 
 References:
 
-`[1]'__ Jaksch, Ortner, and Auer. Near-optimal regret bounds for reinforcement learning. Journal of Machine Learning Research, 11:1563–1600, 2010. 
+`[1]`__ Jaksch, Ortner, and Auer. Near-optimal regret bounds for reinforcement learning. Journal of Machine Learning Research, 11:1563–1600, 2010. 
 
-`[2]'__ Fruit, Pirotta, Lazaric, Brunskill. Regret Minimization in MDPs with Options without Prior Knowledge. NIPS 2017
+`[2]`__ Fruit, Pirotta, Lazaric, Brunskill. Regret Minimization in MDPs with Options without Prior Knowledge. NIPS 2017
 
-`[3]'__ Fruit, Pirotta, Lazaric, Ortner. Efficient Bias-Span-Constrained Exploration-Exploitation in Reinforcement Learning. arXiv:1802.04020
+`[3]`__ Fruit, Pirotta, Lazaric, Ortner. Efficient Bias-Span-Constrained Exploration-Exploitation in Reinforcement Learning. arXiv:1802.04020
 
 __ http://www.jmlr.org/papers/volume11/jaksch10a/jaksch10a.pdf
 __ https://papers.nips.cc/paper/6909-regret-minimization-in-mdps-with-options-without-prior-knowledge.pdf
