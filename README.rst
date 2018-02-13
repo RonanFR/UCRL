@@ -2,19 +2,26 @@ Exploration-Exploitation in Reinforcement Learning
 **************************************************
 This library contains several algorithms based on the Optimism in Face of Uncertainty (OFU) principle both for MDPs and SMDPs.
 In particular we have implemented
+
 - UCRL [1]
+
 - SMDP-UCRL and Free-Parameter SMDP-UCRL [2]
+
 - SCAL [3]
+
 All the implementations uses both Hoeffding's or Bernstein's confidence intervals.
 
 References:
 
-[1] Jaksch, Ortner, and Auer. Near-optimal regret bounds for reinforcement learning. Journal of Machine Learning Research, 11:1563–1600, 2010.
+`[1]'__ Jaksch, Ortner, and Auer. Near-optimal regret bounds for reinforcement learning. Journal of Machine Learning Research, 11:1563–1600, 2010. 
 
-[2] Fruit, Pirotta, Lazaric, Brunskill. Regret Minimization in MDPs with Options without Prior Knowledge. NIPS 2017
+`[2]'__ Fruit, Pirotta, Lazaric, Brunskill. Regret Minimization in MDPs with Options without Prior Knowledge. NIPS 2017
 
-[3] Fruit, Pirotta, Lazaric, Ortner. Efficient Bias-Span-Constrained Exploration-Exploitation in Reinforcement Learning. arXiv:1802.04020
+`[3]'__ Fruit, Pirotta, Lazaric, Ortner. Efficient Bias-Span-Constrained Exploration-Exploitation in Reinforcement Learning. arXiv:1802.04020
 
+__ http://www.jmlr.org/papers/volume11/jaksch10a/jaksch10a.pdf
+__ https://papers.nips.cc/paper/6909-regret-minimization-in-mdps-with-options-without-prior-knowledge.pdf
+__ https://arxiv.org/abs/1802.04020
 
 Installation
 ============
@@ -44,8 +51,14 @@ We are using `pytest <http://doc.pytest.org>`_ for tests. You can run them via:
 
 How to reproduce experiments
 ============================
-For the ICML paper
+For SCAL, you can run the following command by changing the span constraint (5 and 10) and the seed (114364114, 679848179, 375341576, 340061651, 311346802). Results are averaged over 15 runs. You can change the number of repetitions by changing the parameter -r.
 
+.. code:: shell
+
+	  python ../example_resourcecollection.py --alg SCAL  --p_alpha 0.05 --r_alpha 0.05 --boundtype bernstein  -n 400000000 -r 3 --seed 114364114 --rep_offset 0 --path SCAL_KQ_c2 --span_constraint 10 --regret_steps 5000 --armor_collect_prob 0.01 
+	  
+
+For UCRL, you can run the same command by changing --alg to UCRL (the other parameters are the same and are ignored if not required by UCRL).
 
 
 What's new
