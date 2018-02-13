@@ -6,6 +6,9 @@ from ...evi import EVI
 from ...utils.shortestpath import dpshortestpath
 from gym import utils
 import time
+from tkinter import Tk
+import tkinter.font as tkFont
+from . import render_utils as gui
 
 MAP = [
     "+-------+",
@@ -328,6 +331,26 @@ class ResourceCollection(Environment):
             outfile.write("  ({}) [gold: {}, object: {}]\n".format(self.action_names[self.lastaction], goldlevel, ['None', 'key', 'armor', 'key/armor'][objectidx]))
         else:
             outfile.write("  (-) [gold: {}, object: {}]\n".format(goldlevel,['None', 'key', 'armor', 'key/armor'][objectidx]))
+
+    def show(self):
+
+        dim = 200
+        rows, cols = 4 + 0.5, 4
+        if not hasattr(self, 'window'):
+            root = Tk()
+            self.window = gui.GUI(root)
+
+            self.window.config(width=cols * (dim + 6), height=rows * (dim + 6))
+            my_font = tkFont.Font(family="Arial", size=32, weight="bold")
+            for r in range(4):
+                for c in range(4):
+                    x, y = 10 + c * (dim + 4), 10 + r * (dim + 4)
+                    self.window.create_polygon([x, y, x + dim, y, x + dim, y + dim, x, y + dim], outline='black',
+                                               fill='white', width=2)
+            self.window.pack()
+        self.window.update()
+        self.window.mainloop()
+
 
     # def compute_matrix_form(self):
     #     nS = self.nb_states

@@ -2,6 +2,8 @@ import numpy as np
 from ..Environment import Environment
 from ...evi import EVI
 from .. import RewardDistributions as Rdists
+from ...utils.shortestpath import dpshortestpath
+
 
 class Toy3D_1(Environment):
     def __init__(self, delta=0.99, stochastic_reward=False):
@@ -76,11 +78,7 @@ class Toy3D_1(Environment):
             self.optimal_policy_indices = policy_indices
             self.optimal_policy = policy
 
-            diameter = -1
-            for s in range(self.nb_states):
-                dist, _ = dijkstra(self.P_mat, self.state_actions, s)
-                diameter = max(diameter, np.max(dist))
-            self.diameter = diameter
+            self.diameter = dpshortestpath(self.P_mat, self.state_actions)
 
         return self.max_gain
 

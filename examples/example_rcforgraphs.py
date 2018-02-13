@@ -42,7 +42,7 @@ class UCRLforRC(Ucrl.UcrlMdp):
             output_dict = {
                 'policy': self.policy.tolist(),
                 'state_tk': self.old_state,
-                'episode_start': self.old_state,
+                'episode_start': self.old_time,
                 'episode_end': self.iteration,
                 'episode': self.episode-1
             }
@@ -91,7 +91,7 @@ class SCALforRC(spalg.SCAL):
                 'policy': self.policy.tolist(),
                 'policy_indices': self.policy_indices.tolist(),
                 'state_tk': self.old_state,
-                'episode_start': self.old_state,
+                'episode_start': self.old_time,
                 'episode_end': self.iteration,
                 'episode': self.episode-1
             }

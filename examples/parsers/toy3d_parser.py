@@ -18,7 +18,7 @@ graph_properties = {}
 graph_properties["SCAL_T_2.0"] = {'marker': '*',
                                 'markersize': 10,
                                 'linewidth': 2.,
-                                'label': 'Regal $c=2$',
+                                'label': 'SCAL $c=2$',
                                 'linestyle': ':',
                                 # 'color': pltcolors.rgb2hex([0.580392156862745,0.403921568627451,0.741176470588235])
                                 # 'color': 'C2'
@@ -27,7 +27,7 @@ graph_properties["SCAL_T_5.0"] = {'marker': "1",
                                 'markersize': 12,
                                 'markeredgewidth': 2,
                                 'linewidth': 2.,
-                                'label': 'Regal $c=5$',
+                                'label': 'SCAL $c=5$',
                                 'linestyle': ':',
                                 # 'color': pltcolors.rgb2hex([0.83921568627451,0.152941176470588,0.156862745098039])
                                 # 'color': 'C3'
@@ -35,7 +35,7 @@ graph_properties["SCAL_T_5.0"] = {'marker': "1",
 graph_properties["SCAL_T_10.0"] = {'marker': "d",
                                 'markersize': 8,
                                 'linewidth': 2.,
-                                'label': 'Regal $c=10$',
+                                'label': 'SCAL $c=10$',
                                 'linestyle': '-.',
                                 # 'color': pltcolors.rgb2hex([0.172549019607843,0.627450980392157,0.172549019607843])
                                 # 'color': 'C4'
@@ -43,7 +43,7 @@ graph_properties["SCAL_T_10.0"] = {'marker': "d",
 graph_properties["SCAL_T_15.0"] = {'marker': "3",
                                 'markersize': 10,
                                 'linewidth': 2.,
-                                'label': 'Regal $c=15$',
+                                'label': 'SCAL $c=15$',
                                 'linestyle': '--',
                                 # 'color': pltcolors.rgb2hex([0.549019607843137,0.337254901960784,0.294117647058824])
                                 # 'color': 'C5'
@@ -51,7 +51,7 @@ graph_properties["SCAL_T_15.0"] = {'marker': "3",
 graph_properties["SCAL_T_20.0"] = {'marker': "3",
                                 'markersize': 10,
                                 'linewidth': 2.,
-                                'label': 'Regal $c=20$',
+                                'label': 'SCAL $c=20$',
                                 'linestyle': '--',
                                 # 'color': pltcolors.rgb2hex([0.890196078431372,0.466666666666667,0.76078431372549])
                                 # 'color': 'C6'
@@ -59,7 +59,7 @@ graph_properties["SCAL_T_20.0"] = {'marker': "3",
 graph_properties["SCAL_T_25.0"] = {'marker': '^',
                                 'markersize': 10,
                                 'linewidth': 2.,
-                                'label': 'Regal $c=25$',
+                                'label': 'SCAL $c=25$',
                                 'linestyle': '-',
                                 # 'color': pltcolors.rgb2hex([0.12156862745098,0.466666666666667,0.705882352941177])
                                 # 'color': 'C7'
@@ -126,7 +126,9 @@ class ExtendedSC_UCRL(spalg.SCAL):
 # orig_folder = "/home/matteo/Desktop/toy3d_0.0001_20171206_180633"
 orig_folder = "/home/matteo/Desktop/toy3d_0.005_20180129_170516" #bernstein
 orig_folder = "/home/matteo/Desktop/toy3d_0._20180129_173355"
-domain = 'Toy3D'
+orig_folder = '/home/matteo/Desktop/KQ_0.01_20180204_193705'
+domain = 'KQ'
+# domain = 'Toy3D'
 configurations = ['c1']
 algorithms = ["SCAL"]
 
@@ -167,7 +169,8 @@ for i, f in enumerate(L):
         with open(os.path.join(f, "settings0.conf"), "r") as fil:
             settings = json.load(fil)
         title = "{} $\\delta={}$:\n $\\alpha_p={}$, $\\alpha_r={}$, bound={}".format(
-            domain, settings['mdp_delta'],
+            domain,
+            settings['armor_collect_prob'] if domain == "KQ" else settings['mdp_delta'],
             settings['alpha_p'],
             settings['alpha_r'],
             settings['bound_type']
@@ -185,9 +188,10 @@ for i, f in enumerate(L):
         for ff in onlyfiles:
             model = pickle.load(open(os.path.join(f, ff), "rb"))
             for k in ['policy_history', 'value_history', 'obs_history', 'P_history']:
-                if k not in data[i].keys():
-                    data[i].update({k: []})
-                data[i][k].append(getattr(model, k))
+                if hasattr(model, k):
+                    if k not in data[i].keys():
+                        data[i].update({k: []})
+                    data[i][k].append(getattr(model, k))
 
 
 n_lines = len(data.keys())
@@ -384,27 +388,28 @@ if plot_P:
 for k in data.keys():
     el = data[k]
 
-    if el is not None:
-        ph = el['policy_history']
-        count_a1 = 0
-        for exp1 in ph:
-            times = sorted(exp1.keys())
-            for i, t in enumerate(times):
-                prob, indx = exp1[t]
-                if el['algorithm'] == 'UCRL':
-                    action = indx[2]
-                else:
-                    sidx = indx[2]
-                    sprob = prob[2]
-                    action = sidx[sprob==1]
+    if el    is not None:
+        if 'policy_history' in el.keys():
+            ph = el['policy_history']
+            count_a1 = 0
+            for exp1 in ph:
+                times = sorted(exp1.keys())
+                for i, t in enumerate(times):
+                    prob, indx = exp1[t]
+                    if el['algorithm'] == 'UCRL':
+                        action = indx[2]
+                    else:
+                        sidx = indx[2]
+                        sprob = prob[2]
+                        action = sidx[sprob==1]
 
-                nextt = times[i + 1] if i < len(times) - 1 else exp_H
-                duration = nextt - t
-                if action == 1:
-                    count_a1 += duration
+                    nextt = times[i + 1] if i < len(times) - 1 else exp_H
+                    duration = nextt - t
+                    if action == 1:
+                        count_a1 += duration
 
-        count_a1 /= len(el)*exp_H/100.
-        print('{}: {}'.format(el['algorithm'], count_a1))
+            count_a1 /= len(el)*exp_H/100.
+            print('{}: {}'.format(el['algorithm'], count_a1))
 
 
 
