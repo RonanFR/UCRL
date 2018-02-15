@@ -85,7 +85,7 @@ group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
                        "[UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2, SCAL]",
-                  default="SUCRL_v1")
+                  default="UCRL")
 # UCRL, SUCRL_v1, SUCRL_v2, SUCRL_v3, SUCRL_v4, FSUCRLv1, FSUCRLv2, SCAL
 parser.add_option_group(group1)
 
@@ -236,7 +236,7 @@ for rep in range(start_sim, end_sim):
             if version == "v3":
                 sigma_tau = options_free.reshaped_sigma_tau()
                 tau_bar = options_free.reshaped_tau_bar()
-                sigma_r = r_max * np.sqrt(tau_bar + sigma_tau**2)
+                sigma_r = r_max * np.sqrt(tau_bar + sigma_tau ** 2)
             elif version == "v4":
                 sigma_tau = options_free.reshaped_sigma_tau()
                 sigma_r = 0
@@ -245,7 +245,7 @@ for rep in range(start_sim, end_sim):
                 sigma_r = 0
             elif version == "v2":
                 sigma_tau = np.max(options_free.reshaped_sigma_tau())
-                sigma_r = r_max * np.sqrt(tau_max + sigma_tau**2)
+                sigma_r = r_max * np.sqrt(tau_max + sigma_tau ** 2)
             else:
                 raise ValueError("Unknown SUCRL version")
 
@@ -273,7 +273,8 @@ for rep in range(start_sim, end_sim):
             alpha_mc=in_options.alpha_mc,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
             random_state=seed)  # learning algorithm
     elif in_options.algorithm == "FSUCRLv2":
         ucrl = FSUCRLv2(
@@ -284,7 +285,8 @@ for rep in range(start_sim, end_sim):
             alpha_mc=in_options.alpha_mc,
             verbose=1,
             logger=ucrl_log,
-            bound_type=in_options.bound_type,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
             random_state=seed)  # learning algorithm
 
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ucrl).__name__))
@@ -294,10 +296,18 @@ for rep in range(start_sim, end_sim):
     alg_desc = ucrl.description()
     ucrl_log.info("alg desc: {}".format(alg_desc))
 
-    h = ucrl.learn(in_options.duration, in_options.regret_time_steps)  # learn task
-    ucrl.clear_before_pickle()
+    pickle_name = 'ucrl_{}.pickle'.format(rep)
+    try:
+        h = ucrl.learn(in_options.duration, in_options.regret_time_steps)  # learn task
+    except Ucrl.EVIException as valerr:
+        ucrl_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))
+        pickle_name = 'exception_model_{}.pickle'.format(rep)
+    except:
+        ucrl_log.info("EXCEPTION")
+        pickle_name = 'exception_model_{}.pickle'.format(rep)
 
-    with open(os.path.join(folder_results, 'ucrl_{}.pickle'.format(rep)), 'wb') as f:
+    ucrl.clear_before_pickle()
+    with open(os.path.join(folder_results, pickle_name), 'wb') as f:
         pickle.dump(ucrl, f)
 
     plt.figure()
