@@ -201,7 +201,7 @@ class FSUCRLv1(AbstractUCRL):
         else:
             beta = bounds.bernstein(it=self.iteration, N=self.nb_observations,
                                     delta=self.delta, P=self.P, log_C=S,
-                                    alpha_1=1., alpha_2=self.alpha_p)
+                                    alpha_1=m.sqrt(self.alpha_p), alpha_2=self.alpha_p)
             # Z = m.log(S * m.log(self.iteration + 2) / self.delta)
             # n = np.maximum(1, self.nb_observations)
             # Va = np.sqrt(2 * self.P * (1-self.P) * Z / n[:,:,np.newaxis])
