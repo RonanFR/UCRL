@@ -78,8 +78,11 @@ For a complete list of changes you can check `UCRL/__init__.py`_.
 .. _UCRL/__init__.py: UCRL/__init__.py
 
 - 2018-02-08: Release (v0.28.dev0)
-    Contains SCAL and SCOPT (see Fruit, Pirotta, Lazaric, Ortner. Efficient Bias-Span-Constrained Exploration-Exploitation in Reinforcement Learning. arXiv:1802.04020)
+    Contains SCAL and SCOPT (see Fruit, Pirotta, Lazaric, Ortner. Efficient Bias-Span-Constrained Exploration-Exploitation in Reinforcement Learning. `arXiv:1802.04020`__)
 - 2017-11-21: Release (v0.19.dev0)
     Added Span Constrained EVI
 - 2017-11-16: Initial release (v0.15.dev0)
     Contains UCRL, SMDP-UCRL, Free-Parameter SMDP-UCRL (see Fruit, Pirotta, Lazaric, Brunskill. Regret Minimization in MDPs with Options without Prior Knowledge. NIPS 2017)
+
+__ https://arxiv.org/abs/1802.04020
+
