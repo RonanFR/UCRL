@@ -2,7 +2,7 @@ import numpy as np
 from collections import namedtuple
 from UCRL.evi.scevi import SpanConstrainedEVI
 from UCRL.evi.evi import EVI
-from UCRL.evi.absorbingevi import AbsorbingEVI
+from UCRL.evi.stevi import STEVI
 import pytest
 
 MDP = namedtuple('MDP', 'S,A,P,R,gamma')
@@ -14,7 +14,7 @@ def core_op(mdp, evi, constraint=np.inf, opT="T"):
     if isinstance(evi, SpanConstrainedEVI):
         policy_indices = np.zeros((mdp.S, 2), dtype=np.int)
         policy = np.zeros((mdp.S, 2), dtype=np.float)
-    elif isinstance(evi, AbsorbingEVI):
+    elif isinstance(evi, STEVI):
         policy_indices = np.zeros((mdp.S,), dtype=np.int)
         policy = np.zeros((mdp.S,), dtype=np.int)
     else:
@@ -39,7 +39,7 @@ def core_op(mdp, evi, constraint=np.inf, opT="T"):
                   "span_constraint": constraint}
     if isinstance(evi, SpanConstrainedEVI):
         run_params['operator_type'] = opT
-    if isinstance(evi, AbsorbingEVI):
+    if isinstance(evi, STEVI):
         run_params['eta'] = np.ones((mdp.S, na))
         run_params['ref_state'] = 0
 
@@ -208,7 +208,7 @@ def test_state_action(count):
     assert np.allclose(policy_indices_T, policy_indices_N)
     assert np.allclose(policy_T, policy_N)
 
-    evi3 = AbsorbingEVI(nb_states=mdp.S,
+    evi3 = STEVI(nb_states=mdp.S,
                         actions_per_state=mdp.A,
                         bound_type="chernoff", random_state=0,
                         gamma=mdp.gamma)

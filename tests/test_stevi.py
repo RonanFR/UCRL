@@ -1,6 +1,6 @@
 import numpy as np
-from UCRL.evi.evi import EVI
-from UCRL.evi.absorbingevi import AbsorbingEVI
+from UCRL.evi import EVI
+from UCRL.evi import STEVI
 import pytest
 
 
@@ -97,7 +97,7 @@ def core_op(ns, na, b):
     run_params['eta'] = eta
     run_params['ref_state'] = refstate
 
-    evi2 = AbsorbingEVI(nb_states=ns,
+    evi2 = STEVI(nb_states=ns,
                         actions_per_state=A,
                         bound_type="chernoff", random_state=0,
                         gamma=1)
