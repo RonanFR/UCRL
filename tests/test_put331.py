@@ -2,6 +2,7 @@ import numpy as np
 from collections import namedtuple
 from UCRL.evi.scevi import SpanConstrainedEVI
 from UCRL.evi.evi import EVI
+from UCRL.evi.absorbingevi import AbsorbingEVI
 import pytest
 
 MDP = namedtuple('MDP', 'S,A,P,R,gamma')
@@ -13,6 +14,9 @@ def core_op(mdp, evi, constraint=np.inf, opT="T"):
     if isinstance(evi, SpanConstrainedEVI):
         policy_indices = np.zeros((mdp.S, 2), dtype=np.int)
         policy = np.zeros((mdp.S, 2), dtype=np.float)
+    elif isinstance(evi, AbsorbingEVI):
+        policy_indices = np.zeros((mdp.S,), dtype=np.int)
+        policy = np.zeros((mdp.S,), dtype=np.int)
     else:
         policy_indices = np.zeros((mdp.S,), dtype=np.int)
         policy = np.zeros((mdp.S,), dtype=np.int)
@@ -35,6 +39,9 @@ def core_op(mdp, evi, constraint=np.inf, opT="T"):
                   "span_constraint": constraint}
     if isinstance(evi, SpanConstrainedEVI):
         run_params['operator_type'] = opT
+    if isinstance(evi, AbsorbingEVI):
+        run_params['eta'] = np.ones((mdp.S, na))
+        run_params['ref_state'] = 0
 
     # real values are obtained from Puterman pag. 165 (table 6.3.1)
     real_v = {
@@ -181,6 +188,7 @@ def test_state_action(count):
     u2_T, policy_indices_T, policy_T = core_op(mdp, evi2, opT='T')
     u2_N, policy_indices_N, policy_N = core_op(mdp, evi2, opT='N')
 
+
     assert np.allclose(u2_L, u2_T)
 
     print("idx_P_L:\n {}".format(policy_indices_L))
@@ -200,6 +208,15 @@ def test_state_action(count):
     assert np.allclose(policy_indices_T, policy_indices_N)
     assert np.allclose(policy_T, policy_N)
 
+    evi3 = AbsorbingEVI(nb_states=mdp.S,
+                        actions_per_state=mdp.A,
+                        bound_type="chernoff", random_state=0,
+                        gamma=mdp.gamma)
+    u2_AE, policy_indices_AE, policy_AE = core_op(mdp, evi3)
+
+    assert np.allclose(u2_L, u2_AE)
+    assert np.allclose(policy_indices_L, policy_indices_AE)
+    assert np.allclose(policy_L, policy_AE)
 
 if __name__ == '__main__':
     test_state_action(count=1)
