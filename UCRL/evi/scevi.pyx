@@ -189,7 +189,7 @@ cdef class SpanConstrainedEVI:
         # printf('\n')
 
 
-        ITERATIONS_LIMIT = min(ITERATIONS_LIMIT, nb_states * max_nb_actions * 200)
+        ITERATIONS_LIMIT = min(ITERATIONS_LIMIT, max(nb_states * max_nb_actions * 200, 30000))
 
         with nogil:
             # let's start from the value of the previous episode

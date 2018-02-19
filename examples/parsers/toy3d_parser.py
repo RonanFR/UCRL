@@ -89,7 +89,7 @@ def natural_keys(text):
 
 class ExtendedUCRL(Ucrl.UcrlMdp):
 
-    def solve_optimistic_model(self):
+    def solve_optimistic_model(self, curr_state=None):
         span_value = super(ExtendedUCRL, self).solve_optimistic_model()
         if not hasattr(self, 'policy_history'):
             self.policy_history = {}
@@ -105,7 +105,7 @@ class ExtendedUCRL(Ucrl.UcrlMdp):
 
 class ExtendedSC_UCRL(spalg.SCAL):
 
-    def solve_optimistic_model(self):
+    def solve_optimistic_model(self, curr_state=None):
         span_value = super(ExtendedSC_UCRL, self).solve_optimistic_model()
         if not hasattr(self, 'policy_history'):
             self.policy_history = {}

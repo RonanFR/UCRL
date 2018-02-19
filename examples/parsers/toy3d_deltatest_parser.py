@@ -8,7 +8,7 @@ from matplotlib2tikz import save as tikz_save
 
 class ExtendedUCRL(Ucrl.UcrlMdp):
 
-    def solve_optimistic_model(self):
+    def solve_optimistic_model(self, curr_state=None):
         span_value = super(ExtendedUCRL, self).solve_optimistic_model()
         if not hasattr(self, 'policy_history'):
             self.policy_history = {}

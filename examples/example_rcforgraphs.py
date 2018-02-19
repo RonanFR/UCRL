@@ -37,7 +37,7 @@ class UCRLforRC(Ucrl.UcrlMdp):
         except OSError:
             pass
 
-    def solve_optimistic_model(self):
+    def solve_optimistic_model(self, curr_state=None):
         if self.episode == 2 or (self.episode > 1 and (self.episode-1) % 50 == 0):
             output_dict = {
                 'policy': self.policy.tolist(),
@@ -85,7 +85,7 @@ class SCALforRC(spalg.SCAL):
         except OSError:
             pass
 
-    def solve_optimistic_model(self):
+    def solve_optimistic_model(self, curr_state=None):
         if self.episode == 2 or (self.episode > 1 and (self.episode - 1) % 50 == 0):
             output_dict = {
                 'policy': self.policy.tolist(),

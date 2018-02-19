@@ -141,7 +141,7 @@ cdef class EVI:
         #     printf('%f ', action_noise[a])
         # printf('\n')
 
-        ITERATIONS_LIMIT = min(ITERATIONS_LIMIT, nb_states * max_nb_actions * 200)
+        ITERATIONS_LIMIT = min(ITERATIONS_LIMIT, max(nb_states * max_nb_actions * 200, 30000))
 
         with nogil:
             c1 = u2[0] if initial_recenter else 0.

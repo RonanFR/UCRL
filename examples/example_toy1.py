@@ -13,6 +13,7 @@ from gym.envs.toy_text.taxi import TaxiEnv
 from UCRL.envs.wrappers import GymDiscreteEnvWrapper
 import UCRL.Ucrl as Ucrl
 import UCRL.span_algorithms as spalg
+import UCRL.stucrl as stalg
 import UCRL.logging as ucrl_logger
 from optparse import OptionParser, OptionGroup
 
@@ -27,8 +28,8 @@ import copy
 
 class ExtendedUCRL(Ucrl.UcrlMdp):
 
-    def solve_optimistic_model(self):
-        span_value = super(ExtendedUCRL, self).solve_optimistic_model()
+    def solve_optimistic_model(self, curr_state=None):
+        span_value = super(ExtendedUCRL, self).solve_optimistic_model(curr_state=curr_state)
         if not hasattr(self, 'policy_history'):
             self.policy_history = {}
             self.value_history = {}
@@ -43,8 +44,24 @@ class ExtendedUCRL(Ucrl.UcrlMdp):
 
 class ExtendedSC_UCRL(spalg.SCAL):
 
-    def solve_optimistic_model(self):
-        span_value = super(ExtendedSC_UCRL, self).solve_optimistic_model()
+    def solve_optimistic_model(self, curr_state=None):
+        span_value = super(ExtendedSC_UCRL, self).solve_optimistic_model(curr_state=curr_state)
+        if not hasattr(self, 'policy_history'):
+            self.policy_history = {}
+            self.value_history = {}
+            self.obs_history = {}
+            self.P_history = {}
+        self.policy_history.update({self.total_time: (copy.deepcopy(self.policy), copy.deepcopy(self.policy_indices))})
+        u1, u2 = self.opt_solver.get_uvectors()
+        self.value_history.update({self.total_time: u1.copy()})
+        self.obs_history.update({self.total_time: self.nb_observations.copy()})
+        self.P_history.update({self.total_time: self.P.copy()})
+        return span_value
+
+class Extended_STUCRL(stalg.STUCRL):
+
+    def solve_optimistic_model(self, curr_state=None):
+        span_value = super(Extended_STUCRL, self).solve_optimistic_model(curr_state=curr_state)
         if not hasattr(self, 'policy_history'):
             self.policy_history = {}
             self.value_history = {}
@@ -59,7 +76,7 @@ class ExtendedSC_UCRL(spalg.SCAL):
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=2000000)
+                  help="duration of the experiment", default=10000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
@@ -67,7 +84,7 @@ parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint
 parser.add_option("--operatortype", type="str", dest="operator_type",
                   help="Select the operator to use for SC-EVI", default="T")
 parser.add_option("--mdp_delta", type="float", dest="mdp_delta",
-                  help="Transition probability mdp", default=0.)
+                  help="Transition probability mdp", default=0.001)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
                   help="range of transition matrix", default=1.)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
@@ -93,12 +110,13 @@ parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random
 alg_desc = """Here the description of the algorithms                                
 |- UCRL                                                                       
 |- SCAL                                                                                                                                            
+|- STUCRL                                                                                                                                          
 """
 group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
-                       "[UCRL, SCAL]",
-                  default="SCAL")
+                       "[UCRL, SCAL, STUCRL]",
+                  default="UCRL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -106,7 +124,7 @@ parser.add_option_group(group1)
 if in_options.id and in_options.path:
     parser.error("options --id and --path are mutually exclusive")
 
-assert in_options.algorithm in ["UCRL", "SCAL"]
+assert in_options.algorithm in ["UCRL", "SCAL", "STUCRL"]
 assert in_options.nb_sim_offset >= 0
 #assert 1e-16 <= in_options.mdp_delta <= 1.-1e-16
 assert in_options.operator_type in ['T', 'N']
@@ -194,6 +212,17 @@ for rep in range(start_sim, end_sim):
             operator_type=in_options.operator_type,
             augment_reward=in_options.augmented_reward
         )
+    elif in_options.algorithm == "STUCRL":
+        ofualg = Extended_STUCRL(
+            environment=env,
+            r_max=r_max,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            verbose=1,
+            logger=ucrl_log,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
+            random_state=seed)
 
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ofualg).__name__))
     ucrl_log.info("seed: {}".format(seed))
