@@ -61,7 +61,7 @@ We are using `pytest <http://doc.pytest.org>`_ for tests. You can run them via:
 How to reproduce experiments
 ============================
 In order to reproduce the results in [3] you can follow these instructions.
-For SCAL, you can run the following command by changing the span constraint (5 and 10) and the seed (114364114, 679848179, 375341576, 340061651, 311346802). Results are averaged over 15 runs. You can change the number of repetitions by changing the parameter -r.
+For SCAL, you can run the following command by changing the span constraint (5 and 10) and the seed. We have empirically observed that the variability (i.e., dependence on the seed is small). For the paper we have used the following randomly generated seeds: 114364114, 679848179, 375341576, 340061651, 311346802. Results are averaged over 15 runs. You can change the number of repetitions by changing the parameter -r.
 
 .. code:: shell
 
