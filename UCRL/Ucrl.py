@@ -132,6 +132,9 @@ class UcrlMdp(AbstractUCRL):
         self.tau_max = 1
         self.tau_min = 1
 
+    def _stopping_rule(self, curr_state, curr_act_idx):
+        return self.nu_k[curr_state][curr_act_idx] < max(1, self.nb_observations[curr_state][curr_act_idx])
+
     def learn(self, duration, regret_time_step, render=False):
         """ Run UCRL on the provided environment
 
@@ -151,6 +154,8 @@ class UcrlMdp(AbstractUCRL):
         self.solver_times = []
         self.simulation_times = []
 
+        curr_state = self.environment.state
+
         t_star_all = time.perf_counter()
         while self.total_time < duration:
             self.episode += 1
@@ -165,7 +170,7 @@ class UcrlMdp(AbstractUCRL):
 
             # solve the optimistic (extended) model
             t0 = time.time()
-            span_value = self.solve_optimistic_model()
+            span_value = self.solve_optimistic_model(curr_state=curr_state)
             t1 = time.time()
 
             if render:
@@ -190,7 +195,8 @@ class UcrlMdp(AbstractUCRL):
             curr_state = self.environment.state
             curr_act_idx, curr_act = self.sample_action(curr_state)  # sample action from the policy
 
-            while self.nu_k[curr_state][curr_act_idx] < max(1, self.nb_observations[curr_state][curr_act_idx]) \
+            # while self.nu_k[curr_state][curr_act_idx] < max(1, self.nb_observations[curr_state][curr_act_idx]) \
+            while self._stopping_rule(curr_state=curr_state, curr_act_idx=curr_act_idx) \
                     and self.total_time < duration:
                 self.update(curr_state=curr_state, curr_act_idx=curr_act_idx, curr_act=curr_act)
                 if self.total_time > threshold:
@@ -338,7 +344,7 @@ class UcrlMdp(AbstractUCRL):
         return action_idx, action
 
 
-    def solve_optimistic_model(self):
+    def solve_optimistic_model(self, curr_state=None):
 
         beta_r = self.beta_r()  # confidence bounds on rewards
         beta_tau = self.beta_tau()  # confidence bounds on holding times

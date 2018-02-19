@@ -33,10 +33,10 @@ from ._max_proba cimport max_proba_bernstein
 
 
 # =============================================================================
-# Absorbing Extended Value Iteration Class
+# Short-Term Extended Value Iteration Class
 # =============================================================================
 
-cdef class AbsorbingEVI:
+cdef class STEVI:
 
     def __init__(self, nb_states, list actions_per_state, bound_type, int random_state, DTYPE_t gamma=1.):
         cdef SIZE_t n, m, i, j

@@ -36,7 +36,7 @@ class TUCRL(Ucrl.UcrlMdp):
         assert action_idx == action_idx_sc
         return action_idx, action
 
-    def solve_optimistic_model(self):
+    def solve_optimistic_model(self, curr_state=None):
 
         beta_r = self.beta_r()  # confidence bounds on rewards
         beta_tau = self.beta_tau()  # confidence bounds on holding times

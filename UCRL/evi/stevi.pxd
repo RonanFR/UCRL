@@ -3,7 +3,7 @@
 #
 # License: BSD 3 clause
 
-# See absorbingevi.pyx for details.
+# See stevi.pyx for details.
 
 import numpy as np
 cimport numpy as np
@@ -16,7 +16,7 @@ cdef enum BoundType:
     CHERNOFF_STATEDIM=1
     BERNSTEIN=2
 
-cdef class AbsorbingEVI:
+cdef class STEVI:
     cdef DTYPE_t *u1
     cdef DTYPE_t *u2
     cdef DTYPE_t *mtx_maxprob

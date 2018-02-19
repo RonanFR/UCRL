@@ -194,7 +194,7 @@ class SMDPUCRL_Mixed(AbstractUCRL):
             self.estimated_probabilities[s][a_index][s2] += 1 / (self.nb_observations[s][a_index] + 1)
             self.nu_k[s][a_index] += 1
 
-    def solve_optimistic_model(self):
+    def solve_optimistic_model(self, curr_state=None):
         beta_r = self.beta_r()  # confidence bounds on rewards
         beta_tau = self.beta_tau()  # confidence bounds on holding times
         beta_p = self.beta_p()  # confidence bounds on transition probabilities

@@ -288,7 +288,7 @@ class FSUCRLv1(AbstractUCRL):
 
         return iterate_more
 
-    def solve_optimistic_model(self):
+    def solve_optimistic_model(self, curr_state=None):
         beta_r = self.beta_r()  # confidence bounds on rewards
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
         max_nb_actions = self.nb_observations.shape[1]
@@ -434,7 +434,7 @@ class FSUCRLv2(FSUCRLv1):
         #                              bound_type=bound_type,
         #                              random_state=random_state)
 
-    def solve_optimistic_model(self):
+    def solve_optimistic_model(self, curr_state=None):
         beta_r = self.beta_r()  # confidence bounds on rewards
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
         max_nb_actions = self.nb_observations.shape[1]
