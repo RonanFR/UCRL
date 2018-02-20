@@ -27,10 +27,12 @@ def test_state_action(count):
     ns = np.asscalar(np.random.randint(2, 200, 1))
     na = np.asscalar(np.random.randint(2, 20, 1))
     b = np.asscalar(np.random.randint(1, ns, 1))
-    core_op(ns=ns, na=na, b=b)
+    tau = np.random.rand(1)
+    core_op(ns=ns, na=na, b=b, tau=tau)
+    core_op(ns=ns, na=na, b=b, tau=1.)
 
 
-def core_op(ns, na, b):
+def core_op(ns, na, b, tau):
     # ns = 2
     # na = 2
     # A = [[0], [0, 1]]
@@ -50,7 +52,7 @@ def core_op(ns, na, b):
     # eta[1, 1] = 0.4
     # eta[1, 0] = 0.3
 
-    P, R = garnet(ns, na, int(ns / 1.2))
+    P, R = garnet(ns, na, b)
 
     A = [list(range(na)) for _ in range(ns)]
 
@@ -83,9 +85,9 @@ def core_op(ns, na, b):
                   "beta_tau": np.zeros((ns, na)),
                   "tau_max": 1.,
                   "r_max": r_max,
-                  "tau": 1.,
+                  "tau": tau,
                   "tau_min": 1.,
-                  "epsilon": 100 * r_max,
+                  "epsilon": 1e-8,
                   "initial_recenter": 0,
                   "relative_vi": 0}
 
@@ -105,10 +107,11 @@ def core_op(ns, na, b):
     span_value2 = evi2.run(**run_params)
     u12, u22 = evi1.get_uvectors()
 
-    assert np.allclose(u21, u22)
-    assert np.allclose(u11, u12)
-    assert np.isclose(span_value, span_value2)
+    assert np.allclose(u21, u22),(u21, u22)
+    assert np.allclose(u11, u12),(u11, u12)
+    assert np.isclose(span_value, span_value2), (span_value, span_value2)
 
 
 if __name__ == '__main__':
-    core_op(2, 2, 1)
+    core_op(6, 6, 3, 1)
+    core_op(6, 6, 3, 0.8)
