@@ -76,7 +76,7 @@ class Extended_STUCRL(stalg.STUCRL):
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=10000000)
+                  help="duration of the experiment", default=2000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
@@ -93,8 +93,8 @@ parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=1000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
                   help="Number of repetitions", default=1)
-parser.add_option("--no_aug_rew", dest="augmented_reward", action="store_false", default="True")
-parser.add_option("--stochrew", dest="stochastic_reward", action="store_true", default="False")
+parser.add_option("--no_aug_rew", dest="augmented_reward", action="store_false", default=True)
+parser.add_option("--stochrew", dest="stochastic_reward", action="store_true", default=False)
 parser.add_option("--rep_offset", dest="nb_sim_offset", type="int",
                   help="Repetitions starts at the given number", default=0)
 parser.add_option("--id", dest="id", type="str",
@@ -104,7 +104,7 @@ parser.add_option("--path", dest="path", type="str",
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
-parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random.getrandbits(16),
+parser.add_option("--seed", dest="seed_0", type=int, default=11005946, #random.getrandbits(16),
                   help="Seed used to generate the random seed sequence")
 
 alg_desc = """Here the description of the algorithms                                
@@ -116,7 +116,7 @@ group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
                        "[UCRL, SCAL, STUCRL]",
-                  default="UCRL")
+                  default="STUCRL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()

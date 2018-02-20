@@ -42,8 +42,8 @@ parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=5000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
                   help="Number of repetitions", default=1)
-parser.add_option("--no_aug_rew", dest="augmented_reward", action="store_false", default="True")
-parser.add_option("--stochrew", dest="stochastic_reward", action="store_true", default="False")
+parser.add_option("--no_aug_rew", dest="augmented_reward", action="store_false", default=True)
+parser.add_option("--stochrew", dest="stochastic_reward", action="store_true", default=False)
 parser.add_option("--rep_offset", dest="nb_sim_offset", type="int",
                   help="Repetitions starts at the given number", default=0)
 parser.add_option("--id", dest="id", type="str",
