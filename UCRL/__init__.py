@@ -69,4 +69,8 @@
 #     i.e., it > min(1M, ns*na*200)
 # 0.28.dev0 (Feb 1, 2018)
 #   - fix error in evi and scevi due to random ties breaking
-__version__ = '0.28.dev0'
+# 0.30.dev0 (Feb 20, 2018)
+#   - added Short-Term UCRL
+#       * with short-term EVI
+#   - redefined structure of UCRL in order to allow different stopping conditions
+__version__ = '0.30.dev0'
