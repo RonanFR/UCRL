@@ -73,7 +73,7 @@ parser.add_option_group(group1)
 if in_options.id and in_options.path:
     parser.error("options --id and --path are mutually exclusive")
 
-assert in_options.algorithm in ["UCRL", "SCAL"]
+assert in_options.algorithm in ["UCRL", "SCAL", "STUCRL",]
 assert in_options.nb_sim_offset >= 0
 assert in_options.operator_type in ['T', 'N']
 
