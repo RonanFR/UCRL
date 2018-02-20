@@ -175,7 +175,7 @@ cdef class STEVI:
                         # mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
                         r_optimal = min(tau_max*r_max,
                                         estimated_rewards[s][a_idx] + beta_r[s][a_idx])
-                        v = r_optimal + eta[s][a_idx] * gamma * dot_prod(mtx_maxprob_memview[s], u1, nb_states) * tau + (1 - eta[s][a_idx]) * gamma * u1[ref_state] - gamma * u1[s]
+                        v = r_optimal + eta[s][a_idx] * gamma * dot_prod(mtx_maxprob_memview[s], u1, nb_states) * tau + (1 - eta[s][a_idx]) * gamma * u1[ref_state] * tau - gamma * u1[s] * tau
                         tau_optimal = min(tau_max, max(
                             max(tau_min, r_optimal/r_max),
                             estimated_holding_times[s][a_idx] - sign(v) * beta_tau[s][a_idx]
