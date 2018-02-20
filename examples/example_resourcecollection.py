@@ -13,6 +13,7 @@ from UCRL.envs.toys import ResourceCollection
 import UCRL.Ucrl as Ucrl
 import UCRL.span_algorithms as spalg
 import UCRL.logging as ucrl_logger
+from UCRL.stucrl import STUCRL
 from optparse import OptionParser, OptionGroup
 
 import matplotlib
@@ -63,8 +64,8 @@ alg_desc = """Here the description of the algorithms
 group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
-                       "[UCRL, SCAL]",
-                  default="UCRL")
+                       "[UCRL, SCAL, STUCRL]",
+                  default="STUCRL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -172,6 +173,17 @@ for rep in range(start_sim, end_sim):
             operator_type=in_options.operator_type,
             augment_reward=in_options.augmented_reward
         )
+    elif in_options.algorithm == "STUCRL":
+        ofualg = STUCRL(
+            env,
+            r_max=r_max,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            verbose=1,
+            logger=ucrl_log,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
+            random_state=seed)  # learning algorithm
 
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ofualg).__name__))
     ucrl_log.info("seed: {}".format(seed))
