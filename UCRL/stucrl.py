@@ -37,7 +37,7 @@ class STUCRL(UcrlMdp):
             self.prev_act_idx = curr_act_idx
             return True
 
-        p = m.log(self.SA * (self.total_time+1) / self.delta) / max(1, self.nb_observations[self.prev_state][
+        p = m.log(self.SA * (self.iteration+1) / self.delta) / max(1, self.nb_observations[self.prev_state][
             self.prev_act_idx])
         p = min(1., p)
         Y = np.random.binomial(1, p=p)
