@@ -154,6 +154,7 @@ class UcrlMdp(AbstractUCRL):
         self.solver_times = []
         self.simulation_times = []
 
+        # get initial state
         curr_state = self.environment.state
 
         t_star_all = time.perf_counter()
@@ -192,7 +193,7 @@ class UcrlMdp(AbstractUCRL):
             t0 = time.perf_counter()
             self.visited_sa.clear()
 
-            curr_state = self.environment.state
+            # curr_state = self.environment.state
             curr_act_idx, curr_act = self.sample_action(curr_state)  # sample action from the policy
 
             # while self.nu_k[curr_state][curr_act_idx] < max(1, self.nb_observations[curr_state][curr_act_idx]) \

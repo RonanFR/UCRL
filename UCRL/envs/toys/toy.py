@@ -97,6 +97,7 @@ class Toy3D_1(Environment):
     def description(self):
         desc = {
             'name': type(self).__name__,
-            'delta': self.delta
+            'delta': self.delta,
+            'stoch_reward': self.stochastic_reward
         }
         return desc
