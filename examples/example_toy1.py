@@ -105,7 +105,7 @@ parser.add_option("--path", dest="path", type="str",
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
-parser.add_option("--seed", dest="seed_0", type=int, default=110095946, #random.getrandbits(16),
+parser.add_option("--seed", dest="seed_0", type=int, default=1100995946, #random.getrandbits(16),
                   help="Seed used to generate the random seed sequence")
 
 alg_desc = """Here the description of the algorithms                                
@@ -229,7 +229,8 @@ for rep in range(start_sim, end_sim):
                            r_max=r_max,
                            verbose=1,
                            logger=ucrl_log,
-                           random_state=seed)
+                           random_state=seed,
+                           posterior="Bernoulli")
 
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ofualg).__name__))
     ucrl_log.info("seed: {}".format(seed))

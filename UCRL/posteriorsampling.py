@@ -22,7 +22,6 @@ def sample_normalgamma(m0, l0, a0, b0, mu_hat, s_hat, n, local_random):
     lam = l0 + n
     X = local_random.normal(loc=mu, scale=1. / m.sqrt(lam * T))
 
-    print(X,1/T)
     return X, T
 
 
@@ -35,7 +34,7 @@ class PS(UcrlMdp):
                  logger=default_logger, random_state=None,
                  posterior="Bernoulli", prior_parameters=None):
 
-        assert posterior in ["Bernoulli", "Gaussian"]
+        assert posterior in ["Bernoulli", "Normal"]
 
         super(PS, self).__init__(environment=environment,
                                  r_max=r_max,
@@ -97,6 +96,8 @@ class PS(UcrlMdp):
                     b0 = self.b + N - v
                     p = np.asscalar(self.local_random.beta(a=a0, b=b0, size=1))
                     self.R[s,a] = p
+
+                print(self.R[s,a])
 
 
     def solve_optimistic_model(self, curr_state=None):
