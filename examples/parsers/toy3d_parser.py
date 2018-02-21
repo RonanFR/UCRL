@@ -8,6 +8,7 @@ from matplotlib2tikz import save as tikz_save
 import matplotlib.colors as pltcolors
 import UCRL.Ucrl as Ucrl
 import UCRL.span_algorithms as spalg
+from UCRL.stucrl import STUCRL
 import seaborn as snb
 import math
 import UCRL.bounds as bounds
@@ -72,6 +73,14 @@ graph_properties["UCRL"] = {'marker': 'o',
                             # 'color': 'orange'
                             # 'color': 'C0'
                            }
+graph_properties["STUCRL"] = {'marker': '^',
+                                'markersize': 10,
+                                'linewidth': 2.,
+                                'label': 'STUCRL',
+                                'linestyle': '-',
+                                # 'color': pltcolors.rgb2hex([0.12156862745098,0.466666666666667,0.705882352941177])
+                                # 'color': 'C7'
+                                }
 
 import re
 
@@ -117,7 +126,23 @@ class ExtendedSC_UCRL(spalg.SCAL):
         self.value_history.update({self.total_time: u1.copy()})
         self.obs_history.update({self.total_time: self.nb_observations.copy()})
         self.P_history.update({self.total_time: self.P.copy()})
-        return span_value       
+        return span_value
+
+class Extended_STUCRL(STUCRL):
+
+    def solve_optimistic_model(self, curr_state=None):
+        span_value = super(Extended_STUCRL, self).solve_optimistic_model(curr_state=curr_state)
+        if not hasattr(self, 'policy_history'):
+            self.policy_history = {}
+            self.value_history = {}
+            self.obs_history = {}
+            self.P_history = {}
+        self.policy_history.update({self.total_time: (copy.deepcopy(self.policy), copy.deepcopy(self.policy_indices))})
+        u1, u2 = self.opt_solver.get_uvectors()
+        self.value_history.update({self.total_time: u1.copy()})
+        self.obs_history.update({self.total_time: self.nb_observations.copy()})
+        self.P_history.update({self.total_time: self.P.copy()})
+        return span_value
         
 
 # orig_folder = "/home/matteo/Desktop/toy3d_20171128_170346"
@@ -127,10 +152,11 @@ class ExtendedSC_UCRL(spalg.SCAL):
 orig_folder = "/home/matteo/Desktop/toy3d_0.005_20180129_170516" #bernstein
 orig_folder = "/home/matteo/Desktop/toy3d_0._20180129_173355"
 orig_folder = '/home/matteo/Desktop/KQ_0.01_20180204_193705'
-domain = 'KQ'
-# domain = 'Toy3D'
+orig_folder = '/home/matteo/Desktop/toy3d_0.005_20180220_184722'
+# domain = 'KQ'
+domain = 'Toy3D'
 configurations = ['c1']
-algorithms = ["SCAL"]
+algorithms = ["STUCRL", "SCAL"]
 
 output_filename = '{}_BERN_zero'.format(domain)
 plot_actions = False
