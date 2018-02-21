@@ -75,11 +75,13 @@ class PS(UcrlMdp):
         ns, na = self.estimated_rewards.shape
         for s in range(ns):
             for a, _ in enumerate(self.environment.state_actions[s]):
-                N = self.nb_observations[s, a]
+                # sample transition matrix
+                self.P[s, a] = self.local_random.dirichlet(1 + self.P_counter[s, a], 1)
 
+                # sample reward
+                N = self.nb_observations[s, a]
                 if self.posterior == "Normal":
                     var_r = self.variance_proxy_reward[s, a] / max(1, N)
-                    self.P[s, a] = self.local_random.dirichlet(1 + self.P_counter[s, a], 1)
                     if N == 0:
                         self.R[s,a] = self.r_max
                     else:
