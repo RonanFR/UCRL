@@ -33,7 +33,9 @@ class PS(UcrlMdp):
 
     def __init__(self, environment, r_max, verbose=0,
                  logger=default_logger, random_state=None,
-                 normalgamma_params=None):
+                 posterior="Bernoulli", prior_parameters=None):
+
+        assert posterior in ["Bernoulli", "Gaussian"]
 
         super(PS, self).__init__(environment=environment,
                                  r_max=r_max,
@@ -49,15 +51,23 @@ class PS(UcrlMdp):
 
         self.R = np.ones_like(self.estimated_rewards) * r_max
 
-        if normalgamma_params is None:
-            # chosen such that E[X] = r_max and E[T] = 1/r_max
-            # https://en.wikipedia.org/wiki/Normal-gamma_distribution
-            self.m0 = self.r_max
-            self.l0 = 1.
-            self.a0 = 1. / self.r_max
-            self.b0 = 1.
-        else:
-            self.m0, self.l0, self.a0, self.b0 = normalgamma_params
+        self.posterior = posterior
+        if posterior == "Normal":
+            if prior_parameters is None:
+                # chosen such that E[X] = r_max and E[T] = 1/r_max
+                # https://en.wikipedia.org/wiki/Normal-gamma_distribution
+                self.m0 = self.r_max
+                self.l0 = 1.
+                self.a0 = 1. / self.r_max
+                self.b0 = 1.
+            else:
+                self.m0, self.l0, self.a0, self.b0 = prior_parameters
+        elif posterior == "Bernoulli":
+            if prior_parameters is None:
+                self.a = 1.
+                self.b = 1.
+            else:
+                self.a, self.b = prior_parameters
 
     def update_at_episode_end(self):
 
@@ -67,17 +77,27 @@ class PS(UcrlMdp):
         for s in range(ns):
             for a, _ in enumerate(self.environment.state_actions[s]):
                 N = self.nb_observations[s, a]
-                var_r = self.variance_proxy_reward[s, a] / max(1, N)
-                self.P[s, a] = self.local_random.dirichlet(1 + self.P_counter[s, a], 1)
-                if N == 0:
-                    self.R[s,a] = self.r_max
-                else:
-                    mu, prec = sample_normalgamma(m0=self.m0, l0=self.l0,
-                                              a0=self.a0, b0=self.b0,
-                                              mu_hat=self.estimated_rewards[s,a],
-                                              s_hat=var_r,
-                                              n=N, local_random=self.local_random)
-                    self.R[s, a] = self.local_random.normal(mu, 1./prec) if prec > 1e-10 else mu
+
+                if self.posterior == "Normal":
+                    var_r = self.variance_proxy_reward[s, a] / max(1, N)
+                    self.P[s, a] = self.local_random.dirichlet(1 + self.P_counter[s, a], 1)
+                    if N == 0:
+                        self.R[s,a] = self.r_max
+                    else:
+                        mu, prec = sample_normalgamma(m0=self.m0, l0=self.l0,
+                                                  a0=self.a0, b0=self.b0,
+                                                  mu_hat=self.estimated_rewards[s,a],
+                                                  s_hat=var_r,
+                                                  n=N, local_random=self.local_random)
+                        # self.R[s, a] = self.local_random.normal(mu, 1./prec) if prec > 1e-10 else mu
+                        self.R[s, a] = mu
+                elif self.posterior == "Bernoulli":
+                    v = N * self.estimated_rewards[s,a]
+                    a0 = self.a + v
+                    b0 = self.b + N - v
+                    p = np.asscalar(self.local_random.beta(a=a0, b=b0, size=1))
+                    self.R[s,a] = p
+
 
     def solve_optimistic_model(self, curr_state=None):
         # note that the first time we are here P and R are
