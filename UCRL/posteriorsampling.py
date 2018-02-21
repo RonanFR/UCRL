@@ -83,24 +83,20 @@ class PS(UcrlMdp):
                 if self.posterior == "Normal":
                     var_r = self.variance_proxy_reward[s, a] / max(1, N)
                     if N == 0:
-                        self.R[s,a] = self.r_max
+                        self.R[s, a] = self.r_max
                     else:
                         mu, prec = sample_normalgamma(m0=self.m0, l0=self.l0,
-                                                  a0=self.a0, b0=self.b0,
-                                                  mu_hat=self.estimated_rewards[s,a],
-                                                  s_hat=var_r,
-                                                  n=N, local_random=self.local_random)
-                        # self.R[s, a] = self.local_random.normal(mu, 1./prec) if prec > 1e-10 else mu
+                                                      a0=self.a0, b0=self.b0,
+                                                      mu_hat=self.estimated_rewards[s, a],
+                                                      s_hat=var_r,
+                                                      n=N, local_random=self.local_random)
                         self.R[s, a] = mu
                 elif self.posterior == "Bernoulli":
-                    v = N * self.estimated_rewards[s,a]
+                    v = N * self.estimated_rewards[s, a]
                     a0 = self.a + v
                     b0 = self.b + N - v
                     p = np.asscalar(self.local_random.beta(a=a0, b=b0, size=1))
-                    self.R[s,a] = p
-
-                print(self.R[s,a])
-
+                    self.R[s, a] = p
 
     def solve_optimistic_model(self, curr_state=None):
         # note that the first time we are here P and R are
