@@ -35,7 +35,7 @@ class PS(UcrlMdp):
                 N = self.nb_observations[s, a]
                 var_r = self.variance_proxy_reward[s,a] / max(1, N - 1)
                 self.P[s, a] = self.local_random.dirichlet(1 + self.P_counter[s,a], 1)
-                self.R[s, a] = self.local_random.normal(self.estimated_rewards[s, a], m.sqrt(var_r))
+                self.R[s, a] = self.local_random.normal(self.estimated_rewards[s, a], m.sqrt(var_r)) if var_r > 1e-10 else self.estimated_rewards[s, a]
 
     def solve_optimistic_model(self, curr_state=None):
         # note that the first time we are here P and R are
