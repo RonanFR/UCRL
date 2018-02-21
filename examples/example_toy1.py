@@ -105,7 +105,7 @@ parser.add_option("--path", dest="path", type="str",
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
-parser.add_option("--seed", dest="seed_0", type=int, default=11005946, #random.getrandbits(16),
+parser.add_option("--seed", dest="seed_0", type=int, default=110095946, #random.getrandbits(16),
                   help="Seed used to generate the random seed sequence")
 
 alg_desc = """Here the description of the algorithms                                
