@@ -15,6 +15,7 @@ import UCRL.Ucrl as Ucrl
 import UCRL.span_algorithms as spalg
 import UCRL.stucrl as stalg
 import UCRL.logging as ucrl_logger
+import UCRL.posteriorsampling as psalgs
 from optparse import OptionParser, OptionGroup
 
 import matplotlib
@@ -115,8 +116,8 @@ alg_desc = """Here the description of the algorithms
 group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
-                       "[UCRL, SCAL, STUCRL]",
-                  default="STUCRL")
+                       "[UCRL, SCAL, STUCRL, PS]",
+                  default="PS")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -124,7 +125,7 @@ parser.add_option_group(group1)
 if in_options.id and in_options.path:
     parser.error("options --id and --path are mutually exclusive")
 
-assert in_options.algorithm in ["UCRL", "SCAL", "STUCRL"]
+assert in_options.algorithm in ["UCRL", "SCAL", "STUCRL", "PS"]
 assert in_options.nb_sim_offset >= 0
 #assert 1e-16 <= in_options.mdp_delta <= 1.-1e-16
 assert in_options.operator_type in ['T', 'N']
@@ -223,6 +224,12 @@ for rep in range(start_sim, end_sim):
             bound_type_p=in_options.bound_type,
             bound_type_rew=in_options.bound_type,
             random_state=seed)
+    elif in_options.algorithm == "PS":
+        ofualg = psalgs.PS(environment=env,
+                           r_max=r_max,
+                           verbose=1,
+                           logger=ucrl_log,
+                           random_state=seed)
 
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ofualg).__name__))
     ucrl_log.info("seed: {}".format(seed))

@@ -211,12 +211,7 @@ class UcrlMdp(AbstractUCRL):
                 curr_state = self.environment.state
                 curr_act_idx, curr_act = self.sample_action(curr_state)  # sample action from the policy
 
-            self.nb_observations += self.nu_k
-
-            for (s,a) in self.visited_sa:
-                self.P[s,a] = self.P_counter[s,a] / self.nb_observations[s,a]
-                # assert np.sum(self.P_counter[s,a]) == self.nb_observations[s,a]
-            # assert np.allclose(self.estimated_probabilities, self.P)
+            self.update_at_episode_end()
 
             t1 = time.perf_counter()
             self.simulation_times.append(t1-t0)
@@ -226,6 +221,14 @@ class UcrlMdp(AbstractUCRL):
         t_end_all = time.perf_counter()
         self.speed = t_end_all - t_star_all
         self.logger.info("TIME: %.5f s" % self.speed)
+
+    def update_at_episode_end(self):
+        self.nb_observations += self.nu_k
+
+        for (s, a) in self.visited_sa:
+            self.P[s, a] = self.P_counter[s, a] / self.nb_observations[s, a]
+            # assert np.sum(self.P_counter[s,a]) == self.nb_observations[s,a]
+        # assert np.allclose(self.estimated_probabilities, self.P)
 
     def beta_r(self):
         """ Confidence bounds on the reward
