@@ -73,4 +73,6 @@
 #   - added Short-Term UCRL
 #       * with short-term EVI
 #   - redefined structure of UCRL in order to allow different stopping conditions
-__version__ = '0.30.dev0'
+# 0.31.dev0 (Feb 21, 2018)
+#   - fix error in STEVI and in the correspond pytest
+__version__ = '0.31.dev0'

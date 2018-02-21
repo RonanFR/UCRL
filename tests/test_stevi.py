@@ -100,15 +100,15 @@ def core_op(ns, na, b, tau):
     run_params['ref_state'] = refstate
 
     evi2 = STEVI(nb_states=ns,
-                        actions_per_state=A,
-                        bound_type="chernoff", random_state=0,
-                        gamma=1)
+                 actions_per_state=A,
+                 bound_type="chernoff", random_state=0,
+                 gamma=1)
 
     span_value2 = evi2.run(**run_params)
     u12, u22 = evi1.get_uvectors()
 
-    assert np.allclose(u21, u22),(u21, u22)
-    assert np.allclose(u11, u12),(u11, u12)
+    assert np.allclose(u21, u22), (u21, u22)
+    assert np.allclose(u11, u12), (u11, u12)
     assert np.isclose(span_value, span_value2), (span_value, span_value2)
 
 

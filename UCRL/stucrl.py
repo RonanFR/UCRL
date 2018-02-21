@@ -89,7 +89,7 @@ class STUCRL(UcrlMdp):
         return span_value
 
     def compute_eta(self):
-        value = m.log(self.SA * (self.total_time+1) / self.delta)
+        value = m.log(self.SA * (self.iteration+1) / self.delta)
         N = np.maximum(1, self.nb_observations)
         eta = 1. - np.minimum(1, value / N)
         return eta
