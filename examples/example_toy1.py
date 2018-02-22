@@ -77,7 +77,7 @@ class Extended_STUCRL(stalg.STUCRL):
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=2000000)
+                  help="duration of the experiment", default=500000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
@@ -85,7 +85,7 @@ parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint
 parser.add_option("--operatortype", type="str", dest="operator_type",
                   help="Select the operator to use for SC-EVI", default="T")
 parser.add_option("--mdp_delta", type="float", dest="mdp_delta",
-                  help="Transition probability mdp", default=0.001)
+                  help="Transition probability mdp", default=0.005)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
                   help="range of transition matrix", default=1.)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
@@ -105,7 +105,7 @@ parser.add_option("--path", dest="path", type="str",
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
-parser.add_option("--seed", dest="seed_0", type=int, default=1100995946, #random.getrandbits(16),
+parser.add_option("--seed", dest="seed_0", type=int, default=110995946, #random.getrandbits(16),
                   help="Seed used to generate the random seed sequence")
 
 alg_desc = """Here the description of the algorithms                                
@@ -172,12 +172,13 @@ with open(os.path.join(folder_results, 'settings{}.conf'.format(in_options.nb_si
 start_sim = in_options.nb_sim_offset
 end_sim = start_sim + in_options.nb_simulations
 for rep in range(start_sim, end_sim):
-    env.reset()
-    env_desc = env.description()
     seed = seed_sequence[rep-start_sim]  # set seed
     np.random.seed(seed)
     random.seed(seed)
     print("rep: {}/{}".format(rep-start_sim, in_options.nb_simulations))
+
+    env.reset()
+    env_desc = env.description()
 
     name = "trace_{}".format(rep)
     ucrl_log = ucrl_logger.create_multilogger(logger_name=name,
