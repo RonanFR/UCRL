@@ -20,7 +20,7 @@ class OLP(object):
     Advances in Neural Information Processing Systems. 2008.
     """
 
-    def __init__(self, environment, r_max, alpha_r=None, alpha_p=None, solver=None,
+    def __init__(self, environment, r_max, alpha_r=None, alpha_p=None,
                  bound_type_p="chernoff", bound_type_rew="chernoff", verbose=0,
                  logger=default_logger, random_state=None):
         assert bound_type_p in ["chernoff", "bernstein"]
@@ -91,43 +91,47 @@ class OLP(object):
         curr_state = self.environment.state
 
         Ns = self.nb_observations.sum(axis=1)
-        P_k = [None] * S
-        R_k = [None] * S
         state_actions_k = [None] * S
         u_k = np.zeros((A,))
         epsilon = 1e-8
+
+        P_k = np.zeros((S,A,S))
+        R_k = np.zeros((S,A))
 
         t_star_all = time.perf_counter()
         while self.total_time < duration:
             # compute mean probability
 
-            # actions_to_keep = self.nb_observations > np.log(Ns)**2[:,np.newaxis]
-            # P_hat = self.P[actions_to_keep,:]
             A_original_index = []
+            max_reduced_actions = 0
             for s in range(S):
-                P_s = []
                 A_s = []
-                R_s = []
+                a_counter = 0
                 for a_idx, a in enumerate(self.environment.state_actions[s]):
                     if Ns[s] == 0 or self.nb_observations[s, a_idx] > m.log(Ns[s]) ** 2:
-                        P_s.append(self.P[s, a_idx])
+                        P_k[s, a_counter] = self.P[s, a_idx]
                         A_s.append(a)
-                        R_s.append(self.estimated_rewards[s, a_idx])
+                        R_k[s, a_counter] = self.estimated_rewards[s, a_idx]
                         if s == curr_state:
                             A_original_index.append(a_idx)
-                P_k[s] = P_s
-                R_k[s] = R_s
+                        a_counter += 1
+
+                max_reduced_actions = max(max_reduced_actions, a_counter)
                 state_actions_k[s] = A_s
 
+            # delete actions in excess
+            # P_k = P_k[:,0:max_reduced_actions,:]
+            # R_k = R_k[:,0:max_reduced_actions]
+
             t0 = time.time()
-            span_k, gain_k, bias_k = self.solve_mean_model(np.array(P_k), np.array(R_k), state_actions_k, epsilon)
+            span_k, gain_k, bias_k = self.solve_mean_model(P_k, R_k, state_actions_k, epsilon)
             t1 = time.time()
 
             if self.verbose > 0:
                 self.logger.info("span({}): {:.9f}".format(self.episode, span_k))
                 curr_regret = self.total_time * self.environment.max_gain - self.total_reward
                 self.logger.info("regret: {}, {:.2f}".format(self.total_time, curr_regret))
-                self.logger.info("evi time: {:.4f} s".format(t1-t0))
+                self.logger.info("evi time: {:.4f} s".format(t1 - t0))
 
             if self.total_time > threshold:
                 self.span_values.append(span_k)
@@ -139,9 +143,12 @@ class OLP(object):
                 threshold = self.total_time + regret_time_step
 
             # Optimal actions (for the current problem) that are about to become "undersampled"
-            optimal_set_k = self.compute_optimal_actions(P_k[s], R_k[s], A_original_index, bias_k, 2*epsilon)
+            optimal_set_k = self.compute_optimal_actions(P_k[curr_state], R_k[curr_state],
+                                                         A_original_index, bias_k, 2 * epsilon)
+            # note that the actions have already the original index when inserted in the optimal_set_k
 
-            gamma_1 = [a_idx for a_idx in optimal_set_k if self.nb_observations[curr_state, a_idx] < m.log(Ns[curr_state]+1)]
+            gamma_1 = [a_idx for a_idx in optimal_set_k if
+                       self.nb_observations[curr_state, a_idx] < m.log(Ns[curr_state] + 1)]
 
             if len(optimal_set_k) == len(gamma_1):
                 curr_act_idx = np.random.choice(gamma_1, 1)
@@ -151,31 +158,42 @@ class OLP(object):
                 beta_p = self.beta_p(curr_state)
                 beta_r = self.beta_r(curr_state)
 
-                r_optimal = np.max(self.estimated_rewards[curr_state] + beta_r)
+                r_optimal = min(self.r_max, np.max(self.estimated_rewards[curr_state] + beta_r))
 
-                for a_idx, a in enumerate(self.environment.state_actions[curr_state]):
+                n_actions = len(self.environment.state_actions[curr_state])
+                for a_idx in range(n_actions):
                     if self.bound_type_p == 'bernstein':
                         opt_v = py_max_proba_bernstein(p=self.P[curr_state, a_idx], v=bias_k,
-                                                       beta=beta_p[curr_state, a_idx], reverse=False)
+                                                       beta=beta_p[a_idx], reverse=False)
                     else:
                         opt_v = py_max_proba_chernoff(p=self.P[curr_state, a_idx], v=bias_k,
-                                                      beta=beta_p[curr_state, a_idx], reverse=False)
-                    u_k[a_idx] = opt_v + r_optimal
+                                                      beta=beta_p[a_idx], reverse=False)
+                    u_k[a_idx] = opt_v.dot(bias_k) + r_optimal
 
-                curr_act_idx = np.argmax(u_k)
+                curr_act_idx = np.argmax(u_k[0:n_actions])
 
             curr_act = self.environment.state_actions[curr_state][curr_act_idx]
             self.update(curr_state=curr_state, curr_act_idx=curr_act_idx, curr_act=curr_act)
+            # remember to update Ns
+            Ns[curr_state] += 1
+            # get new state
+            curr_state = self.environment.state
 
         t_end_all = time.perf_counter()
         self.speed = t_end_all - t_star_all
         self.logger.info("TIME: %.5f s" % self.speed)
 
-    def compute_optimal_actions(self, P, R, actions, h, epsilon):
-        v = R + P.T.dot(h)
-        mask = np.abs(v-h) < epsilon
-        return actions[mask]
-
+    def compute_optimal_actions(self, P, R, actions, h, epsilon=1e-12):
+        v = R + P.dot(h)
+        mm = v[0]
+        L = []
+        for el, a in zip(v,actions):
+            if np.isclose(el, mm, atol=epsilon):
+                L.append(a)
+            elif el > mm:
+                mm = el
+                L = [a]
+        return L
 
     def solve_mean_model(self, P, R, state_actions, epsilon):
         ns, na = R.shape
@@ -279,7 +297,8 @@ class OLP(object):
         old_estimated_reward = self.estimated_rewards[s, curr_act_idx]
         self.estimated_rewards[s, curr_act_idx] *= scale_f / (scale_f + 1.)
         self.estimated_rewards[s, curr_act_idx] += r / (scale_f + 1.)
-        self.variance_proxy_reward[s, curr_act_idx] += (r - old_estimated_reward) * (r - self.estimated_rewards[s, curr_act_idx])
+        self.variance_proxy_reward[s, curr_act_idx] += (r - old_estimated_reward) * (
+                    r - self.estimated_rewards[s, curr_act_idx])
 
         # self.P_counter[s, curr_act_idx, s2] += 1
         self.P[s, curr_act_idx] *= scale_f / (scale_f + 1.)
@@ -291,3 +310,15 @@ class OLP(object):
         self.total_reward += r
         self.total_time += t
         self.iteration += 1
+
+    def clear_before_pickle(self):
+        del self.logger
+
+    def description(self):
+        desc = {
+            "alpha_p": self.alpha_p,
+            "alpha_r": self.alpha_r,
+            "r_max": self.r_max,
+            "version": self.version
+        }
+        return desc
