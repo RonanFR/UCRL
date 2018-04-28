@@ -9,6 +9,8 @@ import matplotlib.colors as pltcolors
 import UCRL.Ucrl as Ucrl
 import UCRL.span_algorithms as spalg
 from UCRL.stucrl import STUCRL
+from UCRL.posteriorsampling import PS
+from UCRL.olp import OLP
 import seaborn as snb
 import math
 import UCRL.bounds as bounds
@@ -81,6 +83,22 @@ graph_properties["STUCRL"] = {'marker': '^',
                                 # 'color': pltcolors.rgb2hex([0.12156862745098,0.466666666666667,0.705882352941177])
                                 # 'color': 'C7'
                                 }
+graph_properties["PS"] = {'marker': "3",
+                                'markersize': 10,
+                                'linewidth': 2.,
+                                'label': 'PS',
+                                'linestyle': '--',
+                                # 'color': pltcolors.rgb2hex([0.890196078431372,0.466666666666667,0.76078431372549])
+                                # 'color': 'C6'
+                            }
+graph_properties["OLP"] = {'marker': "3",
+                                'markersize': 10,
+                                'linewidth': 2.,
+                                'label': 'OLP',
+                                'linestyle': '--',
+                                # 'color': pltcolors.rgb2hex([0.549019607843137,0.337254901960784,0.294117647058824])
+                                # 'color': 'C5'
+                            }
 
 import re
 
@@ -156,7 +174,7 @@ orig_folder = '/home/matteo/Desktop/toy3d_0.005_20180220_184722'
 # domain = 'KQ'
 domain = 'Toy3D'
 configurations = ['c1']
-algorithms = ["STUCRL", "SCAL"]
+algorithms = ["STUCRL", "SCAL" , "PS", "OLP"]
 
 output_filename = '{}_BERN_zero'.format(domain)
 plot_actions = False

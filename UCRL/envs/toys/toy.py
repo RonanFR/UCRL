@@ -36,9 +36,9 @@ class Toy3D_1(Environment):
         self.R_mat[2, 1] = 2. * self.r_max / 3.
 
         self.reward_distributions = [[Rdists.ConstantReward(c=self.R_mat[0, 0])],
-                                     [Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[1, 0]/self.r_max)],
-                                     [Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[2, 0]/self.r_max),
-                                      Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[2, 1]/self.r_max)]]
+                                     [Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[1, 0] / self.r_max)],
+                                     [Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[2, 0] / self.r_max),
+                                      Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[2, 1] / self.r_max)]]
         self.stochastic_reward = stochastic_reward
 
         super(Toy3D_1, self).__init__(initial_state=0,
@@ -101,3 +101,18 @@ class Toy3D_1(Environment):
             'stoch_reward': self.stochastic_reward
         }
         return desc
+
+
+class Toy3D_2(Toy3D_1):
+
+    def __init__(self, delta=0.005, epsilon=0.001, stochastic_reward=False):
+        super(Toy3D_2, self).__init__(delta=delta, stochastic_reward=stochastic_reward)
+        self.epsilon = epsilon
+        self.P_mat[1, 0, 0] = epsilon
+        self.P_mat[1, 0, 1] = 1. - epsilon
+
+        self.R_mat[1, 0] = 3. * self.r_max / 4.
+        self.reward_distributions[1][0] = Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[1, 0] / self.r_max)
+
+        del self.max_gain
+        self.compute_max_gain()

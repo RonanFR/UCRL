@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 
 
-path = '/home/ronan/PycharmProjects/UCRL/examples/UCRL_GymDiscreteEnvWrapper_20180130_144612/ucrl_0.pickle'
+path = '/home/matteo/Desktop/toy3d_0.005_20180220_184722/OLP_toy3d_c1/ucrl_0.pickle'
 with open(path, 'rb') as f:
     data = pickle.load(f)
 

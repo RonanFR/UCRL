@@ -7,7 +7,7 @@ import datetime
 import shutil
 import json
 import numpy as np
-from UCRL.envs.toys import Toy3D_1
+from UCRL.envs.toys import Toy3D_1, Toy3D_2
 from UCRL.envs.toys import RiverSwim
 from gym.envs.toy_text.taxi import TaxiEnv
 from UCRL.envs.wrappers import GymDiscreteEnvWrapper
@@ -106,7 +106,7 @@ parser.add_option("--path", dest="path", type="str",
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
-parser.add_option("--seed", dest="seed_0", type=int, default=110995946, #random.getrandbits(16),
+parser.add_option("--seed", dest="seed_0", type=int, default=1109975946, #random.getrandbits(16),
                   help="Seed used to generate the random seed sequence")
 
 alg_desc = """Here the description of the algorithms                                
@@ -141,7 +141,10 @@ config = vars(in_options)
 # Relevant code
 # ------------------------------------------------------------------------------
 
-env = Toy3D_1(delta=in_options.mdp_delta,
+# env = Toy3D_1(delta=in_options.mdp_delta,
+#               stochastic_reward=in_options.stochastic_reward)
+env = Toy3D_2(delta=in_options.mdp_delta,
+              epsilon=in_options.mdp_delta/5.,
               stochastic_reward=in_options.stochastic_reward)
 # env = RiverSwim()
 # gym_env = TaxiEnv()
