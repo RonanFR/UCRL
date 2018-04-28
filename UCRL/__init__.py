@@ -69,4 +69,7 @@
 #     i.e., it > min(1M, ns*na*200)
 # 0.28.dev0 (Feb 1, 2018)
 #   - fix error in evi and scevi due to random ties breaking
-__version__ = '0.28.dev0'
+# 0.29.dev0 (April 28, 2018)
+#   - updated max_proba (l1-norm) to deal with subarray
+#   - added quicksort and testing code
+__version__ = '0.29.dev0'
