@@ -79,4 +79,9 @@
 #   - Added Posterior Sampling (PS)
 # 0.34.dev0 (Feb 25, 2018)
 #   - Added Optimistic Linear Programming (OLP)
-__version__ = '0.34.dev0'
+# 0.35.dev0 (April 28, 2018)
+#   - updated max_proba (l1-norm) to deal with subarray
+#   - added quicksort and testing code
+#   - added binary search for find element in sorted vector
+#   - added Truncated Extend Value iteration and tests
+__version__ = '0.35.dev0'

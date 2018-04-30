@@ -31,6 +31,14 @@ cdef inline DTYPE_t dot_prod(DTYPE_t[:] x, DTYPE_t* y, SIZE_t dim) nogil:
         total += x[i] * y[i]
     return total
 
+@cython.boundscheck(False)
+cdef inline DTYPE_t sparse_dot_prod(DTYPE_t[:] x, DTYPE_t* y, SIZE_t* indices, SIZE_t dim) nogil:
+    cdef SIZE_t i
+    cdef DTYPE_t total = 0.
+    for i in range(dim):
+        total += x[indices[i]] * y[indices[i]]
+    return total
+
 cdef inline SIZE_t pos2index_2d(SIZE_t n_row, SIZE_t n_col, SIZE_t row, SIZE_t col) nogil:
     # return col * n_row + row
     return row * n_col + col
@@ -42,13 +50,13 @@ cdef int isclose_c(DTYPE_t a, DTYPE_t b, DTYPE_t rel_tol=*, DTYPE_t abs_tol=*) n
 cdef DTYPE_t check_end(DTYPE_t* x, DTYPE_t* y, SIZE_t dim,
                       DTYPE_t* min_y, DTYPE_t* max_y) nogil
 
+cdef SIZE_t isinsortedvector(SIZE_t value, SIZE_t[:] vector, SIZE_t dim) nogil
 
 # =============================================================================
 # Sorting Algorithms
 # =============================================================================
 cdef void get_sorted_indices(DTYPE_t *x, SIZE_t dim, SIZE_t *sort_idx) nogil
 
-# Merge sort (see Wikipedia [https://en.wikipedia.org/wiki/Merge_sort#Top-down_implementation])
-cdef void TopDownMergeSort(SIZE_t* A, SIZE_t* B, SIZE_t n, DTYPE_t* X) nogil
-cdef void TopDownSplitMerge(SIZE_t* B, SIZE_t iBegin, SIZE_t iEnd, SIZE_t* A, DTYPE_t* X) nogil
-cdef void TopDownMerge(SIZE_t* A, SIZE_t iBegin, SIZE_t iMiddle, SIZE_t iEnd, SIZE_t* B, DTYPE_t* X) nogil
+cdef void quicksort_indices(DTYPE_t *x, SIZE_t l, SIZE_t h, SIZE_t *sort_idx) nogil
+
+cdef SIZE_t hoare_partition(DTYPE_t *x, SIZE_t l, SIZE_t h, SIZE_t *sort_idx) nogil

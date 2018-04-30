@@ -36,7 +36,7 @@ cdef void max_proba_purec(DTYPE_t[:] p,
             i += 1
     else:
         for i in range(0, n):
-            new_p[i] = 0
+            new_p[asc_sorted_indices[i]] = 0
         new_p[asc_sorted_indices[(n-1)*(1-reverse)]] = temp
 
 cdef void max_proba_purec2(DTYPE_t* p,
@@ -64,7 +64,7 @@ cdef void max_proba_purec2(DTYPE_t* p,
             i += 1
     else:
         for i in range(0, n):
-            new_p[i] = 0
+            new_p[asc_sorted_indices[i]] = 0
         new_p[asc_sorted_indices[(n-1)*(1-reverse)]] = temp
 
 # =============================================================================
@@ -125,7 +125,20 @@ def py_max_proba_chernoff(np.ndarray[DTYPE_t, ndim=1] p,
     sorted_idx = np.argsort(v, kind='mergesort').astype(np.int)
     asc_idx = <SIZE_t*> np.PyArray_GETPTR1(sorted_idx, 0)
 
-    new_p = np.zeros_like(p)
+    new_p = np.ones_like(p)
+    max_proba_purec(p, n, asc_idx, beta, new_p, rev)
+    return new_p
+
+def py_max_proba_chernoff_indices(np.ndarray[DTYPE_t, ndim=1] p,
+                          DTYPE_t beta, np.ndarray[SIZE_t, ndim=1] sorted_idx,
+                          reverse):
+    cdef SIZE_t* asc_idx
+    cdef SIZE_t n = len(sorted_idx)
+    cdef SIZE_t rev = 1 if reverse else 0
+
+    asc_idx = <SIZE_t*> np.PyArray_GETPTR1(sorted_idx, 0)
+
+    new_p = np.ones_like(p)
     max_proba_purec(p, n, asc_idx, beta, new_p, rev)
     return new_p
 
@@ -140,7 +153,7 @@ def py_max_proba_bernstein(np.ndarray[DTYPE_t, ndim=1] p,
     sorted_idx = np.argsort(v, kind='mergesort').astype(np.int)
     asc_idx = <SIZE_t*> np.PyArray_GETPTR1(sorted_idx, 0)
 
-    new_p = np.zeros_like(p)
+    new_p = np.ones_like(p)
     max_proba_bernstein(p, n, asc_idx, beta, new_p, rev)
     return new_p
 
@@ -154,7 +167,7 @@ def py_max_proba_chernoff_cin(np.ndarray[DTYPE_t, ndim=1] p,
     sorted_idx = np.argsort(v, kind='mergesort').astype(np.int)
     asc_idx = <SIZE_t*> np.PyArray_GETPTR1(sorted_idx, 0)
 
-    new_p = np.zeros_like(p)
+    new_p = np.ones_like(p)
     max_proba_purec2(<DTYPE_t*> np.PyArray_GETPTR1(p, 0), n, asc_idx, beta, new_p, rev)
     return new_p
 
@@ -169,7 +182,7 @@ def py_max_proba_bernstein_cin(np.ndarray[DTYPE_t, ndim=1, mode="c"] p,
     sorted_idx = np.argsort(v, kind='mergesort').astype(np.int)
     asc_idx = <SIZE_t*> np.PyArray_GETPTR1(sorted_idx, 0)
 
-    new_p = np.zeros_like(p)
+    new_p = np.ones_like(p)
     max_proba_bernstein_cin(<DTYPE_t*> np.PyArray_GETPTR1(p, 0), n, asc_idx,
     <DTYPE_t*> np.PyArray_GETPTR1(beta, 0), new_p, rev)
     return new_p
