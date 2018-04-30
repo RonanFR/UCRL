@@ -2,6 +2,7 @@ import numpy as np
 from collections import namedtuple
 from UCRL.evi.scevi import SpanConstrainedEVI
 from UCRL.evi.evi import EVI
+from UCRL.evi import TEVI
 import pytest
 
 MDP = namedtuple('MDP', 'S,A,P,R,gamma')
@@ -35,6 +36,9 @@ def core_op(mdp, evi, constraint=np.inf, opT="T"):
                   "span_constraint": constraint}
     if isinstance(evi, SpanConstrainedEVI):
         run_params['operator_type'] = opT
+    if isinstance(evi, TEVI):
+        run_params['is_truncated_sa'] = np.zeros((mdp.S, na), dtype=np.int)
+        run_params['unreachable_states'] = np.array([], dtype=np.int)
 
     # real values are obtained from Puterman pag. 165 (table 6.3.1)
     real_v = {
@@ -199,6 +203,16 @@ def test_state_action(count):
     assert np.allclose(u2_T, u2_N)
     assert np.allclose(policy_indices_T, policy_indices_N)
     assert np.allclose(policy_T, policy_N)
+
+    evi3 = TEVI(nb_states=mdp.S,
+               actions_per_state=mdp.A,
+               bound_type="chernoff", random_state=0,
+               gamma=mdp.gamma)
+    u2_TEVI, policy_indices_TEVI, policy_TEVI = core_op(mdp, evi3)
+
+    assert np.allclose(u2_L, u2_TEVI)
+    assert np.allclose(policy_indices_TEVI, [1,0])
+    assert np.allclose(policy_TEVI, [0,0])
 
 
 if __name__ == '__main__':

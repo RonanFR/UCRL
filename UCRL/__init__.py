@@ -73,4 +73,5 @@
 #   - updated max_proba (l1-norm) to deal with subarray
 #   - added quicksort and testing code
 #   - added binary search for find element in sorted vector
+#   - added Truncated Extend Value iteration and tests
 __version__ = '0.29.dev0'
