@@ -117,6 +117,12 @@ extensions = [
               include_dirs=[numpy.get_include()],
               libraries=libraries,
               extra_compile_args=extra_compile_args,
+              extra_link_args=extra_link_args),
+    Extension("UCRL.evi.tevi",
+              ["UCRL/evi/tevi.pyx"],
+              include_dirs=[numpy.get_include()],
+              libraries=libraries,
+              extra_compile_args=extra_compile_args,
               extra_link_args=extra_link_args)
 ]
 

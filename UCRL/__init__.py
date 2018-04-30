@@ -72,4 +72,5 @@
 # 0.29.dev0 (April 28, 2018)
 #   - updated max_proba (l1-norm) to deal with subarray
 #   - added quicksort and testing code
+#   - added binary search for find element in sorted vector
 __version__ = '0.29.dev0'

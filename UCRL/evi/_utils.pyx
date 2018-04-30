@@ -54,7 +54,7 @@ cdef SIZE_t isinsortedvector(SIZE_t value, SIZE_t[:] vector, SIZE_t dim) nogil:
         if vector[m] < value:
             l = m + 1
         elif vector[m] > value:
-            h = m - 1
+            r = m - 1
         else:
             return m
 
@@ -100,6 +100,10 @@ cdef SIZE_t hoare_partition(DTYPE_t *x, SIZE_t l, SIZE_t h, SIZE_t *sort_idx) no
         sort_idx[j] = sort_idx[i]
         sort_idx[i] = temp
 
+# =============================================================================
+# PYTHON interfaces
+# =============================================================================
+
 def py_quicksort_indices(np.ndarray[DTYPE_t, ndim=1, mode="c"] v):
     cdef DTYPE_t* vpt
     cdef SIZE_t* sorted_idxpt
@@ -119,3 +123,6 @@ def py_sorted_indices(np.ndarray[DTYPE_t, ndim=1, mode="c"] v):
     sorted_idxpt = <SIZE_t*> np.PyArray_GETPTR1(sorted_idx, 0)
     get_sorted_indices(vpt, len(v), sorted_idxpt)
     return sorted_idx
+
+def py_isinsortedvector(SIZE_t c, np.ndarray[SIZE_t, ndim=1] v):
+    return isinsortedvector(c, v, len(v))
