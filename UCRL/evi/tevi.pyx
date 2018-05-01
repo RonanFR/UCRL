@@ -177,7 +177,7 @@ cdef class TEVI:
                     return -12
 
             while True:
-                for s in range(nb_states):
+                for s in prange(nb_states):
                     first_action = 1
 
                     for a_idx in range(self.actions_per_state[s].dim):
