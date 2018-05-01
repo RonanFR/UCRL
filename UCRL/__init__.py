@@ -84,4 +84,6 @@
 #   - added quicksort and testing code
 #   - added binary search for find element in sorted vector
 #   - added Truncated Extend Value iteration and tests
-__version__ = '0.35.dev0'
+# 0.36.dev0 (May 1, 2018)
+#   - added truncated UCRL
+__version__ = '0.36.dev0'

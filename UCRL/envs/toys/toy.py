@@ -10,6 +10,7 @@ class Toy3D_1(Environment):
         state_actions = [[0], [0], [0, 1]]
         na = max(map(len, state_actions))
         ns = len(state_actions)
+        self.delta = delta
 
         self.r_max = 1.
 
@@ -44,7 +45,6 @@ class Toy3D_1(Environment):
         super(Toy3D_1, self).__init__(initial_state=0,
                                       state_actions=state_actions)
         self.holding_time = 1
-        self.delta = delta
 
     def reset(self):
         self.state = 0
@@ -78,7 +78,10 @@ class Toy3D_1(Environment):
             self.optimal_policy_indices = policy_indices
             self.optimal_policy = policy
 
-            self.diameter = dpshortestpath(self.P_mat, self.state_actions)
+            if self.delta > 0:
+                self.diameter = dpshortestpath(self.P_mat, self.state_actions)
+            else:
+                self.diameter = np.inf
 
         return self.max_gain
 

@@ -13,7 +13,8 @@ from gym.envs.toy_text.taxi import TaxiEnv
 from UCRL.envs.wrappers import GymDiscreteEnvWrapper
 import UCRL.Ucrl as Ucrl
 import UCRL.span_algorithms as spalg
-import UCRL.stucrl as stalg
+# import UCRL.stucrl as stalg
+import UCRL.tucrl as tucrl
 import UCRL.logging as ucrl_logger
 import UCRL.posteriorsampling as psalgs
 from UCRL.olp import OLP
@@ -60,10 +61,10 @@ class ExtendedSC_UCRL(spalg.SCAL):
         self.P_history.update({self.total_time: self.P.copy()})
         return span_value
 
-class Extended_STUCRL(stalg.STUCRL):
+class Extended_TUCRL(tucrl.TUCRL):
 
     def solve_optimistic_model(self, curr_state=None):
-        span_value = super(Extended_STUCRL, self).solve_optimistic_model(curr_state=curr_state)
+        span_value = super(Extended_TUCRL, self).solve_optimistic_model(curr_state=curr_state)
         if not hasattr(self, 'policy_history'):
             self.policy_history = {}
             self.value_history = {}
@@ -86,7 +87,7 @@ parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint
 parser.add_option("--operatortype", type="str", dest="operator_type",
                   help="Select the operator to use for SC-EVI", default="T")
 parser.add_option("--mdp_delta", type="float", dest="mdp_delta",
-                  help="Transition probability mdp", default=0.005)
+                  help="Transition probability mdp", default=0.0)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
                   help="range of transition matrix", default=1.)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
@@ -112,14 +113,14 @@ parser.add_option("--seed", dest="seed_0", type=int, default=1109975946, #random
 alg_desc = """Here the description of the algorithms                                
 |- UCRL                                                                       
 |- SCAL                                                                                                                                            
-|- STUCRL                                                                                                                                          
+|- TUCRL                                                                                                                                          
 |- OLP                                                                                                                                          
 """
 group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
-                       "[UCRL, SCAL, STUCRL, PS, OLP]",
-                  default="OLP")
+                       "[UCRL, SCAL, TUCRL, PS, OLP]",
+                  default="TUCRL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -127,7 +128,7 @@ parser.add_option_group(group1)
 if in_options.id and in_options.path:
     parser.error("options --id and --path are mutually exclusive")
 
-assert in_options.algorithm in ["UCRL", "SCAL", "STUCRL", "PS", "OLP"]
+assert in_options.algorithm in ["UCRL", "SCAL", "TUCRL", "PS", "OLP"]
 assert in_options.nb_sim_offset >= 0
 #assert 1e-16 <= in_options.mdp_delta <= 1.-1e-16
 assert in_options.operator_type in ['T', 'N']
@@ -141,11 +142,11 @@ config = vars(in_options)
 # Relevant code
 # ------------------------------------------------------------------------------
 
-# env = Toy3D_1(delta=in_options.mdp_delta,
-#               stochastic_reward=in_options.stochastic_reward)
-env = Toy3D_2(delta=in_options.mdp_delta,
-              epsilon=in_options.mdp_delta/5.,
+env = Toy3D_1(delta=in_options.mdp_delta,
               stochastic_reward=in_options.stochastic_reward)
+# env = Toy3D_2(delta=in_options.mdp_delta,
+#               epsilon=in_options.mdp_delta/5.,
+#               stochastic_reward=in_options.stochastic_reward)
 # env = RiverSwim()
 # gym_env = TaxiEnv()
 r_max = max(1, np.asscalar(np.max(env.R_mat)))
@@ -219,16 +220,14 @@ for rep in range(start_sim, end_sim):
             operator_type=in_options.operator_type,
             augment_reward=in_options.augmented_reward
         )
-    elif in_options.algorithm == "STUCRL":
-        ofualg = Extended_STUCRL(
+    elif in_options.algorithm == "TUCRL":
+        ofualg = Extended_TUCRL(
             environment=env,
             r_max=r_max,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
             verbose=1,
             logger=ucrl_log,
-            bound_type_p=in_options.bound_type,
-            bound_type_rew=in_options.bound_type,
             random_state=seed)
     elif in_options.algorithm == "PS":
         ofualg = psalgs.PS(environment=env,
