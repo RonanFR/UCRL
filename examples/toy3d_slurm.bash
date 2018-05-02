@@ -6,7 +6,7 @@ N_mem=10g
 N_hours=160
 part=24c
 
-duration=500000
+duration=1000000
 N_parallel_rep=2
 repetitions=10
 init_seed=(114364114 679848179 375341576 340061651 311346802 945527102 1028531057 358887046 299813034 472903536 650815502 931560826 391431306 111281634 55536093 484610172 131932607 835579495 82081514 603410165 467299485)
@@ -19,8 +19,8 @@ echo ${folder}
 mkdir ${folder}
 
 
-ALGS=(UCRL SCAL)
-A_SHORT_NAME=(UCRL-3d SCAL-3d)
+ALGS=(UCRL SCAL TUCRL)
+A_SHORT_NAME=(UCRL-3d SCAL-3d TU-3d)
 
 SPAN_C=(2 5 10 15 20 25)
 
@@ -37,7 +37,7 @@ do
         i=1
         
         N_t=${#SPAN_C[@]}
-        if [ ${ALGS[$j]} == UCRL ]
+        if [ ${ALGS[$j]} == UCRL ] || [ ${ALGS[$j]} == TUCRL ]
         then
             N_t=1
         fi
@@ -46,7 +46,7 @@ do
         do
         
             CC=${SPAN_C[$k]}
-            if [ ${ALGS[$j]} == UCRL ]
+            if [ ${ALGS[$j]} == UCRL ] || [ ${ALGS[$j]} == TUCRL ]
             then
                 CC=inf
             fi
