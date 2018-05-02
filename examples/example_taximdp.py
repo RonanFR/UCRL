@@ -8,8 +8,9 @@ import shutil
 import json
 import numpy as np
 from gym.envs.toy_text.taxi import TaxiEnv
-from UCRL.envs.wrappers import GymDiscreteEnvWrapperTaxi
+from UCRL.envs.wrappers import GymDiscreteEnvWrapper
 import UCRL.Ucrl as Ucrl
+from UCRL.tucrl import TUCRL
 import UCRL.span_algorithms as spalg
 import UCRL.logging as ucrl_logger
 from optparse import OptionParser, OptionGroup
@@ -28,13 +29,13 @@ parser.add_option("-n", "--duration", dest="duration", type="int",
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
-                  help="Uppper bound to the bias span", default=1000000)
+                  help="Uppper bound to the bias span", default=np.inf)
 parser.add_option("--operatortype", type="str", dest="operator_type",
                   help="Select the operator to use for SC-EVI", default="T")
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
-                  help="range of transition matrix", default=1)
+                  help="range of transition matrix", default=0.05)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
-                  help="range of reward", default=1)
+                  help="range of reward", default=0.05)
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=5000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
@@ -56,12 +57,13 @@ parser.add_option("--seed", dest="seed_0", type=int, default=1011005946, #random
 alg_desc = """Here the description of the algorithms                                
 |- UCRL                                                                       
 |- SCAL                                                                                                                                            
+|- TUCRL                                                                                                                                          
 """
 group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
-                       "[UCRL, SCAL]",
-                  default="UCRL")
+                       "[UCRL, SCAL, TUCRL]",
+                  default="TUCRL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -69,7 +71,7 @@ parser.add_option_group(group1)
 if in_options.id and in_options.path:
     parser.error("options --id and --path are mutually exclusive")
 
-assert in_options.algorithm in ["UCRL", "SCAL"]
+assert in_options.algorithm in ["UCRL", "SCAL", "TUCRL"]
 assert in_options.nb_sim_offset >= 0
 assert in_options.operator_type in ['T', 'N']
 
@@ -82,11 +84,8 @@ config = vars(in_options)
 # Relevant code
 # ------------------------------------------------------------------------------
 
-# env = Toy3D_1(delta=in_options.mdp_delta,
-#               stochastic_reward=in_options.stochastic_reward)
-# env = RiverSwim()
 gym_env = TaxiEnv()
-env = GymDiscreteEnvWrapperTaxi(gym_env)
+env = GymDiscreteEnvWrapper(gym_env)
 _, _, Rmat = env.compute_matrix_form()
 # r_max = max(1, np.asscalar(np.max(Rmat)))
 r_max = 1  # should always be equal to 1 if we rescale
@@ -184,6 +183,15 @@ for rep in range(start_sim, end_sim):
             operator_type=in_options.operator_type,
             augment_reward=in_options.augmented_reward
         )
+    elif in_options.algorithm == "TUCRL":
+        ofualg = TUCRL(
+            environment=env,
+            r_max=r_max,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            verbose=1,
+            logger=ucrl_log,
+            random_state=seed)
 
     ucrl_log.info("[id: {}] {}".format(in_options.id, type(ofualg).__name__))
     ucrl_log.info("seed: {}".format(seed))

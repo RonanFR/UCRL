@@ -69,7 +69,7 @@ class TUCRL(ucrl.UcrlMdp):
         t1 = time.perf_counter()
         tn = t1 - t0
         self.solver_times.append(tn)
-        self.logger.info("unreachable states: {}".format(unreachable_states))
+        self.logger.info("unreachable states: {}".format(len(unreachable_states)))
         if self.verbose > 1:
             self.logger.info("[%d]NEW EVI: %.3f seconds" % (self.episode, tn))
             if self.verbose > 2:
