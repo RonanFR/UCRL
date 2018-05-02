@@ -134,6 +134,13 @@ cdef class TEVI:
         cdef SIZE_t* sorted_indices_reachable = self.sorted_indices_reachable
         cdef SIZE_t num_reachable_state = nb_states - len(unreachable_states)
 
+        cdef BoundType bound_type = CHERNOFF
+
+        if beta_p.shape[2] > 1 and num_reachable_state < nb_states:
+            return -32
+        if beta_p.shape[2] == nb_states and num_reachable_state == nb_states:
+            bound_type = BERNSTEIN
+
         if num_reachable_state == 0:
             return -14
 
@@ -182,22 +189,26 @@ cdef class TEVI:
 
                     for a_idx in range(self.actions_per_state[s].dim):
                         action = self.actions_per_state[s].values[a_idx]
-                        # if self.bound_type == CHERNOFF:
-                        if is_truncated_sa[s, a_idx]:
-                            max_proba_purec(estimated_probabilities[s][a_idx], num_reachable_state,
-                                                        sorted_indices_reachable,
-                                                        beta_p[s][a_idx][0],
-                                                        mtx_maxprob_memview[s], 0)
-                            dotp = sparse_dot_prod(mtx_maxprob_memview[s], u1, sorted_indices_reachable, num_reachable_state)
-                            dotp -= u1[s]
+                        if bound_type == CHERNOFF:
+                            if is_truncated_sa[s, a_idx]:
+                                max_proba_purec(estimated_probabilities[s][a_idx], num_reachable_state,
+                                                            sorted_indices_reachable,
+                                                            beta_p[s][a_idx][0],
+                                                            mtx_maxprob_memview[s], 0)
+                                dotp = sparse_dot_prod(mtx_maxprob_memview[s], u1, sorted_indices_reachable, num_reachable_state)
+                                dotp -= u1[s]
+                            else:
+                                max_proba_purec(estimated_probabilities[s][a_idx], nb_states,
+                                            sorted_indices, beta_p[s][a_idx][0],
+                                            mtx_maxprob_memview[s], 0)
+                                mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
+                                dotp = dot_prod(mtx_maxprob_memview[s], u1, nb_states)
                         else:
-                            max_proba_purec(estimated_probabilities[s][a_idx], nb_states,
-                                        sorted_indices, beta_p[s][a_idx][0],
+                            max_proba_bernstein(estimated_probabilities[s][a_idx], nb_states,
+                                        sorted_indices, beta_p[s][a_idx],
                                         mtx_maxprob_memview[s], 0)
                             mtx_maxprob_memview[s][s] = mtx_maxprob_memview[s][s] - 1.
                             dotp = dot_prod(mtx_maxprob_memview[s], u1, nb_states)
-                        #else:
-                            # raise error
 
                         r_optimal = min(tau_max*r_max,
                                         estimated_rewards[s][a_idx] + beta_r[s][a_idx])

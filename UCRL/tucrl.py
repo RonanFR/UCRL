@@ -50,7 +50,8 @@ class TUCRL(ucrl.UcrlMdp):
         beta_tau = self.beta_tau()  # confidence bounds on holding times
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
 
-        beta_p = beta_p.sum(axis=2).reshape((S,A,1))
+        if len(unreachable_states) > 0:
+            beta_p = beta_p.sum(axis=2).reshape((S,A,1))
 
         t0 = time.perf_counter()
         span_value = self.opt_solver.run(
@@ -68,6 +69,7 @@ class TUCRL(ucrl.UcrlMdp):
         t1 = time.perf_counter()
         tn = t1 - t0
         self.solver_times.append(tn)
+        self.logger.info("unreachable states: {}".format(unreachable_states))
         if self.verbose > 1:
             self.logger.info("[%d]NEW EVI: %.3f seconds" % (self.episode, tn))
             if self.verbose > 2:
