@@ -33,9 +33,14 @@ class SCAL(UcrlMdp):
         self.policy = np.zeros((self.environment.nb_states, 2), dtype=np.float)
         self.policy_indices = np.zeros((self.environment.nb_states, 2), dtype=np.int)
 
-    @property
-    def span_constraint(self):
-        return self.opt_solver.get_span_constraint()
+        self.augment_reward = augment_reward
+        self.operator_type = operator_type
+        self.span_constraint = span_constraint
+        self.relative_vi = relative_vi
+
+    # @property
+    # def span_constraint(self):
+    #     return self.opt_solver.get_span_constraint()
 
     def description(self):
         super_desc = super().description()
@@ -46,3 +51,18 @@ class SCAL(UcrlMdp):
         }
         super_desc.update(desc)
         return super_desc
+
+    def reset_after_pickle(self, solver=None, logger=default_logger):
+        if solver is None:
+            self.opt_solver = SpanConstrainedEVI(nb_states=self.environment.nb_states,
+                                    actions_per_state=self.environment.state_actions,
+                                    bound_type=self.bound_type_p,
+                                    random_state=self.random_state,
+                                    augmented_reward=1 if self.augment_reward else 0,
+                                    gamma=1.,
+                                    span_constraint=self.span_constraint,
+                                    relative_vi=1 if self.relative_vi else 0,
+                                    operator_type=self.operator_type)
+        else:
+            self.opt_solver = solver
+        self.logger = logger

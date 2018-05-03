@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=50000000)
+                  help="duration of the experiment", default=600000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
@@ -87,6 +87,7 @@ config = vars(in_options)
 gym_env = TaxiEnv()
 env = GymDiscreteEnvWrapper(gym_env)
 _, _, Rmat = env.compute_matrix_form()
+env.compute_max_gain()
 # r_max = max(1, np.asscalar(np.max(Rmat)))
 r_max = 1  # should always be equal to 1 if we rescale
 
@@ -155,6 +156,8 @@ for rep in range(start_sim, end_sim):
                                               filename=name,
                                               path=folder_results)
     ucrl_log.info("mdp desc: {}".format(env_desc))
+    ucrl_log.info("optimal bias span: {}".format(env.span))
+    ucrl_log.info("optimal gain: {}".format(env.max_gain))
     ofualg = None
     if in_options.algorithm == "UCRL":
         ofualg = Ucrl.UcrlMdp(

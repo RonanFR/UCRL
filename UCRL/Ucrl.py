@@ -80,6 +80,18 @@ class AbstractUCRL(object):
         del self.opt_solver
         del self.logger
 
+    def reset_after_pickle(self, solver=None, logger=default_logger):
+        if solver is None:
+            self.opt_solver = EVI(nb_states=self.environment.nb_states,
+                                  actions_per_state=self.environment.get_state_actions(),
+                                  bound_type= self.bound_type_p,
+                                  random_state = self.random_state,
+                                  gamma=1.
+                                  )
+        else:
+            self.opt_solver = solver
+        self.logger = logger
+
     def description(self):
         desc = {
             "alpha_p": self.alpha_p,

@@ -80,7 +80,18 @@ class TUCRL(ucrl.UcrlMdp):
 
         return span_value
 
-
     def update_at_episode_end(self):
         super(TUCRL, self).update_at_episode_end()
         self.nb_state_observations = self.nb_observations.sum(axis=1)
+
+    def reset_after_pickle(self, solver=None, logger=ucrl.default_logger):
+        if solver is None:
+            self.opt_solver = TEVI(nb_states=self.environment.nb_states,
+                                  actions_per_state=self.environment.get_state_actions(),
+                                  bound_type="chernoff",
+                                  random_state = self.random_state,
+                                  gamma=1.
+                                  )
+        else:
+            self.opt_solver = solver
+        self.logger = logger
