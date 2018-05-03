@@ -3,11 +3,11 @@
 # N_mem=50g
 N_cpu=8
 N_mem=10g
-N_hours=200
+N_hours=160
 part=24c
 
-duration=160000000
-N_parallel_rep=1
+duration=1000000000
+N_parallel_rep=2
 repetitions=5
 init_seed=(114364114 679848179 375341576 340061651 311346802 945527102 1028531057 358887046 299813034 472903536 650815502 931560826 391431306 111281634 55536093 484610172 131932607 835579495 82081514 603410165 467299485)
 exe_file=../example_taximdp.py 
@@ -18,14 +18,14 @@ echo ${folder}
 mkdir ${folder}
 
 
-ALGS=(UCRL SCUCRL)
-A_SHORT_NAME=(UCRL-taxi SCUCRL-taxi)
+ALGS=(TUCRL SCAL)
+A_SHORT_NAME=(TU-taxi SCA-taxi)
 
-SPAN_C=(2 5 10 15 20 25)
+SPAN_C=(2 5)
 
 # CREATE CONFIGURATIONS
 
-ALPHAS=" --p_alpha 0.1 --r_alpha 0.8 "
+ALPHAS=" --p_alpha 0.05 --r_alpha 0.05 --boundtype bernstein "
 
 for (( pr=0; pr<${N_parallel_rep}; pr++ ))
 do
@@ -37,7 +37,7 @@ do
         i=1
         
         N_t=${#SPAN_C[@]}
-        if [ ${ALGS[$j]} == UCRL ]
+        if [ ${ALGS[$j]} == TUCRL ]
         then
             N_t=1
         fi
@@ -46,14 +46,14 @@ do
         do
             
             CC=${SPAN_C[$k]}
-            if [ ${ALGS[$j]} == UCRL ]
+            if [ ${ALGS[$j]} == TUCRL ]
             then
                 CC=inf
             fi
             echo ${pr} ${j} ${ALGS[$j]} ${CC}
         
             out_name="${ALGS[$j]}_${pr}_${CC}_%j.out"
-            sname=${ALGS[$j]}_${pr}_${dim}.slurm
+            sname=${ALGS[$j]}_${pr}.slurm
             fname=${folder}/${sname}
             
             echo "#!/bin/bash" > ${fname}                                                                                                      
@@ -72,12 +72,10 @@ do
             echo "export NUMEXPR_NUM_THREADS=\$SLURM_CPUS_PER_TASK" >> ${fname}
             
             #cmdp=" --id c${i}"
-            cmdp="--rep_offset ${off} --path ${ALGS[$j]}_toy3d_c${i} --span_constraint ${CC} --regret_steps 2000 "
+            cmdp="--rep_offset ${off} --path ${ALGS[$j]}_taxi_c${i} --span_constraint ${CC} --regret_steps 5000 "
             
             echo "python ${exe_file} --alg ${ALGS[$j]} ${ALPHAS} -n ${duration} -r ${repetitions} --seed ${init_seed[$pr]} ${cmdp}" >> ${fname}
             i=$((i+1))
-            # echo "python ${exe_file} -b --alg ${ALGS[$j]} ${ALPHAS} -d ${dim} -n ${duration} --rmax ${rmax} -r ${repetitions} --seed ${init_seed} --id c${i}" >> ${fname}
-            # i=$((i+1))
 
             cd ${folder}
             sbatch ${sname}
