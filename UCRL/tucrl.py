@@ -27,7 +27,7 @@ class TUCRL(ucrl.UcrlMdp):
 
         self.nb_state_observations = np.zeros((self.environment.nb_states,))
         self.bad_state_action = 0
-        self.bad_state_action_values = []
+        self.bad_state_action_values = [0]
 
     def _stopping_rule(self, curr_state, curr_act_idx):
         c1 = len(self.visited_sa) == 0
