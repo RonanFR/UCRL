@@ -26,6 +26,8 @@ class TUCRL(ucrl.UcrlMdp):
             logger=logger, random_state=random_state)
 
         self.nb_state_observations = np.zeros((self.environment.nb_states,))
+        self.bad_state_action = 0
+        self.bad_state_action_values = []
 
     def _stopping_rule(self, curr_state, curr_act_idx):
         c1 = len(self.visited_sa) == 0
@@ -42,7 +44,7 @@ class TUCRL(ucrl.UcrlMdp):
         is_truncated_sa = np.zeros((S,A), dtype=np.int)
 
         if len(unreachable_states) > 0:
-            mask = np.maximum(1, self.nb_observations) > math.sqrt((self.total_time+1)/(S*A))
+            mask = np.maximum(1, self.nb_observations - 1) > math.sqrt((self.total_time+1)/(S*A))
             mask[unreachable_states] = False
             is_truncated_sa[mask] = 1
 
@@ -95,3 +97,13 @@ class TUCRL(ucrl.UcrlMdp):
         else:
             self.opt_solver = solver
         self.logger = logger
+
+    def save_information(self):
+        super(TUCRL, self).save_information()
+        self.bad_state_action_values.append(self.bad_state_action)
+
+    def update(self, curr_state, curr_act_idx, curr_act):
+        S, A = self.nb_observations.shape
+        if max(1, self.nb_observations[curr_state, curr_act_idx] - 1) <= math.sqrt((self.total_time + 1) / (S * A)):
+            self.bad_state_action += 1
+        super(TUCRL, self).update(curr_state, curr_act_idx, curr_act)

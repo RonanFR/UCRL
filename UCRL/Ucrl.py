@@ -213,10 +213,11 @@ class UcrlMdp(AbstractUCRL):
                     and self.total_time < duration:
                 self.update(curr_state=curr_state, curr_act_idx=curr_act_idx, curr_act=curr_act)
                 if self.total_time > threshold:
-                    curr_regret = self.total_time * self.environment.max_gain - self.total_reward
-                    self.regret.append(curr_regret)
-                    self.regret_unit_time.append(self.total_time)
-                    self.unit_duration.append(self.total_time/self.iteration)
+                    self.save_information()
+                    # curr_regret = self.total_time * self.environment.max_gain - self.total_reward
+                    # self.regret.append(curr_regret)
+                    # self.regret_unit_time.append(self.total_time)
+                    # self.unit_duration.append(self.total_time/self.iteration)
                     threshold = self.total_time + regret_time_step
 
                 # sample a new action
@@ -241,6 +242,12 @@ class UcrlMdp(AbstractUCRL):
             self.P[s, a] = self.P_counter[s, a] / self.nb_observations[s, a]
             # assert np.sum(self.P_counter[s,a]) == self.nb_observations[s,a]
         # assert np.allclose(self.estimated_probabilities, self.P)
+
+    def save_information(self):
+        curr_regret = self.total_time * self.environment.max_gain - self.total_reward
+        self.regret.append(curr_regret)
+        self.regret_unit_time.append(self.total_time)
+        self.unit_duration.append(self.total_time / self.iteration)
 
     def beta_r(self):
         """ Confidence bounds on the reward
