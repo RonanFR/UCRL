@@ -33,9 +33,9 @@ parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint
 parser.add_option("--operatortype", type="str", dest="operator_type",
                   help="Select the operator to use for SC-EVI", default="T")
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
-                  help="range of transition matrix", default=0.05)
+                  help="range of transition matrix", default=0.001)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
-                  help="range of reward", default=0.05)
+                  help="range of reward", default=0.01)
 parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
                   help="regret time steps", default=5000)
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
@@ -228,4 +228,9 @@ for rep in range(start_sim, end_sim):
     plt.ylabel("Regret")
     plt.savefig(os.path.join(folder_results, "regret_{}.png".format(rep)))
     plt.show()
+    if in_options.algorithm == "TUCRL":
+        plt.plot(ofualg.bad_state_action_values)
+        plt.xlabel("Points")
+        plt.ylabel("Sum bad states")
+        plt.savefig(os.path.join(folder_results, "bad_statessss_{}.png".format(rep)))
     plt.close('all')

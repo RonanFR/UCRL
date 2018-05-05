@@ -13,31 +13,35 @@ init_seed=(114364114 679848179 375341576 340061651 311346802 945527102 102853105
 exe_file=../example_taximdp.py 
 
 
-folder=taxi_${dim}_$(date '+%Y%m%d_%H%M%S')
+folder=taxi_$(date '+%Y%m%d_%H%M%S')
 echo ${folder}
 mkdir ${folder}
 
 
-ALGS=(TUCRL SCAL)
-A_SHORT_NAME=(TU-taxi SCA-taxi)
+ALGS=(UCRL TUCRL SCAL)
+A_SHORT_NAME=(UC-taxi TU-taxi SCA-taxi)
 
 SPAN_C=(2 5)
 
 # CREATE CONFIGURATIONS
-
-ALPHAS=" --p_alpha 0.05 --r_alpha 0.05 --boundtype bernstein "
 
 for (( pr=0; pr<${N_parallel_rep}; pr++ ))
 do
     off=$((pr*repetitions))
     for (( j=0; j<${#ALGS[@]}; j++ ))
     do
+        ALPHAS=" --p_alpha 0.01 --r_alpha 0.01 --boundtype bernstein "
         echo ${pr} ${j} ${ALGS[$j]}
         
         i=1
         
         N_t=${#SPAN_C[@]}
         if [ ${ALGS[$j]} == TUCRL ]
+        then
+            ALPHAS=" --p_alpha 0.001 --r_alpha 0.01 --boundtype bernstein "
+            N_t=1
+        fi
+        if [ ${ALGS[$j]} == UCRL ]
         then
             N_t=1
         fi
@@ -46,7 +50,7 @@ do
         do
             
             CC=${SPAN_C[$k]}
-            if [ ${ALGS[$j]} == TUCRL ]
+            if [ ${ALGS[$j]} == TUCRL ] || [ ${ALGS[$j]} == UCRL ]
             then
                 CC=inf
             fi
