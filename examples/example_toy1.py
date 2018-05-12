@@ -79,7 +79,7 @@ class Extended_TUCRL(tucrl.TUCRL):
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=500000)
+                  help="duration of the experiment", default=50000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
@@ -87,7 +87,7 @@ parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint
 parser.add_option("--operatortype", type="str", dest="operator_type",
                   help="Select the operator to use for SC-EVI", default="T")
 parser.add_option("--mdp_delta", type="float", dest="mdp_delta",
-                  help="Transition probability mdp", default=0.005)
+                  help="Transition probability mdp", default=0.0)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
                   help="range of transition matrix", default=0.05)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
@@ -120,7 +120,7 @@ group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
                        "[UCRL, SCAL, TUCRL, PS, OLP]",
-                  default="TUCRL")
+                  default="UCRL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -255,10 +255,18 @@ for rep in range(start_sim, end_sim):
     alg_desc = ofualg.description()
     ucrl_log.info("alg desc: {}".format(alg_desc))
 
-    h = ofualg.learn(in_options.duration, in_options.regret_time_steps)  # learn task
-    ofualg.clear_before_pickle()
+    pickle_name = 'ucrl_{}.pickle'.format(rep)
+    try:
+        h = ofualg.learn(in_options.duration, in_options.regret_time_steps)  # learn task
+    except Ucrl.EVIException as valerr:
+        ucrl_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))
+        pickle_name = 'exception_model_{}.pickle'.format(rep)
+    except:
+        ucrl_log.info("EXCEPTION")
+        pickle_name = 'exception_model_{}.pickle'.format(rep)
 
-    with open(os.path.join(folder_results, 'ucrl_{}.pickle'.format(rep)), 'wb') as f:
+    ofualg.clear_before_pickle()
+    with open(os.path.join(folder_results, pickle_name), 'wb') as f:
         pickle.dump(ofualg, f)
 
     plt.figure()
