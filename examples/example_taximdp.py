@@ -8,7 +8,7 @@ import shutil
 import json
 import numpy as np
 from gym.envs.toy_text.taxi import TaxiEnv
-from UCRL.envs.wrappers import GymDiscreteEnvWrapper
+from UCRL.envs.wrappers import GymDiscreteEnvWrapper, GymDiscreteEnvWrapperTaxi
 import UCRL.Ucrl as Ucrl
 from UCRL.tucrl import TUCRL
 import UCRL.span_algorithms as spalg
@@ -41,7 +41,7 @@ parser.add_option("--regret_steps", dest="regret_time_steps", type="int",
 parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
                   help="Number of repetitions", default=1)
 parser.add_option("--no_aug_rew", dest="augmented_reward", action="store_false", default="True")
-parser.add_option("--stochrew", dest="stochastic_reward", action="store_true", default="False")
+parser.add_option("--comm", dest="communicating_version", action="store_true", default="False")
 parser.add_option("--rep_offset", dest="nb_sim_offset", type="int",
                   help="Repetitions starts at the given number", default=0)
 parser.add_option("--id", dest="id", type="str",
@@ -85,7 +85,10 @@ config = vars(in_options)
 # ------------------------------------------------------------------------------
 
 gym_env = TaxiEnv()
-env = GymDiscreteEnvWrapper(gym_env)
+if in_options.communicating_version == True:
+    env = GymDiscreteEnvWrapperTaxi(gym_env)
+else:
+    env = GymDiscreteEnvWrapper(gym_env)
 _, _, Rmat = env.compute_matrix_form()
 env.compute_max_gain()
 # r_max = max(1, np.asscalar(np.max(Rmat)))

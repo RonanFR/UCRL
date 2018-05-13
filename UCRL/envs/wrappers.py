@@ -2,6 +2,7 @@ import numpy as np
 from UCRL.evi.evi import EVI
 from . import Environment
 from ..utils.shortestpath import dpshortestpath
+from gym.envs.toy_text.taxi import TaxiEnv
 
 
 class GymDiscreteEnvWrapper(Environment):
@@ -105,6 +106,7 @@ class GymDiscreteEnvWrapper(Environment):
 
 class GymDiscreteEnvWrapperTaxi(Environment):
     def __init__(self, taxi_env):
+        assert isinstance(taxi_env, TaxiEnv)
         self.gym_env = taxi_env
         nS = self.gym_env.nS - 100
         nA = self.gym_env.nA
@@ -207,6 +209,6 @@ class GymDiscreteEnvWrapperTaxi(Environment):
 
     def description(self):
         desc = {
-            'name': type(self.gym_env).__name__
+            'name': "{}_comm".format(type(self.gym_env).__name__)
         }
         return desc
