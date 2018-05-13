@@ -42,8 +42,9 @@ class TUCRL(ucrl.UcrlMdp):
         # reachable_states = np.arange(S)[mask]
         unreachable_states = np.arange(S)[np.logical_not(mask)]
         is_truncated_sa = np.zeros((S,A), dtype=np.int)
+        self.num_unreachable_states = len(unreachable_states)
 
-        if len(unreachable_states) > 0:
+        if self.num_unreachable_states > 0:
             mask = np.maximum(1, self.nb_observations - 1) > math.sqrt((self.total_time+1)/(S*A))
             mask[unreachable_states] = False
             is_truncated_sa[mask] = 1
@@ -52,7 +53,7 @@ class TUCRL(ucrl.UcrlMdp):
         beta_tau = self.beta_tau()  # confidence bounds on holding times
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
 
-        if len(unreachable_states) > 0:
+        if self.num_unreachable_states > 0:
             beta_p = beta_p.sum(axis=2).reshape((S,A,1))
 
         t0 = time.perf_counter()
