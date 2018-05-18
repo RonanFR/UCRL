@@ -6,7 +6,7 @@ from ...utils.shortestpath import dpshortestpath
 
 
 class Toy3D_1(Environment):
-    def __init__(self, delta=0.99, stochastic_reward=False):
+    def __init__(self, delta=0.99, stochastic_reward=False, uniform_reward=False):
         state_actions = [[0], [0], [0, 1]]
         na = max(map(len, state_actions))
         ns = len(state_actions)
@@ -36,11 +36,19 @@ class Toy3D_1(Environment):
         self.P_mat[2, 1, 2] = 1.
         self.R_mat[2, 1] = 2. * self.r_max / 3.
 
-        self.reward_distributions = [[Rdists.ConstantReward(c=self.R_mat[0, 0])],
-                                     [Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[1, 0] / self.r_max)],
-                                     [Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[2, 0] / self.r_max),
-                                      Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[2, 1] / self.r_max)]]
+        if uniform_reward:
+            epsilon = 0.1
+            self.reward_distributions = [[Rdists.ConstantReward(c=self.R_mat[0, 0])],
+                                         [Rdists.UniformReward(a=self.R_mat[1, 0] - epsilon, b=self.R_mat[1, 0] + epsilon)],
+                                         [Rdists.UniformReward(a=self.R_mat[1, 0] - epsilon, b=self.R_mat[1, 0] + epsilon),
+                                          Rdists.UniformReward(a=self.R_mat[1, 0] - epsilon, b=self.R_mat[1, 0] + epsilon)]]
+        else:
+            self.reward_distributions = [[Rdists.ConstantReward(c=self.R_mat[0, 0])],
+                                         [Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[1, 0] / self.r_max)],
+                                         [Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[2, 0] / self.r_max),
+                                          Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[2, 1] / self.r_max)]]
         self.stochastic_reward = stochastic_reward
+        self.uniform_reward = uniform_reward
 
         super(Toy3D_1, self).__init__(initial_state=0,
                                       state_actions=state_actions)

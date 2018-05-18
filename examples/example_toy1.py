@@ -87,7 +87,7 @@ parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint
 parser.add_option("--operatortype", type="str", dest="operator_type",
                   help="Select the operator to use for SC-EVI", default="T")
 parser.add_option("--mdp_delta", type="float", dest="mdp_delta",
-                  help="Transition probability mdp", default=0.0)
+                  help="Transition probability mdp", default=0.)
 parser.add_option("--p_alpha", dest="alpha_p", type="float",
                   help="range of transition matrix", default=0.05)
 parser.add_option("--r_alpha", dest="alpha_r", type="float",
@@ -98,6 +98,7 @@ parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
                   help="Number of repetitions", default=1)
 parser.add_option("--no_aug_rew", dest="augmented_reward", action="store_false", default=True)
 parser.add_option("--stochrew", dest="stochastic_reward", action="store_true", default=False)
+parser.add_option("--unifrew", dest="uniform_reward", action="store_true", default=False)
 parser.add_option("--rep_offset", dest="nb_sim_offset", type="int",
                   help="Repetitions starts at the given number", default=0)
 parser.add_option("--id", dest="id", type="str",
@@ -143,7 +144,8 @@ config = vars(in_options)
 # ------------------------------------------------------------------------------
 
 env = Toy3D_1(delta=in_options.mdp_delta,
-              stochastic_reward=in_options.stochastic_reward)
+              stochastic_reward=in_options.stochastic_reward,
+              uniform_reward=in_options.uniform_reward)
 # env = Toy3D_2(delta=in_options.mdp_delta,
 #               epsilon=in_options.mdp_delta/5.,
 #               stochastic_reward=in_options.stochastic_reward)
