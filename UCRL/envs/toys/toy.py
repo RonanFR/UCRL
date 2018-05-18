@@ -40,8 +40,8 @@ class Toy3D_1(Environment):
             epsilon = 0.1
             self.reward_distributions = [[Rdists.ConstantReward(c=self.R_mat[0, 0])],
                                          [Rdists.UniformReward(a=self.R_mat[1, 0] - epsilon, b=self.R_mat[1, 0] + epsilon)],
-                                         [Rdists.UniformReward(a=self.R_mat[1, 0] - epsilon, b=self.R_mat[1, 0] + epsilon),
-                                          Rdists.UniformReward(a=self.R_mat[1, 0] - epsilon, b=self.R_mat[1, 0] + epsilon)]]
+                                         [Rdists.UniformReward(a=self.R_mat[2, 0] - epsilon, b=self.R_mat[2, 0] + epsilon),
+                                          Rdists.UniformReward(a=self.R_mat[2, 1] - epsilon, b=self.R_mat[2, 1] + epsilon)]]
         else:
             self.reward_distributions = [[Rdists.ConstantReward(c=self.R_mat[0, 0])],
                                          [Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[1, 0] / self.r_max)],
