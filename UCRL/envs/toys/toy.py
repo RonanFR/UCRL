@@ -37,7 +37,7 @@ class Toy3D_1(Environment):
         self.R_mat[2, 1] = 2. * self.r_max / 3.
 
         if uniform_reward:
-            epsilon = 0.1
+            epsilon = 0.01
             self.reward_distributions = [[Rdists.ConstantReward(c=self.R_mat[0, 0])],
                                          [Rdists.UniformReward(a=self.R_mat[1, 0] - epsilon, b=self.R_mat[1, 0] + epsilon)],
                                          [Rdists.UniformReward(a=self.R_mat[2, 0] - epsilon, b=self.R_mat[2, 0] + epsilon),
