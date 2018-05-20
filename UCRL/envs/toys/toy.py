@@ -6,7 +6,8 @@ from ...utils.shortestpath import dpshortestpath
 
 
 class Toy3D_1(Environment):
-    def __init__(self, delta=0.99, stochastic_reward=False, uniform_reward=False):
+    def __init__(self, delta=0.99, stochastic_reward=False,
+                 uniform_reward=False, uniform_range=0.2):
         state_actions = [[0], [0], [0, 1]]
         na = max(map(len, state_actions))
         ns = len(state_actions)
@@ -37,7 +38,7 @@ class Toy3D_1(Environment):
         self.R_mat[2, 1] = 2. * self.r_max / 3.
 
         if uniform_reward:
-            epsilon = 0.01
+            epsilon = uniform_range / 2
             self.reward_distributions = [[Rdists.ConstantReward(c=self.R_mat[0, 0])],
                                          [Rdists.UniformReward(a=self.R_mat[1, 0] - epsilon, b=self.R_mat[1, 0] + epsilon)],
                                          [Rdists.UniformReward(a=self.R_mat[2, 0] - epsilon, b=self.R_mat[2, 0] + epsilon),
@@ -49,6 +50,7 @@ class Toy3D_1(Environment):
                                           Rdists.BernouilliReward(r_max=self.r_max, proba=self.R_mat[2, 1] / self.r_max)]]
         self.stochastic_reward = stochastic_reward
         self.uniform_reward = uniform_reward
+        self.uniform_range = uniform_range
 
         super(Toy3D_1, self).__init__(initial_state=0,
                                       state_actions=state_actions)
@@ -109,7 +111,9 @@ class Toy3D_1(Environment):
         desc = {
             'name': type(self).__name__,
             'delta': self.delta,
-            'stoch_reward': self.stochastic_reward
+            'stoch_reward': self.stochastic_reward,
+            'uniform_reward': self.uniform_reward,
+            'uniform_range': self.uniform_range
         }
         return desc
 

@@ -99,6 +99,8 @@ parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
 parser.add_option("--no_aug_rew", dest="augmented_reward", action="store_false", default=True)
 parser.add_option("--stochrew", dest="stochastic_reward", action="store_true", default=False)
 parser.add_option("--unifrew", dest="uniform_reward", action="store_true", default=False)
+parser.add_option("--unifrew_range", dest="unifrew_range", type="float",
+                  help="Range of the random uniform variable", default=0.2)
 parser.add_option("--rep_offset", dest="nb_sim_offset", type="int",
                   help="Repetitions starts at the given number", default=0)
 parser.add_option("--id", dest="id", type="str",
@@ -121,7 +123,7 @@ group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
                        "[UCRL, SCAL, TUCRL, PS, OLP]",
-                  default="UCRL")
+                  default="TUCRL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -145,7 +147,8 @@ config = vars(in_options)
 
 env = Toy3D_1(delta=in_options.mdp_delta,
               stochastic_reward=in_options.stochastic_reward,
-              uniform_reward=in_options.uniform_reward)
+              uniform_reward=in_options.uniform_reward,
+              uniform_range=in_options.unifrew_range)
 # env = Toy3D_2(delta=in_options.mdp_delta,
 #               epsilon=in_options.mdp_delta/5.,
 #               stochastic_reward=in_options.stochastic_reward)
