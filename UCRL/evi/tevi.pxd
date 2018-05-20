@@ -42,6 +42,7 @@ cdef class TEVI:
                      DTYPE_t[:,:] beta_tau,
                      SIZE_t[:,:] is_truncated_sa,
                      SIZE_t[:] unreachable_states,
+                     SIZE_t[:] states_terminalcond,
                      DTYPE_t tau_max,
                      DTYPE_t r_max,
                      DTYPE_t tau,

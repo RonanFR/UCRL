@@ -39,13 +39,15 @@ class TUCRL(ucrl.UcrlMdp):
         S, A = self.nb_observations.shape
         mask = self.nb_state_observations > 0
         mask[curr_state] = True
-        # reachable_states = np.arange(S)[mask]
+        reachable_states = np.arange(S)[mask]
         unreachable_states = np.arange(S)[np.logical_not(mask)]
         is_truncated_sa = np.zeros((S,A), dtype=np.int)
         self.num_unreachable_states = len(unreachable_states)
+        self.num_truncated_sa = 0
 
         if self.num_unreachable_states > 0:
             mask = np.maximum(1, self.nb_observations - 1) > math.sqrt((self.total_time+1)/(S*A))
+            self.num_truncated_sa = S*A - np.sum(mask)
             mask[unreachable_states] = False
             is_truncated_sa[mask] = 1
 
@@ -56,6 +58,11 @@ class TUCRL(ucrl.UcrlMdp):
         if self.num_unreachable_states > 0:
             beta_p = beta_p.sum(axis=2).reshape((S,A,1))
 
+        if self.num_unreachable_states == 0 or self.num_truncated_sa == 0:
+            states_terminalcond = reachable_states
+        else:
+            states_terminalcond = np.arange(S)
+
         t0 = time.perf_counter()
         span_value = self.opt_solver.run(
             self.policy_indices, self.policy,
@@ -65,6 +72,7 @@ class TUCRL(ucrl.UcrlMdp):
             beta_r, beta_p, beta_tau,
             is_truncated_sa,
             unreachable_states,
+            states_terminalcond,
             self.tau_max,
             self.r_max, self.tau, self.tau_min,
             self.r_max / math.sqrt(self.iteration + 1)

@@ -50,6 +50,9 @@ cdef int isclose_c(DTYPE_t a, DTYPE_t b, DTYPE_t rel_tol=*, DTYPE_t abs_tol=*) n
 cdef DTYPE_t check_end(DTYPE_t* x, DTYPE_t* y, SIZE_t dim,
                       DTYPE_t* min_y, DTYPE_t* max_y) nogil
 
+cdef DTYPE_t check_end_sparse(DTYPE_t* x, DTYPE_t* y, SIZE_t[:] states, SIZE_t dim,
+                      DTYPE_t* min_y, DTYPE_t* max_y) nogil
+
 cdef SIZE_t isinsortedvector(SIZE_t value, SIZE_t[:] vector, SIZE_t dim) nogil
 
 # =============================================================================

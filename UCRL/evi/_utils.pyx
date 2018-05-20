@@ -43,6 +43,26 @@ cdef DTYPE_t check_end(DTYPE_t* x, DTYPE_t* y, SIZE_t dim,
             max_y[0] = y[i]
     return diff_max - diff_min
 
+cdef DTYPE_t check_end_sparse(DTYPE_t* x, DTYPE_t* y, SIZE_t[:] states, SIZE_t dim,
+                      DTYPE_t* min_y, DTYPE_t* max_y) nogil:
+    cdef SIZE_t i, k
+    cdef DTYPE_t diff
+    cdef DTYPE_t diff_min = x[0]-y[0], diff_max = x[0] - y[0]
+    min_y[0] = y[0]
+    max_y[0] = y[0]
+    for k in range(0, dim):
+        i = states[k]
+        diff = x[i] - y[i]
+        if diff_min > diff:
+            diff_min = diff
+        if diff_max < diff:
+            diff_max = diff
+        if min_y[0] > y[i]:
+            min_y[0] = y[i]
+        if max_y[0] < y[i]:
+            max_y[0] = y[i]
+    return diff_max - diff_min
+
 cdef SIZE_t isinsortedvector(SIZE_t value, SIZE_t[:] vector, SIZE_t dim) nogil:
     cdef SIZE_t l=0, r=dim-1, m
 

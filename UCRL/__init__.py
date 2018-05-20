@@ -86,4 +86,6 @@
 #   - added Truncated Extend Value iteration and tests
 # 0.36.dev0 (May 1, 2018)
 #   - added truncated UCRL
-__version__ = '0.36.dev0'
+# 0.37.dev0 (May 20, 2018)
+#   - changed terminal condition of TUCRL
+__version__ = '0.37.dev0'

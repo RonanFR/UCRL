@@ -25,7 +25,7 @@ from ._utils cimport sign
 from ._utils cimport isclose_c
 from ._utils cimport get_sorted_indices, quicksort_indices
 from ._utils cimport isinsortedvector
-from ._utils cimport check_end
+from ._utils cimport check_end_sparse
 from ._utils cimport dot_prod
 from ._utils cimport sparse_dot_prod
 from ._utils cimport pos2index_2d
@@ -107,6 +107,7 @@ cdef class TEVI:
                      DTYPE_t[:,:] beta_tau,
                      SIZE_t[:,:] is_truncated_sa,
                      SIZE_t[:] unreachable_states,
+                     SIZE_t[:] states_terminalcond,
                      DTYPE_t tau_max,
                      DTYPE_t r_max,
                      DTYPE_t tau,
@@ -121,7 +122,7 @@ cdef class TEVI:
 
         cdef SIZE_t s, i, a_idx, counter = 0, j
         cdef SIZE_t first_action
-        cdef DTYPE_t c1, dotp, new_span, old_span
+        cdef DTYPE_t c1, dotp, new_span_diff
         cdef DTYPE_t gamma = self.gamma
         cdef DTYPE_t min_u1, max_u1, r_optimal, v, tau_optimal
         cdef SIZE_t nb_states = self.nb_states
@@ -133,6 +134,7 @@ cdef class TEVI:
         cdef SIZE_t* sorted_indices = self.sorted_indices
         cdef SIZE_t* sorted_indices_reachable = self.sorted_indices_reachable
         cdef SIZE_t num_reachable_state = nb_states - len(unreachable_states)
+        cdef SIZE_t nb_states_tc = len(states_terminalcond)
 
         cdef BoundType bound_type = CHERNOFF
 
@@ -161,8 +163,6 @@ cdef class TEVI:
         # printf('\n')
 
         ITERATIONS_LIMIT = min(ITERATIONS_LIMIT, nb_states * max_nb_actions * 200)
-
-        old_span = np.finfo('f').max
 
         with nogil:
             c1 = u2[0] if initial_recenter else 0.
@@ -239,8 +239,8 @@ cdef class TEVI:
                 # printf("\n")
 
                 # stopping condition
-                new_span = check_end(u2, u1, nb_states, &min_u1, &max_u1)
-                if old_span - new_span < epsilon:
+                new_span_diff = check_end_sparse(u2, u1, states_terminalcond, nb_states_tc, &min_u1, &max_u1)
+                if new_span_diff < epsilon:
                     # printf("%d\n", counter)
                     free(action_noise)
                     return max_u1 - min_u1
@@ -265,8 +265,6 @@ cdef class TEVI:
                             u1[i] = u1[i] - c1
                     #     printf("%d , ", sorted_indices[i])
                     # printf("\n")
-
-                old_span = new_span
 
                 if counter > ITERATIONS_LIMIT:
                     free(action_noise)
