@@ -8,7 +8,7 @@ from matplotlib2tikz import save as tikz_save
 import matplotlib.colors as pltcolors
 import UCRL.Ucrl as Ucrl
 import UCRL.span_algorithms as spalg
-from UCRL.stucrl import STUCRL
+from UCRL.tucrl import TUCRL
 from UCRL.posteriorsampling import PS
 from UCRL.olp import OLP
 import seaborn as snb
@@ -74,14 +74,16 @@ graph_properties["UCRL"] = {'marker': 'o',
                             'linestyle': '-',
                             # 'color': 'orange'
                             # 'color': 'C0'
+                            'color': 'blue'
                            }
-graph_properties["STUCRL"] = {'marker': '^',
+graph_properties["TUCRL"] = {'marker': '^',
                                 'markersize': 10,
                                 'linewidth': 2.,
-                                'label': 'STUCRL',
+                                'label': 'TUCRL',
                                 'linestyle': '-',
                                 # 'color': pltcolors.rgb2hex([0.12156862745098,0.466666666666667,0.705882352941177])
                                 # 'color': 'C7'
+                             'color': 'r'
                                 }
 graph_properties["PS"] = {'marker': "3",
                                 'markersize': 10,
@@ -96,6 +98,25 @@ graph_properties["OLP"] = {'marker': "3",
                                 'linewidth': 2.,
                                 'label': 'OLP',
                                 'linestyle': '--',
+                                # 'color': pltcolors.rgb2hex([0.549019607843137,0.337254901960784,0.294117647058824])
+                                # 'color': 'C5'
+                            }
+
+graph_properties["SCAL_T_200.0"] = {'marker': "3",
+                                'markersize': 10,
+                                'linewidth': 2.,
+                                'label': 'SCAL $c=200$',
+                                'linestyle': '--',
+                                # 'color': pltcolors.rgb2hex([0.549019607843137,0.337254901960784,0.294117647058824])
+                                # 'color': 'C5'
+                            }
+
+graph_properties["SCAL_T_1.0"] = {'marker': "3",
+                                'markersize': 10,
+                                'linewidth': 2.,
+                                'label': 'SCAL $c=1$',
+                                'linestyle': '--',
+                                'color': 'purple'
                                 # 'color': pltcolors.rgb2hex([0.549019607843137,0.337254901960784,0.294117647058824])
                                 # 'color': 'C5'
                             }
@@ -146,10 +167,10 @@ class ExtendedSC_UCRL(spalg.SCAL):
         self.P_history.update({self.total_time: self.P.copy()})
         return span_value
 
-class Extended_STUCRL(STUCRL):
+class Extended_TUCRL(TUCRL):
 
     def solve_optimistic_model(self, curr_state=None):
-        span_value = super(Extended_STUCRL, self).solve_optimistic_model(curr_state=curr_state)
+        span_value = super(Extended_TUCRL, self).solve_optimistic_model(curr_state=curr_state)
         if not hasattr(self, 'policy_history'):
             self.policy_history = {}
             self.value_history = {}
@@ -167,16 +188,26 @@ class Extended_STUCRL(STUCRL):
 # orig_folder = "/home/matteo/Desktop/toy3d_0.0001_20171128_222356"
 # orig_folder = "/home/matteo/Desktop/toy3d_0_20171206_023930"
 # orig_folder = "/home/matteo/Desktop/toy3d_0.0001_20171206_180633"
-orig_folder = "/home/matteo/Desktop/toy3d_0.005_20180129_170516" #bernstein
-orig_folder = "/home/matteo/Desktop/toy3d_0._20180129_173355"
 orig_folder = '/home/matteo/Desktop/KQ_0.01_20180204_193705'
 orig_folder = '/home/matteo/Desktop/toy3d_0.005_20180220_184722'
-# domain = 'KQ'
-domain = 'Toy3D'
-configurations = ['c1']
-algorithms = ["STUCRL", "SCAL" , "PS", "OLP"]
+orig_folder = "/home/matteo/Desktop/toy3d_0.005_20180129_170516" #bernstein
+# orig_folder = "/home/matteo/Desktop/toy3d_0._20180129_173355"
+orig_folder = "/home/matteo/Desktop/toy3d_0._20180505_214529"
 
-output_filename = '{}_BERN_zero'.format(domain)
+orig_folder = "/home/matteo/Desktop/toy0.005_small"
+orig_folder = "/home/matteo/Desktop/taxi_comm_20180514_150109" #nips18 comm taxi
+# orig_folder = "/home/matteo/Desktop/toy3d_0._20180513_161631" # nips18 toy delta = 0.
+orig_folder = "/home/matteo/Desktop/taxi_20180505_220333" #nips18 non-comm taxi
+orig_folder = '/home/matteo/Desktop/KQ_0.01_20180204_193705'
+orig_folder = '/home/matteo/Desktop/toy3d_unifrew_0._20180518_154657'
+
+domain = 'KQ'
+domain = 'Toy3D'
+# domain = 'taxi'
+configurations = ['c1']
+algorithms = ["TUCRL", "SCAL" , "PS", "OLP"]
+
+output_filename = '{}_BERN_unif_zero'.format(domain)
 plot_actions = False
 plot_h = False
 plot_P = False
@@ -202,9 +233,12 @@ print(L)
 
 #L = [L[l] for l in range(len(L)-1)]
 
-
 for i, f in enumerate(L):
-    mv = load_mean_values(folder=f, attributes=["regret", "regret_unit_time", "span_values", "span_times"])
+    attributes = ["regret", "regret_unit_time", "span_values", "span_times"]
+    if "TUCRL" in f:
+        attributes += ["bad_state_action_values"]
+
+    mv = load_mean_values(folder=f, attributes=attributes)
 
     if mv is not None:
         data[i] = mv
@@ -212,13 +246,21 @@ for i, f in enumerate(L):
 
         with open(os.path.join(f, "settings0.conf"), "r") as fil:
             settings = json.load(fil)
-        title = "{} $\\delta={}$:\n $\\alpha_p={}$, $\\alpha_r={}$, bound={}".format(
-            domain,
-            settings['armor_collect_prob'] if domain == "KQ" else settings['mdp_delta'],
-            settings['alpha_p'],
-            settings['alpha_r'],
-            settings['bound_type']
-        )
+        if domain != 'taxi':
+            title = "{} $\\delta={}$:\n $\\alpha_p={}$, $\\alpha_r={}$, bound={}".format(
+                domain,
+                settings['armor_collect_prob'] if domain == "KQ" else settings['mdp_delta'],
+                settings['alpha_p'],
+                settings['alpha_r'],
+                settings['bound_type']
+            )
+        else:
+            title = "{}\n $\\alpha_p={}$, $\\alpha_r={}$, bound={}".format(
+                domain,
+                settings['alpha_p'],
+                settings['alpha_r'],
+                settings['bound_type']
+            )
         exp_H = settings['duration']
 
         if settings['algorithm'] == 'SCAL':
@@ -250,6 +292,7 @@ ax = plt.axes()
 ax.set_prop_cycle(cycler('color', color_cycle))
 xmin = np.inf
 xmax = -np.inf
+idx_tucrl = None
 for k in data.keys():
     el = data[k]
     print(el['algorithm'])
@@ -282,12 +325,16 @@ for k in data.keys():
                         for v in el['regret']:
                             plt.plot(x[t], np.array(v)[t], '--', c=ax1_col, alpha=0.42)
                 else:
-                    ci = 1.96 * el['regret_std'][t] / np.sqrt(el['regret_num'])
+                    ci = 2 * el['regret_std'][t] / np.sqrt(el['regret_num'])
                     plt.fill_between(x[t],
                                      y[t]-ci, y[t]+ci, facecolor=ax1_col, alpha=0.4)
 
         xmin = min(xmin, x[0])
         xmax = max(xmax, x[-1])
+
+        if el['algorithm'] == "TUCRL":
+            idx_tucrl = k
+
 if not log_scale:
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
     plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
@@ -304,6 +351,18 @@ if generate_tex:
     tikz_save('REGRET_{}.tex'.format(output_filename))
 plt.savefig('REGRET_{}.png'.format(output_filename))
 
+if idx_tucrl:
+    el = data[idx_tucrl]
+    fig = plt.figure()
+    x, y, indices = replace_equal(el['regret_unit_time_mean'], el['bad_state_action_values_mean'])
+    plt.plot(x, y, 'forestgreen')
+    plt.ylabel("$\sum_{t=1}^T1\{N_k^{\pm}(s,a) \leq \sqrt{\\frac{t_k}{SA}}\}$")
+    plt.xlabel("Duration $T$")
+    plt.title("{}".format(title))
+    plt.tight_layout()
+    if generate_tex:
+        tikz_save('TUCRL_counters_{}.tex'.format(output_filename))
+    plt.savefig('TUCRL_counters_{}.png'.format(output_filename))
 
 ########################################################################
 plot_every = 1
