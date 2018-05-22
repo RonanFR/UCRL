@@ -107,6 +107,9 @@ class Toy3D_1(Environment):
         self.reward = rdist.mean if not self.stochastic_reward else rdist.generate()
         self.state = next_state
 
+    def true_reward(self, state, action):
+        return self.R_mat[state, action]
+
     def description(self):
         desc = {
             'name': type(self).__name__,
