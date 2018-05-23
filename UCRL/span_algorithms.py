@@ -12,7 +12,8 @@ class SCAL(UcrlMdp):
     def __init__(self, environment, r_max, span_constraint, alpha_r=None, alpha_p=None,
                  bound_type_p="chernoff", bound_type_rew="chernoff",
                  verbose=0, augment_reward=True, operator_type="T",
-                 logger=default_logger, random_state=None, relative_vi=True):
+                 logger=default_logger, random_state=None, relative_vi=True,
+                 known_reward=False):
         solver = SpanConstrainedEVI(nb_states=environment.nb_states,
                                     actions_per_state=environment.state_actions,
                                     bound_type=bound_type_p,
@@ -27,7 +28,7 @@ class SCAL(UcrlMdp):
             alpha_r=alpha_r, alpha_p=alpha_p, solver=solver,
             bound_type_p=bound_type_p,
             bound_type_rew=bound_type_rew,
-            verbose=verbose, logger=logger, random_state=random_state)
+            verbose=verbose, logger=logger, random_state=random_state, known_reward=False)
 
         # we need to change policy structure since it is stochastic
         self.policy = np.zeros((self.environment.nb_states, 2), dtype=np.float)

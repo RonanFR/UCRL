@@ -28,7 +28,8 @@ class AbstractUCRL(object):
                  verbose = 0,
                  logger=default_logger,
                  bound_type_p="chernoff",
-                 bound_type_rew="chernoff"):
+                 bound_type_rew="chernoff",
+                 known_reward=False):
         self.environment = environment
         self.r_max = float(r_max)
 
@@ -40,6 +41,10 @@ class AbstractUCRL(object):
             self.alpha_p = 1
         else:
             self.alpha_p = alpha_p
+
+        if known_reward:
+            self.alpha_r = 0
+        self.known_reward = known_reward
 
         if solver is None:
             # create solver for optimistic model
@@ -109,7 +114,7 @@ class UcrlMdp(AbstractUCRL):
 
     def __init__(self, environment, r_max, alpha_r=None, alpha_p=None, solver=None,
                  bound_type_p="chernoff", bound_type_rew="chernoff", verbose = 0,
-                 logger=default_logger, random_state=None):
+                 logger=default_logger, random_state=None, known_reward=False):
         """
         :param environment: an instance of any subclass of abstract class Environment which is an MDP
         :param r_max: upper bound
@@ -126,7 +131,7 @@ class UcrlMdp(AbstractUCRL):
                                       verbose=verbose,
                                       logger=logger, bound_type_p=bound_type_p,
                                       bound_type_rew=bound_type_rew,
-                                      random_state=random_state)
+                                      random_state=random_state, known_reward=False)
         nb_states = self.environment.nb_states
         max_nb_actions = self.environment.max_nb_actions_per_state
         # self.estimated_probabilities = np.ones((nb_states, max_nb_actions, nb_states)) / nb_states
@@ -143,6 +148,12 @@ class UcrlMdp(AbstractUCRL):
         self.tau = 0.9
         self.tau_max = 1
         self.tau_min = 1
+
+        if self.known_reward and not hasattr(self, 'true_reward'):
+            self.true_reward = np.zeros((nb_states, max_nb_actions))
+            for s in range(nb_states):
+                for a in self.environment.state_actions[s]:
+                    self.true_reward[s,a] = self.environment.true_reward(s, a)
 
     def _stopping_rule(self, curr_state, curr_act_idx):
         return self.nu_k[curr_state][curr_act_idx] < max(1, self.nb_observations[curr_state][curr_act_idx])
@@ -258,6 +269,9 @@ class UcrlMdp(AbstractUCRL):
         """
         S = self.environment.nb_states
         A = self.environment.max_nb_actions_per_state
+        if self.known_reward:
+            return np.zeros((S,A))
+
         if self.bound_type_rew != "bernstein":
             ci = bounds.chernoff(it=self.iteration, N=self.nb_observations,
                                  range=self.r_max, delta=self.delta,
@@ -377,7 +391,7 @@ class UcrlMdp(AbstractUCRL):
         span_value_new = self.opt_solver.run(
             self.policy_indices, self.policy,
             self.P, #self.estimated_probabilities,
-            self.estimated_rewards,
+            self.estimated_rewards if not self.known_reward else self.true_reward,
             self.estimated_holding_times,
             beta_r, beta_p, beta_tau, self.tau_max,
             self.r_max, self.tau, self.tau_min,

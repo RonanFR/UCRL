@@ -10,7 +10,7 @@ class TUCRL(ucrl.UcrlMdp):
     def __init__(self, environment, r_max,
                  alpha_r=None, alpha_p=None,
                  verbose=0, logger=ucrl.default_logger,
-                 random_state=None):
+                 random_state=None, known_reward=False):
         tevi = TEVI(nb_states=environment.nb_states,
                     actions_per_state=environment.get_state_actions(),
                     bound_type="chernoff",
@@ -23,7 +23,7 @@ class TUCRL(ucrl.UcrlMdp):
             solver=tevi,
             bound_type_p="bernstein", bound_type_rew="bernstein",
             verbose=verbose,
-            logger=logger, random_state=random_state)
+            logger=logger, random_state=random_state, known_reward=False)
 
         self.nb_state_observations = np.zeros((self.environment.nb_states,))
         self.bad_state_action = 0
@@ -67,7 +67,7 @@ class TUCRL(ucrl.UcrlMdp):
         span_value = self.opt_solver.run(
             self.policy_indices, self.policy,
             self.P, #self.estimated_probabilities,
-            self.estimated_rewards,
+            self.estimated_rewards if not self.known_reward else self.true_reward,
             self.estimated_holding_times,
             beta_r, beta_p, beta_tau,
             is_truncated_sa,
