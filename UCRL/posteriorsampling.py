@@ -140,141 +140,26 @@ class OptimisticPS(PS):
         self.num_reward_samples = m.ceil(self.r_max * m.log(ns * na / self.rho))
 
     def learn(self, duration, regret_time_step, render=False):
-        ns,na = self.estimated_rewards.shape
-        self.kappa = m.log(duration / self.rho)
-        self.omega = m.log(duration / self.rho)
-        self.eta = m.sqrt(duration*ns / na) + 12*self.omega*ns*ns
-        super(OptimisticPS, self).learn(duration=duration, regret_time_step=regret_time_step, render=render)
-
-    def solve_optimistic_model(self, curr_state=None):
-
-        # Sample transition probability vectors
-        # for each s,a, generate psi indipendent probability vectors
-        ns, na = self.estimated_rewards.shape
-        beta_p = np.zeros((ns, na, ns))
-        beta_r = np.zeros((ns, na))
-        Delta = np.zeros(ns)
-        mu_k_sa = 0
-        for s in range(ns):
-            for a_idx, a in enumerate(self.environment.state_actions[s]):
-                mu_k_sa = self.nb_observations[s,a_idx]
-                                
-                if  mu_k_sa >= self.eta:
-                    N = self.P_counter[s, a_idx]
-                    M = (N + self.omega) / self.kappa
-                    Q = np.random.dirichlet(alpha=M, size=self.num_proba_samples)
-                    maxi = np.max(Q,axis=0)
-                    mini = np.min(Q,axis=0)
-                    self.P[s, a_idx] = .5*(maxi + mini)
-                    beta_p[s, a_idx] = .5*(maxi - mini)
-
-                else:
-                    if mu_k_sa != 0:
-                        self.P[s, a_idx] = self.P_counter[s, a_idx]/mu_k_sa
-                        Delta = [min(m.sqrt(3*self.P[s, a_idx, i]*m.log(4*ns)/mu_k_sa) + 3*m.log(4*ns)/ mu_k_sa, self.P[s, a_idx, i]) for i in range(ns)]
-                        rest = np.sum(Delta)
-                        self.P[s, a_idx] -= Delta
-
-
-
-                        self.P[s, a_idx] += .5 * rest * np.ones(ns)
-                        beta_p[s, a_idx] = .5 * rest * np.ones(ns)
-                    else:
-                        self.P[s, a_idx] = .5 * np.ones(ns)
-                        beta_p[s, a_idx] = .5 * np.ones(ns)
-
-                if self.posterior == "Normal":
-                    var_r = self.variance_proxy_reward[s, a] / max(1, N)
-                    if N == 0:
-                        self.R[s, a] = self.r_max
-                    else:
-                        mu, prec = sample_normalgamma(m0=self.m0, l0=self.l0,
-                                                      a0=self.a0, b0=self.b0,
-                                                      mu_hat=self.estimated_rewards[s, a],
-                                                      s_hat=var_r,
-                                                      n=N, local_random=self.local_random)
-                        Qr = np.random.normal(mu, 1 / prec, self.num_reward_samples)
-                    self.R[s, a_idx] = np.mean(Qr)
-                    beta_r[s, a_idx] = np.max(Qr - self.R[s, a_idx])
-
-                elif self.posterior == "Bernoulli":
-                    v = N * self.estimated_rewards[s, a]
-                    a0 = self.a + v
-                    b0 = self.b + N - v
-                    p = np.asscalar(self.local_random.beta(a=a0, b=b0, size=1))
-                    Qr = np.random.binomial(1, p, self.num_reward_samples)
-                    self.R[s, a_idx] = np.mean(Qr)
-                    beta_r[s, a_idx] = np.max(Qr - self.R[s, a_idx])
-
-                elif self.posterior is None:
-                    self.R[s, a_idx] = .5*self.environment.true_reward(s, a_idx)
-                    beta_r[s, a_idx] = .5*self.environment.true_reward(s, a_idx)
-
-        beta_tau = self.beta_tau()  # confidence bounds on holding times
-
-        t0 = time.perf_counter()
-        span_value = self.opt_solver.run(
-            self.policy_indices, self.policy,
-            self.P,  # self.estimated_probabilities,
-            self.R,
-            self.estimated_holding_times,
-            beta_r, beta_p, beta_tau, self.tau_max,
-            self.r_max, self.tau, self.tau_min,
-            1e-6
-        )
-        t1 = time.perf_counter()
-        tn = t1 - t0
-        self.solver_times.append(tn)
-
-        if span_value < 0:
-            raise EVIException(error_value=span_value)
-
-        return span_value
-
-
-
-
-class OptimisticPS_SCAL(PS):
-
-    def __init__(self, environment, r_max, span_constraint,
-                 bound_type_p="bernstain", verbose=0,
-                 augment_reward=True, operator_type='T',
-                 logger=default_logger, random_state=None,
-                 relative_vi = True, posterior=None,
-                 prior_parameters=None):
-
-        super(OptimisticPS_SCAL, self).__init__(environment=environment, r_max=r_max, verbose=verbose,
-                                           logger=logger, random_state=random_state,
-                                           posterior=posterior, prior_parameters=prior_parameters)
-        self.opt_solver = SpanConstrainedEVI(nb_states=environment.nb_states,
-                                                actions_per_state=environment.state_actions,
-                                                bound_type=bound_type_p,
-                                                random_state=random_state,
-                                                augmented_reward=1 if augment_reward else 0,
-                                                gamma=1.,
-                                                span_constraint=span_constraint,
-                                                relative_vi=1 if relative_vi else 0,
-                                                operator_type=operator_type)
-        self.policy = np.zeros((self.environment.nb_states, 2), dtype=np.float)
-        self.policy_indices = np.zeros((self.environment.nb_states, 2), dtype=np.int)
-
-        # self.augment_reward = augment_reward
-        # self.operator_type = operator_type
-        # self.span_constraint = span_constraint
-        # self.relative_vi = relative_vi
-
-        ns, na = self.estimated_rewards.shape
-        self.rho = 0.1
-        self.num_proba_samples = m.ceil(ns * m.log(ns * na / self.rho))
-        self.num_reward_samples = m.ceil(self.r_max * m.log(ns * na / self.rho))
-
-    def learn(self, duration, regret_time_step, render=False):
         ns, na = self.estimated_rewards.shape
         self.kappa = m.log(duration / self.rho)
         self.omega = m.log(duration / self.rho)
         self.eta = m.sqrt(duration * ns / na) + 12 * self.omega * ns * ns
-        self.xi = 1/(duration)
-        super(OptimisticPS_SCAL, self).learn(duration=duration, regret_time_step=regret_time_step, render=render)
+        super(OptimisticPS, self).learn(duration=duration, regret_time_step=regret_time_step, render=render)
+
+    def simple_optimistic_sampling(self, s, a_idx, ns):
+        mu_k_sa = self.nb_observations[s, a_idx]
+        if mu_k_sa != 0:
+            p_hat = self.P_counter[s, a_idx] / mu_k_sa
+            Delta = [min(m.sqrt(3 * p_hat[i] * m.log(4 * ns) / mu_k_sa) + 3 * m.log(4 * ns) / mu_k_sa, p_hat[i]) for i
+                     in range(ns)]
+            rest = np.sum(Delta)
+            p_hat -= Delta
+            p_hat += .5 * rest * np.ones(ns)
+            beta_p = .5 * rest * np.ones(ns)
+        else:
+            p_hat = .5 * np.ones(ns)
+            beta_p = .5 * np.ones(ns)
+        return p_hat, beta_p
 
     def solve_optimistic_model(self, curr_state=None):
 
@@ -283,8 +168,6 @@ class OptimisticPS_SCAL(PS):
         ns, na = self.estimated_rewards.shape
         beta_p = np.zeros((ns, na, ns))
         beta_r = np.zeros((ns, na))
-        Delta = np.zeros(ns)
-        mu_k_sa = 0
         for s in range(ns):
             for a_idx, a in enumerate(self.environment.state_actions[s]):
                 mu_k_sa = self.nb_observations[s, a_idx]
@@ -297,28 +180,10 @@ class OptimisticPS_SCAL(PS):
                     mini = np.min(Q, axis=0)
                     self.P[s, a_idx] = .5 * (maxi + mini)
                     beta_p[s, a_idx] = .5 * (maxi - mini)
-
                 else:
-                    if mu_k_sa != 0:
-                        self.P[s, a_idx] = self.P_counter[s, a_idx] / mu_k_sa
-                        Delta = [
-                            min(m.sqrt(3 * self.P[s, a_idx, i] * m.log(4 * ns) / mu_k_sa) + 3 * m.log(4 * ns) / mu_k_sa,
-                                self.P[s, a_idx, i]) for i in range(ns)]
-                        rest = np.sum(Delta)
-                        self.P[s, a_idx] -= Delta
-                        self.P[s, a_idx, 0] += rest * self.xi
-                        rest *= (1 - self.xi)
-
-                        self.P[s, a_idx] += .5 * rest * np.ones(ns)
-                        beta_p[s, a_idx] = .5 * rest * np.ones(ns)
-                    else:
-                        self.P[s, a_idx] = np.zeros(ns)
-                        self.P[s, a_idx, 0] += self.xi
-                        rest = 1 - self.xi
-
-                        self.P[s, a_idx] += .5 * rest * np.ones(ns)
-                        beta_p[s, a_idx] = .5 * rest * np.ones(ns)
-
+                    opt_p, opt_beta = self.simple_optimistic_sampling(s=s, a_idx=a_idx, ns=ns)
+                    self.P[s, a_idx] = opt_p
+                    beta_p[s, a_idx] = opt_beta
 
                 if self.posterior == "Normal":
                     var_r = self.variance_proxy_reward[s, a] / max(1, N)
@@ -344,8 +209,9 @@ class OptimisticPS_SCAL(PS):
                     beta_r[s, a_idx] = np.max(Qr - self.R[s, a_idx])
 
                 elif self.posterior is None:
-                    self.R[s, a_idx] = .5 * self.environment.true_reward(s, a_idx)
-                    beta_r[s, a_idx] = .5 * self.environment.true_reward(s, a_idx)
+                    true_rew = self.environment.true_reward(s, a_idx)
+                    self.R[s, a_idx] = .5 * true_rew
+                    beta_r[s, a_idx] = .5 * true_rew
 
         beta_tau = self.beta_tau()  # confidence bounds on holding times
 
@@ -368,3 +234,68 @@ class OptimisticPS_SCAL(PS):
 
         return span_value
 
+
+class OptimisticPS_SCAL(PS):
+
+    def __init__(self, environment, r_max, span_constraint,
+                 bound_type_p="bernstain", verbose=0,
+                 augment_reward=True, operator_type='T',
+                 logger=default_logger, random_state=None,
+                 relative_vi=True, posterior=None,
+                 prior_parameters=None):
+
+        super(OptimisticPS_SCAL, self).__init__(environment=environment, r_max=r_max, verbose=verbose,
+                                                logger=logger, random_state=random_state,
+                                                posterior=posterior, prior_parameters=prior_parameters)
+        self.opt_solver = SpanConstrainedEVI(nb_states=environment.nb_states,
+                                             actions_per_state=environment.state_actions,
+                                             bound_type=bound_type_p,
+                                             random_state=random_state,
+                                             augmented_reward=1 if augment_reward else 0,
+                                             gamma=1.,
+                                             span_constraint=span_constraint,
+                                             relative_vi=1 if relative_vi else 0,
+                                             operator_type=operator_type)
+        self.policy = np.zeros((self.environment.nb_states, 2), dtype=np.float)
+        self.policy_indices = np.zeros((self.environment.nb_states, 2), dtype=np.int)
+
+        self.augment_reward = augment_reward
+        self.operator_type = operator_type
+        self.span_constraint = span_constraint
+        self.relative_vi = relative_vi
+
+        ns, na = self.estimated_rewards.shape
+        self.rho = 0.1
+        self.num_proba_samples = m.ceil(ns * m.log(ns * na / self.rho))
+        self.num_reward_samples = m.ceil(self.r_max * m.log(ns * na / self.rho))
+
+    def learn(self, duration, regret_time_step, render=False):
+        ns, na = self.estimated_rewards.shape
+        self.kappa = m.log(duration / self.rho)
+        self.omega = m.log(duration / self.rho)
+        self.eta = m.sqrt(duration * ns / na) + 12 * self.omega * ns * ns
+        self.xi = 1. / duration
+        super(OptimisticPS_SCAL, self).learn(duration=duration, regret_time_step=regret_time_step, render=render)
+
+    def simple_optimistic_sampling(self, s, a_idx, ns):
+        mu_k_sa = self.nb_observations[s, a_idx]
+        if mu_k_sa != 0:
+            p_hat = self.P_counter[s, a_idx] / mu_k_sa
+            Delta = [
+                min(m.sqrt(3 * p_hat[i] * m.log(4 * ns) / mu_k_sa) + 3 * m.log(4 * ns) / mu_k_sa,
+                    p_hat[i]) for i in range(ns)]
+            rest = np.sum(Delta)
+            p_hat -= Delta
+            p_hat[0] += rest * self.xi
+            rest *= (1 - self.xi)
+
+            p_hat += .5 * rest * np.ones(ns)
+            beta_p = .5 * rest * np.ones(ns)
+        else:
+            p_hat = np.zeros(ns)
+            p_hat[0] += self.xi
+            rest = 1 - self.xi
+
+            p_hat += .5 * rest * np.ones(ns)
+            beta_p = .5 * rest * np.ones(ns)
+        return p_hat, beta_p
