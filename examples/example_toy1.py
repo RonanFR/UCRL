@@ -21,6 +21,7 @@ from UCRL.olp import OLP
 from optparse import OptionParser, OptionGroup
 
 import matplotlib
+
 # 'DISPLAY' will be something like this ':0'
 # on your local machine, and None otherwise
 # if os.environ.get('DISPLAY') is None:
@@ -45,6 +46,7 @@ class ExtendedUCRL(Ucrl.UcrlMdp):
         self.P_history.update({self.total_time: self.P.copy()})
         return span_value
 
+
 class ExtendedSC_UCRL(spalg.SCAL):
 
     def solve_optimistic_model(self, curr_state=None):
@@ -61,6 +63,7 @@ class ExtendedSC_UCRL(spalg.SCAL):
         self.P_history.update({self.total_time: self.P.copy()})
         return span_value
 
+
 class Extended_TUCRL(tucrl.TUCRL):
 
     def solve_optimistic_model(self, curr_state=None):
@@ -76,6 +79,7 @@ class Extended_TUCRL(tucrl.TUCRL):
         self.obs_history.update({self.total_time: self.nb_observations.copy()})
         self.P_history.update({self.total_time: self.P.copy()})
         return span_value
+
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
@@ -98,6 +102,7 @@ parser.add_option("-r", "--repetitions", dest="nb_simulations", type="int",
                   help="Number of repetitions", default=1)
 parser.add_option("--no_aug_rew", dest="augmented_reward", action="store_false", default=True)
 parser.add_option("--stochrew", dest="stochastic_reward", action="store_true", default=False)
+parser.add_option("--known_reward", dest="use_true_reward", action="store_true", default=False)
 parser.add_option("--unifrew", dest="uniform_reward", action="store_true", default=False)
 parser.add_option("--unifrew_range", dest="unifrew_range", type="float",
                   help="Range of the random uniform variable", default=0.2)
@@ -110,7 +115,7 @@ parser.add_option("--path", dest="path", type="str",
 parser.add_option("-q", "--quiet",
                   action="store_true", dest="quiet", default=False,
                   help="don't print status messages to stdout")
-parser.add_option("--seed", dest="seed_0", type=int, default=1109975946, #random.getrandbits(16),
+parser.add_option("--seed", dest="seed_0", type=int, default=1109975946,  # random.getrandbits(16),
                   help="Seed used to generate the random seed sequence")
 
 alg_desc = """Here the description of the algorithms                                
@@ -122,8 +127,8 @@ alg_desc = """Here the description of the algorithms
 group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
-                       "[UCRL, SCAL, TUCRL, PS, OLP]",
-                  default="TUCRL")
+                       "[UCRL, SCAL, TUCRL, PS, OLP, OPTPSRL, PSCAL]",
+                  default="OPTPSRL")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -131,9 +136,9 @@ parser.add_option_group(group1)
 if in_options.id and in_options.path:
     parser.error("options --id and --path are mutually exclusive")
 
-assert in_options.algorithm in ["UCRL", "SCAL", "TUCRL", "PS", "OLP"]
+assert in_options.algorithm in ["UCRL", "SCAL", "TUCRL", "PS", "OLP", "OPTPSRL", "PSCAL"]
 assert in_options.nb_sim_offset >= 0
-#assert 1e-16 <= in_options.mdp_delta <= 1.-1e-16
+# assert 1e-16 <= in_options.mdp_delta <= 1.-1e-16
 assert in_options.operator_type in ['T', 'N']
 
 if in_options.id is None:
@@ -158,7 +163,7 @@ r_max = max(1, np.asscalar(np.max(env.R_mat)))
 
 if in_options.path is None:
     folder_results = os.path.abspath('{}_{}_{}'.format(in_options.algorithm, type(env).__name__,
-                                                           in_options.id))
+                                                       in_options.id))
     if os.path.exists(folder_results):
         shutil.rmtree(folder_results)
     os.makedirs(folder_results)
@@ -167,14 +172,13 @@ else:
     if not os.path.exists(folder_results):
         os.makedirs(folder_results)
 
-
 np.random.seed(in_options.seed_0)
 random.seed(in_options.seed_0)
-seed_sequence = [random.randint(0, 2**30) for _ in range(in_options.nb_simulations)]
+seed_sequence = [random.randint(0, 2 ** 30) for _ in range(in_options.nb_simulations)]
 
 config['seed_sequence'] = seed_sequence
 
-with open(os.path.join(folder_results, 'settings{}.conf'.format(in_options.nb_sim_offset)),'w') as f:
+with open(os.path.join(folder_results, 'settings{}.conf'.format(in_options.nb_sim_offset)), 'w') as f:
     json.dump(config, f, indent=4, sort_keys=True)
 
 # ------------------------------------------------------------------------------
@@ -183,10 +187,10 @@ with open(os.path.join(folder_results, 'settings{}.conf'.format(in_options.nb_si
 start_sim = in_options.nb_sim_offset
 end_sim = start_sim + in_options.nb_simulations
 for rep in range(start_sim, end_sim):
-    seed = seed_sequence[rep-start_sim]  # set seed
+    seed = seed_sequence[rep - start_sim]  # set seed
     np.random.seed(seed)
     random.seed(seed)
-    print("rep: {}/{}".format(rep-start_sim, in_options.nb_simulations))
+    print("rep: {}/{}".format(rep - start_sim, in_options.nb_simulations))
 
     env.reset()
     env_desc = env.description()
@@ -208,7 +212,8 @@ for rep in range(start_sim, end_sim):
             logger=ucrl_log,
             bound_type_p=in_options.bound_type,
             bound_type_rew=in_options.bound_type,
-            random_state=seed)  # learning algorithm
+            random_state=seed,
+            known_reward=in_options.use_true_reward)  # learning algorithm
     elif in_options.algorithm == "SCAL":
         ucrl_log.info("Augmented Reward: {}".format(in_options.augmented_reward))
         ofualg = ExtendedSC_UCRL(
@@ -223,7 +228,8 @@ for rep in range(start_sim, end_sim):
             bound_type_rew=in_options.bound_type,
             random_state=seed,
             operator_type=in_options.operator_type,
-            augment_reward=in_options.augmented_reward
+            augment_reward=in_options.augmented_reward,
+            known_reward=in_options.use_true_reward
         )
     elif in_options.algorithm == "TUCRL":
         ofualg = Extended_TUCRL(
@@ -233,14 +239,34 @@ for rep in range(start_sim, end_sim):
             alpha_p=in_options.alpha_p,
             verbose=1,
             logger=ucrl_log,
-            random_state=seed)
+            random_state=seed,
+            known_reward=in_options.use_true_reward)
     elif in_options.algorithm == "PS":
         ofualg = psalgs.PS(environment=env,
                            r_max=r_max,
                            verbose=1,
                            logger=ucrl_log,
                            random_state=seed,
-                           posterior="Bernoulli")
+                           posterior=None if in_options.use_true_reward else "Bernoulli")
+    elif in_options.algorithm == "OPTPSRL":
+        ofualg = psalgs.OptimisticPS(environment=env,
+                                     r_max=r_max,
+                                     verbose=1,
+                                     logger=ucrl_log,
+                                     random_state=seed,
+                                     posterior=None if in_options.use_true_reward else "Bernoulli")
+    elif in_options.algorithm == "PSCAL":
+        ofualg = psalgs.OptimisticPS_SCAL(
+            environment=env,
+            r_max=r_max,
+            span_constraint=in_options.span_constraint,
+            verbose=1,
+            logger=ucrl_log,
+            bound_type_p=in_options.bound_type,
+            random_state=seed,
+            operator_type=in_options.operator_type,
+            augment_reward=in_options.augmented_reward,
+            posterior=None if in_options.use_true_reward else "Bernoulli")
     elif in_options.algorithm == "OLP":
         ofualg = OLP(
             environment=env,
