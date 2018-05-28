@@ -223,7 +223,7 @@ class OptimisticPS(PS):
             self.estimated_holding_times,
             beta_r, beta_p, beta_tau, self.tau_max,
             self.r_max, self.tau, self.tau_min,
-            1e-6
+            1e-8
         )
         t1 = time.perf_counter()
         tn = t1 - t0

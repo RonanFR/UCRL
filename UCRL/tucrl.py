@@ -23,7 +23,7 @@ class TUCRL(ucrl.UcrlMdp):
             solver=tevi,
             bound_type_p="bernstein", bound_type_rew="bernstein",
             verbose=verbose,
-            logger=logger, random_state=random_state, known_reward=False)
+            logger=logger, random_state=random_state, known_reward=known_reward)
 
         self.nb_state_observations = np.zeros((self.environment.nb_states,))
         self.bad_state_action = 0

@@ -28,7 +28,8 @@ class SCAL(UcrlMdp):
             alpha_r=alpha_r, alpha_p=alpha_p, solver=solver,
             bound_type_p=bound_type_p,
             bound_type_rew=bound_type_rew,
-            verbose=verbose, logger=logger, random_state=random_state, known_reward=False)
+            verbose=verbose, logger=logger, random_state=random_state,
+            known_reward=known_reward)
 
         # we need to change policy structure since it is stochastic
         self.policy = np.zeros((self.environment.nb_states, 2), dtype=np.float)

@@ -131,7 +131,7 @@ class UcrlMdp(AbstractUCRL):
                                       verbose=verbose,
                                       logger=logger, bound_type_p=bound_type_p,
                                       bound_type_rew=bound_type_rew,
-                                      random_state=random_state, known_reward=False)
+                                      random_state=random_state, known_reward=known_reward)
         nb_states = self.environment.nb_states
         max_nb_actions = self.environment.max_nb_actions_per_state
         # self.estimated_probabilities = np.ones((nb_states, max_nb_actions, nb_states)) / nb_states
@@ -504,7 +504,7 @@ class UcrlSmdpExp(UcrlMdp):
                  alpha_r=None, alpha_tau=None, alpha_p=None,
                  b_r=0., b_tau=0.,
                  bound_type_p="chernoff", bound_type_rew="chernoff",
-                 verbose=0, logger=default_logger, random_state=None):
+                 verbose=0, logger=default_logger, random_state=None, known_reward=False):
         assert bound_type_p in ["chernoff",  "bernstein"]
         assert bound_type_rew in ["chernoff",  "bernstein"]
         assert tau_min >= 1
@@ -516,7 +516,8 @@ class UcrlSmdpExp(UcrlMdp):
             alpha_r=alpha_r, alpha_p=alpha_p, solver=None,
             bound_type_p=bound_type_p,
             bound_type_rew=bound_type_rew,
-            verbose=verbose, logger=logger,random_state=random_state)
+            verbose=verbose, logger=logger,random_state=random_state,
+            known_reward=known_reward)
         self.tau = tau_min - 0.1
         self.tau_max = tau_max
         self.tau_min = tau_min
@@ -534,6 +535,8 @@ class UcrlSmdpExp(UcrlMdp):
         self.b_tau = b_tau
 
     def beta_r(self):
+        if self.known_reward:
+            return np.zeros_like(self.sigma_r)
         beta = self.alpha_r * self._beta_condition(sigma=self.sigma_r, b=self.b_r)
         # ci = np.multiply(self.alpha_r, self.tau_max * self.r_max * np.sqrt(7/2 * m.log(2 * self.environment.nb_states * self.environment.max_nb_actions_per_state *
         #                                        (self.iteration+1)/self.delta) / np.maximum(1, self.nb_observations)))
@@ -586,7 +589,8 @@ class UcrlSmdpBounded(UcrlSmdpExp):
     def __init__(self, environment, r_max, t_max, t_min=1,
                  alpha_r=None, alpha_tau=None, alpha_p=None,
                  bound_type_p="chernoff", bound_type_rew="chernoff",
-                 verbose=0, logger=default_logger, random_state=None):
+                 verbose=0, logger=default_logger, random_state=None,
+                 known_reward=False):
         super(UcrlSmdpBounded, self).__init__(environment=environment,
                                               r_max=r_max, tau_max=t_max,
                                               sigma_r=t_max * r_max,
@@ -597,4 +601,5 @@ class UcrlSmdpBounded(UcrlSmdpExp):
                                               bound_type_p=bound_type_p,
                                               bound_type_rew=bound_type_rew,
                                               verbose=verbose, logger=logger,
-                                              random_state=random_state)
+                                              random_state=random_state,
+                                              known_reward=known_reward)
