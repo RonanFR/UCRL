@@ -537,3 +537,6 @@ cdef class SpanConstrainedEVI:
 
     cpdef use_relative_vi(self):
         return self.relative_vi
+
+    cpdef set_rmax(self, r_max):
+        self.r_max = r_max

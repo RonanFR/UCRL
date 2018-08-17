@@ -293,7 +293,7 @@ class UcrlMdp(AbstractUCRL):
         """ Confidence bounds on holding times
 
         Returns:
-            np.array: the vecor of confidence bounds on the holding times (|S| x |A|)
+            np.array: the vector of confidence bounds on the holding times (|S| x |A|)
 
         """
         return np.zeros((self.environment.nb_states, self.environment.max_nb_actions_per_state))

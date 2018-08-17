@@ -65,3 +65,4 @@ cdef class SpanConstrainedEVI:
     cpdef get_span_constraint(self)
     cpdef get_operator_type(self)
     cpdef use_relative_vi(self)
+    cpdef set_rmax(self, r_max)
