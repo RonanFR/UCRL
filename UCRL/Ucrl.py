@@ -32,6 +32,7 @@ class AbstractUCRL(object):
                  known_reward=False):
         self.environment = environment
         self.r_max = float(r_max)
+        self.r_max_vi = float(r_max)
 
         if alpha_r is None:
             self.alpha_r = 1
@@ -394,7 +395,7 @@ class UcrlMdp(AbstractUCRL):
             self.estimated_rewards if not self.known_reward else self.true_reward,
             self.estimated_holding_times,
             beta_r, beta_p, beta_tau, self.tau_max,
-            self.r_max, self.tau, self.tau_min,
+            self.r_max_vi, self.tau, self.tau_min,
             self.r_max / m.sqrt(self.iteration + 1)
         )
         t1 = time.perf_counter()

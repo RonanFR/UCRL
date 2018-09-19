@@ -64,6 +64,23 @@ class ExtendedSC_UCRL(spalg.SCAL):
         return span_value
 
 
+class ExtendedSCAL_BONUS(spalg.SCAL_bonus):
+
+    def solve_optimistic_model(self, curr_state=None):
+        span_value = super(ExtendedSCAL_BONUS, self).solve_optimistic_model(curr_state=curr_state)
+        if not hasattr(self, 'policy_history'):
+            self.policy_history = {}
+            self.value_history = {}
+            self.obs_history = {}
+            self.P_history = {}
+        self.policy_history.update({self.total_time: (copy.deepcopy(self.policy), copy.deepcopy(self.policy_indices))})
+        u1, u2 = self.opt_solver.get_uvectors()
+        self.value_history.update({self.total_time: u1.copy()})
+        self.obs_history.update({self.total_time: self.nb_observations.copy()})
+        self.P_history.update({self.total_time: self.P.copy()})
+        return span_value
+
+
 class Extended_TUCRL(tucrl.TUCRL):
 
     def solve_optimistic_model(self, curr_state=None):
@@ -83,7 +100,7 @@ class Extended_TUCRL(tucrl.TUCRL):
 
 parser = OptionParser()
 parser.add_option("-n", "--duration", dest="duration", type="int",
-                  help="duration of the experiment", default=50000000)
+                  help="duration of the experiment", default=20000000)
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
@@ -121,14 +138,16 @@ parser.add_option("--seed", dest="seed_0", type=int, default=1109975946,  # rand
 alg_desc = """Here the description of the algorithms                                
 |- UCRL                                                                       
 |- SCAL                                                                                                                                            
-|- TUCRL                                                                                                                                          
+|- TUCRL     
+|- OPTPSRL
+|- PSCAL                                                                                                                                     
 |- OLP                                                                                                                                          
 """
 group1 = OptionGroup(parser, title='Algorithms', description=alg_desc)
 group1.add_option("-a", "--alg", dest="algorithm", type="str",
                   help="Name of the algorith to execute"
-                       "[UCRL, SCAL, TUCRL, PS, OLP, OPTPSRL, PSCAL]",
-                  default="OPTPSRL")
+                       "[UCRL, SCAL, TUCRL, PS, OLP, OPTPSRL, PSCAL, SCAL_BONUS]",
+                  default="SCAL_BONUS")
 parser.add_option_group(group1)
 
 (in_options, in_args) = parser.parse_args()
@@ -136,7 +155,7 @@ parser.add_option_group(group1)
 if in_options.id and in_options.path:
     parser.error("options --id and --path are mutually exclusive")
 
-assert in_options.algorithm in ["UCRL", "SCAL", "TUCRL", "PS", "OLP", "OPTPSRL", "PSCAL"]
+assert in_options.algorithm in ["UCRL", "SCAL", "TUCRL", "PS", "OLP", "OPTPSRL", "PSCAL", "SCAL_BONUS"]
 assert in_options.nb_sim_offset >= 0
 # assert 1e-16 <= in_options.mdp_delta <= 1.-1e-16
 assert in_options.operator_type in ['T', 'N']
@@ -267,6 +286,23 @@ for rep in range(start_sim, end_sim):
             operator_type=in_options.operator_type,
             augment_reward=in_options.augmented_reward,
             posterior=None if in_options.use_true_reward else "Bernoulli")
+    elif in_options.algorithm == "SCAL_BONUS":
+        ucrl_log.info("Augmented Reward: {}".format(in_options.augmented_reward))
+        ofualg = ExtendedSCAL_BONUS(
+            environment=env,
+            r_max=r_max,
+            span_constraint=in_options.span_constraint,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            verbose=1,
+            logger=ucrl_log,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
+            random_state=seed,
+            operator_type=in_options.operator_type,
+            augment_reward=in_options.augmented_reward,
+            known_reward=in_options.use_true_reward
+        )
     elif in_options.algorithm == "OLP":
         ofualg = OLP(
             environment=env,
@@ -292,9 +328,9 @@ for rep in range(start_sim, end_sim):
     except Ucrl.EVIException as valerr:
         ucrl_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))
         pickle_name = 'exception_model_{}.pickle'.format(rep)
-    except:
-        ucrl_log.info("EXCEPTION")
-        pickle_name = 'exception_model_{}.pickle'.format(rep)
+    # except:
+    #     ucrl_log.info("EXCEPTION")
+    #     pickle_name = 'exception_model_{}.pickle'.format(rep)
 
     ofualg.clear_before_pickle()
     with open(os.path.join(folder_results, pickle_name), 'wb') as f:
