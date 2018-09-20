@@ -191,15 +191,15 @@ class Extended_TUCRL(TUCRL):
 orig_folder = '/home/matteo/Desktop/KQ_0.01_20180204_193705'
 orig_folder = '/home/matteo/Desktop/toy3d_0.005_20180220_184722'
 orig_folder = "/home/matteo/Desktop/toy3d_0.005_20180129_170516" #bernstein
-# orig_folder = "/home/matteo/Desktop/toy3d_0._20180129_173355"
+orig_folder = "/home/matteo/Desktop/toy3d_0._20180129_173355"
 orig_folder = "/home/matteo/Desktop/toy3d_0._20180505_214529"
 
-orig_folder = "/home/matteo/Desktop/toy0.005_small"
-orig_folder = "/home/matteo/Desktop/taxi_comm_20180514_150109" #nips18 comm taxi
-# orig_folder = "/home/matteo/Desktop/toy3d_0._20180513_161631" # nips18 toy delta = 0.
-orig_folder = "/home/matteo/Desktop/taxi_20180505_220333" #nips18 non-comm taxi
-orig_folder = '/home/matteo/Desktop/KQ_0.01_20180204_193705'
-orig_folder = '/home/matteo/Desktop/toy3d_unifrew_0._20180518_154657'
+# orig_folder = "/home/matteo/Desktop/toy0.005_small"
+# orig_folder = "/home/matteo/Desktop/taxi_comm_20180514_150109" #nips18 comm taxi
+# # orig_folder = "/home/matteo/Desktop/toy3d_0._20180513_161631" # nips18 toy delta = 0.
+# orig_folder = "/home/matteo/Desktop/taxi_20180505_220333" #nips18 non-comm taxi
+# orig_folder = '/home/matteo/Desktop/KQ_0.01_20180204_193705'
+# # orig_folder = '/home/matteo/Desktop/toy3d_unifrew_0._20180518_154657'
 
 domain = 'KQ'
 domain = 'Toy3D'
