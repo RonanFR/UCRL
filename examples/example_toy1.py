@@ -104,7 +104,7 @@ parser.add_option("-n", "--duration", dest="duration", type="int",
 parser.add_option("-b", "--boundtype", type="str", dest="bound_type",
                   help="Selects the bound type", default="bernstein")
 parser.add_option("-c", "--span_constraint", type="float", dest="span_constraint",
-                  help="Uppper bound to the bias span", default=10)
+                  help="Uppper bound to the bias span", default=5)
 parser.add_option("--operatortype", type="str", dest="operator_type",
                   help="Select the operator to use for SC-EVI", default="T")
 parser.add_option("--mdp_delta", type="float", dest="mdp_delta",
@@ -207,6 +207,7 @@ start_sim = in_options.nb_sim_offset
 end_sim = start_sim + in_options.nb_simulations
 for rep in range(start_sim, end_sim):
     seed = seed_sequence[rep - start_sim]  # set seed
+    seed = 678012765
     np.random.seed(seed)
     random.seed(seed)
     print("rep: {}/{}".format(rep - start_sim, in_options.nb_simulations))
@@ -328,9 +329,9 @@ for rep in range(start_sim, end_sim):
     except Ucrl.EVIException as valerr:
         ucrl_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))
         pickle_name = 'exception_model_{}.pickle'.format(rep)
-    # except:
-    #     ucrl_log.info("EXCEPTION")
-    #     pickle_name = 'exception_model_{}.pickle'.format(rep)
+    except:
+        ucrl_log.info("EXCEPTION")
+        pickle_name = 'exception_model_{}.pickle'.format(rep)
 
     ofualg.clear_before_pickle()
     with open(os.path.join(folder_results, pickle_name), 'wb') as f:

@@ -7,7 +7,7 @@ from ...utils.shortestpath import dpshortestpath
 
 class Toy3D_1(Environment):
     def __init__(self, delta=0.99, stochastic_reward=False,
-                 uniform_reward=False, uniform_range=0.2):
+                 uniform_reward=False, uniform_range=0.1):
         state_actions = [[0], [0], [0, 1]]
         na = max(map(len, state_actions))
         ns = len(state_actions)
