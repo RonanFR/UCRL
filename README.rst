@@ -15,7 +15,7 @@ Note that this is a research project and by definition is unstable. Please write
 
 References:
 
-`[1]`__ Jaksch, Ortner, and Auer. Near-optimal regret bounds for reinforcement learning. Journal of Machine Learning Research, 11:1563–1600, 2010. 
+`[1]`__ Jaksch, Ortner, and Auer. Near-optimal regret bounds for reinforcement learning. Journal of Machine Learning Research, 11:1563–1600, 2010.
 
 `[2]`__ Fruit, Pirotta, Lazaric, Brunskill. Regret Minimization in MDPs with Options without Prior Knowledge. NIPS 2017
 
@@ -43,7 +43,12 @@ You can perform a minimal install of the library with:
 	cd UCRL
 	pip install -e .
 	make
-	
+
+For MAC OSX we suggest to use Anaconda and GCC.
+
+.. code:: shell
+	brew install gcc --without-multilib --with-fortran
+	CC=/usr/local/bin/gcc-8 make
 
 Testing
 =======
@@ -53,7 +58,7 @@ We are using `pytest <http://doc.pytest.org>`_ for tests. You can run them via:
 .. code:: shell
 
 	  pytest
-	  
+
 
 
 .. _See What's New section below:
@@ -65,8 +70,8 @@ For SCAL, you can run the following command by changing the span constraint (5 a
 
 .. code:: shell
 
-	  python ../example_resourcecollection.py --alg SCAL  --p_alpha 0.05 --r_alpha 0.05 --boundtype bernstein  -n 400000000 -r 3 --seed 114364114 --rep_offset 0 --path SCAL_KQ_c2 --span_constraint 10 --regret_steps 5000 --armor_collect_prob 0.01 
-	  
+	  python ../example_resourcecollection.py --alg SCAL  --p_alpha 0.05 --r_alpha 0.05 --boundtype bernstein  -n 400000000 -r 3 --seed 114364114 --rep_offset 0 --path SCAL_KQ_c2 --span_constraint 10 --regret_steps 5000 --armor_collect_prob 0.01
+
 
 For UCRL, you can run the same command by changing --alg to UCRL (the other parameters are the same and are ignored if not required by UCRL).
 
@@ -85,4 +90,3 @@ For a complete list of changes you can check `UCRL/__init__.py`_.
     Contains UCRL, SMDP-UCRL, Free-Parameter SMDP-UCRL (see Fruit, Pirotta, Lazaric, Brunskill. Regret Minimization in MDPs with Options without Prior Knowledge. NIPS 2017)
 
 __ https://arxiv.org/abs/1802.04020
-
