@@ -28,6 +28,7 @@ class TUCRL(ucrl.UcrlMdp):
         self.nb_state_observations = np.zeros((self.environment.nb_states,))
         self.bad_state_action = 0
         self.bad_state_action_values = [0]
+        self.num_unreachable_states = -1
 
     def _stopping_rule(self, curr_state, curr_act_idx):
         c1 = len(self.visited_sa) == 0
@@ -43,11 +44,11 @@ class TUCRL(ucrl.UcrlMdp):
         unreachable_states = np.arange(S)[np.logical_not(mask)]
         is_truncated_sa = np.zeros((S,A), dtype=np.int)
         self.num_unreachable_states = len(unreachable_states)
-        self.num_truncated_sa = 0
+        not_sufficiently_explored = 1
 
         if self.num_unreachable_states > 0:
             mask = np.maximum(1, self.nb_observations - 1) > math.sqrt((self.total_time+1)/(S*A))
-            self.num_truncated_sa = S*A - np.sum(mask)
+            not_sufficiently_explored = len(reachable_states)*A - np.sum(mask[reachable_states])
             mask[unreachable_states] = False
             is_truncated_sa[mask] = 1
 
@@ -56,12 +57,15 @@ class TUCRL(ucrl.UcrlMdp):
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
 
         if self.num_unreachable_states > 0:
-            beta_p = beta_p.sum(axis=2).reshape((S,A,1))
+            beta_p = beta_p.sum(axis=2).reshape((S, A, 1))
 
-        if self.num_unreachable_states == 0 or self.num_truncated_sa == 0:
+        if not_sufficiently_explored == 0:
             states_terminalcond = reachable_states
         else:
             states_terminalcond = np.arange(S)
+
+        # to run evi on full state space (enable this)
+        # states_terminalcond = np.arange(S)
 
         t0 = time.perf_counter()
         span_value = self.opt_solver.run(
