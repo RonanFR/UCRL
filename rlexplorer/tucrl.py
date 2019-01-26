@@ -53,9 +53,9 @@ class TUCRL(ucrl.UcrlMdp):
             num_truncated_sa = np.sum(mask[reachable_states, :])
             mask[unreachable_states] = False
             is_truncated_sa[mask] = 1
-            bonus[mask] = beta_p[mask,unreachable_states[0]] * len(unreachable_states)
+            bonus[mask] = beta_p[mask, unreachable_states[0]] * len(unreachable_states)
 
-        if num_truncated_sa == A*len(reachable_states):
+        if num_truncated_sa == A * len(reachable_states):
             SEVI = self.reachable_states
         else:
             SEVI = np.arange(S)
@@ -96,11 +96,11 @@ class TUCRL(ucrl.UcrlMdp):
     def reset_after_pickle(self, solver=None, logger=ucrl.default_logger):
         if solver is None:
             self.opt_solver = TEVI(nb_states=self.environment.nb_states,
-                                  actions_per_state=self.environment.get_state_actions(),
-                                  bound_type="bernstein",
-                                  random_state = self.random_state,
-                                  gamma=1.
-                                  )
+                                   actions_per_state=self.environment.get_state_actions(),
+                                   bound_type="bernstein",
+                                   random_state=self.random_state,
+                                   gamma=1.
+                                   )
         else:
             self.opt_solver = solver
         self.logger = logger
