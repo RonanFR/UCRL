@@ -10,6 +10,5 @@ from ._utils cimport DTYPE_t, SIZE_t
 cdef DTYPE_t LPPROBA_bernstein(DTYPE_t* v, DTYPE_t[:] p,
                           SIZE_t n,
                           SIZE_t* asc_sorted_indices,
-                          DTYPE_t[:] beta,
+                          DTYPE_t[:] beta, DTYPE_t bplus,
                           SIZE_t reverse) nogil
-

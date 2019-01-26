@@ -159,7 +159,7 @@ class UcrlMdp(AbstractUCRL):
         self.solver_times = []
         self.simulation_times = []
 
-    def _stopping_rule(self, curr_state, curr_act_idx):
+    def _stopping_rule(self, curr_state, curr_act_idx, next_state):
         return self.nu_k[curr_state][curr_act_idx] < max(1, self.nb_observations[curr_state][curr_act_idx])
 
     def learn(self, duration, regret_time_step, render=False):
@@ -229,7 +229,9 @@ class UcrlMdp(AbstractUCRL):
                     self.save_information()
                     threshold = self.total_time + regret_time_step
 
-                execute_policy = self._stopping_rule(curr_state=curr_state, curr_act_idx=curr_act_idx)
+                execute_policy = self._stopping_rule(curr_state=curr_state,
+                                                     curr_act_idx=curr_act_idx,
+                                                     next_state=self.environment.state)
                 # sample a new action
                 curr_state = self.environment.state
                 curr_act_idx, curr_act = self.sample_action(curr_state)  # sample action from the policy
