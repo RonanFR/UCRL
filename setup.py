@@ -12,7 +12,7 @@ with open(path.join(here, 'requirements.txt'), encoding='utf-8') as f:
     for line in f:
         requires_list.append(str(line))
 
-name = "UCRL"
+name = "rlexplorer"
 
 #from distutils.extension import Extension
 from setuptools.extension import Extension
@@ -23,8 +23,8 @@ import os
 import numpy
 import shutil
 
-import UCRL
-VERSION = UCRL.__version__
+import rlexplorer
+VERSION = rlexplorer.__version__
 
 # Custom clean command to remove build artifacts
 class CleanCommand(Clean):
@@ -39,7 +39,7 @@ class CleanCommand(Clean):
             print('Will remove generated .c files')
         if os.path.exists('build'):
             shutil.rmtree('build')
-        for dirpath, dirnames, filenames in os.walk('UCRL'):
+        for dirpath, dirnames, filenames in os.walk('rlexplorer'):
             for filename in filenames:
                 if any(filename.endswith(suffix) for suffix in
                        (".so", ".pyd", ".dll", ".pyc")):
@@ -64,62 +64,68 @@ extra_compile_args = ["-O3", "-ffast-math", "-march=native", "-fopenmp"]
 extra_link_args = ['-fopenmp']
 
 extensions = [
-    Extension("UCRL.evi.evi",
-              ["UCRL/evi/evi.pyx"],
+    Extension("rlexplorer.evi.evi",
+              ["rlexplorer/evi/evi.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
               extra_compile_args=extra_compile_args,
               extra_link_args=extra_link_args),
-    Extension("UCRL.evi._max_proba",
-              ["UCRL/evi/_max_proba.pyx"],
+    Extension("rlexplorer.evi._max_proba",
+              ["rlexplorer/evi/_max_proba.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
               extra_compile_args=extra_compile_args,
               extra_link_args=extra_link_args),
-    Extension("UCRL.evi._utils",
-              ["UCRL/evi/_utils.pyx"],
+    Extension("rlexplorer.evi._utils",
+              ["rlexplorer/evi/_utils.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
               extra_compile_args=extra_compile_args,
               extra_link_args=extra_link_args),
-    Extension("UCRL.evi.free_evi",
-              ["UCRL/evi/free_evi.pyx"],
+    Extension("rlexplorer.evi.free_evi",
+              ["rlexplorer/evi/free_evi.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
               extra_compile_args=extra_compile_args,
               extra_link_args=extra_link_args),
-    Extension("UCRL.cython.ExtendedValueIteration",
-              ["UCRL/cython/ExtendedValueIteration.pyx"],
+    Extension("rlexplorer.cython.ExtendedValueIteration",
+              ["rlexplorer/cython/ExtendedValueIteration.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
               extra_compile_args=extra_compile_args,
               extra_link_args=extra_link_args),
-    Extension("UCRL.cython.max_proba",
-              ["UCRL/cython/max_proba.pyx"],
+    Extension("rlexplorer.cython.max_proba",
+              ["rlexplorer/cython/max_proba.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
               extra_compile_args=extra_compile_args,
               extra_link_args=extra_link_args),
-    Extension("UCRL.evi.prova",
-              ["UCRL/evi/prova.pyx"],
+    Extension("rlexplorer.evi.prova",
+              ["rlexplorer/evi/prova.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
               extra_compile_args=extra_compile_args,
               extra_link_args=extra_link_args),
-    Extension("UCRL.evi._free_utils",
-              ["UCRL/evi/_free_utils.pyx"],
+    Extension("rlexplorer.evi._free_utils",
+              ["rlexplorer/evi/_free_utils.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
               extra_compile_args=extra_compile_args,
               extra_link_args=extra_link_args),
-    Extension("UCRL.evi.scevi",
-              ["UCRL/evi/scevi.pyx"],
+    Extension("rlexplorer.evi.scevi",
+              ["rlexplorer/evi/scevi.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
               extra_compile_args=extra_compile_args,
               extra_link_args=extra_link_args),
-    Extension("UCRL.evi.tevi",
-              ["UCRL/evi/tevi.pyx"],
+    Extension("rlexplorer.evi.tevi",
+              ["rlexplorer/evi/tevi.pyx"],
+              include_dirs=[numpy.get_include()],
+              libraries=libraries,
+              extra_compile_args=extra_compile_args,
+              extra_link_args=extra_link_args),
+    Extension("rlexplorer.evi.tevi2",
+              ["rlexplorer/evi/tevi2.pyx"],
               include_dirs=[numpy.get_include()],
               libraries=libraries,
               extra_compile_args=extra_compile_args,
