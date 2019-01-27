@@ -43,6 +43,12 @@ You can perform a minimal install of the library with:
 	cd UCRL
 	pip install -e .
 	make
+
+The suggested way of using this on MAC OS X is through conda
+
+.. code:: shell
+
+    conda install llvm gcc libgcc
 	
 
 Testing

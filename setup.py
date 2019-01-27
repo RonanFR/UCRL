@@ -1,5 +1,6 @@
 from setuptools import setup
 from setuptools import find_packages
+import numpy as np
 # from distutils.core import setup
 # To use a consistent encoding
 from codecs import open
@@ -76,6 +77,12 @@ extensions = [
               libraries=libraries,
               extra_compile_args=extra_compile_args,
               extra_link_args=extra_link_args),
+    Extension("rlexplorer.evi._lpproba",
+              ["rlexplorer/evi/_lpproba.pyx"],
+              include_dirs=[numpy.get_include()],
+              libraries=libraries,
+              extra_compile_args=extra_compile_args,
+              extra_link_args=extra_link_args),
     Extension("rlexplorer.evi._utils",
               ["rlexplorer/evi/_utils.pyx"],
               include_dirs=[numpy.get_include()],
@@ -139,6 +146,6 @@ setup(
               if package.startswith(name)],
     license='BOOOOO',
     install_requires=requires_list,
-    ext_modules=cythonize(extensions, gdb_debug=False),
+    ext_modules=cythonize(extensions, gdb_debug=False, include_path=[np.get_include()]),
     cmdclass=cmdclass,
 )

@@ -37,7 +37,7 @@ from ._lpproba cimport LPPROBA_bernstein
 
 cdef class EVI:
 
-    def __init__(self, nb_states, list actions_per_state, bound_type, int random_state, DTYPE_t gamma=1.):
+    def __init__(self, nb_states, list actions_per_state, int random_state, bound_type="bernstein", DTYPE_t gamma=1.):
         cdef SIZE_t n, m, i, j
         self.nb_states = nb_states
         self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
@@ -48,6 +48,7 @@ cdef class EVI:
         if bound_type == "bernstein":
             self.bound_type = BERNSTEIN
         else:
+            printf("Unknown bound type")
             raise ValueError("Unknown bound type")
 
         # allocate indices and memoryview (may slow down)
@@ -58,7 +59,7 @@ cdef class EVI:
             self.sorted_indices[i] = i
 
         # allocate space for a vector of dimension S
-        self.value_lpproba = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
+        # self.value_lpproba = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
 
         n = len(actions_per_state)
         assert n == nb_states
@@ -80,7 +81,7 @@ cdef class EVI:
         cdef SIZE_t i
         free(self.u1)
         free(self.u2)
-        free(self.value_lpproba)
+        # free(self.value_lpproba)
         free(self.sorted_indices)
         for i in range(self.nb_states):
             free(self.actions_per_state[i].values)
@@ -158,6 +159,8 @@ cdef class EVI:
                         # JUST BERNSTEIN BOUND
                         dotp = LPPROBA_bernstein(u1, estimated_probabilities[s][a_idx], nb_states,
                                         sorted_indices, beta_p[s][a_idx], 0, 0)
+                        # printf("%f", dotp)
+
                         r_optimal = min(tau_max*r_max,
                                         estimated_rewards[s][a_idx] + beta_r[s][a_idx])
                         v = r_optimal + gamma * dotp * tau
@@ -165,7 +168,7 @@ cdef class EVI:
                             max(tau_min, r_optimal/r_max),
                             estimated_holding_times[s][a_idx] - sign(v) * beta_tau[s][a_idx]
                         ))
-                        c1 = v / tau_optimal + gamma * (1 - tau) * u1[s]
+                        c1 = v / tau_optimal + gamma * (1. - tau) * u1[s]
 
                         if first_action:
                             u2[s] = c1
