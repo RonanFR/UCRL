@@ -112,7 +112,7 @@ cdef class EVI:
 
         cdef SIZE_t s, i, a_idx, counter = 0
         cdef SIZE_t first_action
-        cdef DTYPE_t c1
+        cdef DTYPE_t c1, dotp
         cdef DTYPE_t gamma = self.gamma
         cdef DTYPE_t min_u1, max_u1, r_optimal, v, tau_optimal
         cdef SIZE_t nb_states = self.nb_states
@@ -124,7 +124,7 @@ cdef class EVI:
         cdef SIZE_t* sorted_indices = self.sorted_indices
 
         cdef DTYPE_t* action_noise
-        cdef DTYPE_t* scalar_prod = self.value_lpproba
+        # cdef DTYPE_t* scalar_prod = self.value_lpproba
 
         action_noise = <DTYPE_t*> malloc(max_nb_actions * sizeof(DTYPE_t))
 
@@ -156,11 +156,11 @@ cdef class EVI:
                     for a_idx in range(self.actions_per_state[s].dim):
                         action = self.actions_per_state[s].values[a_idx]
                         # JUST BERNSTEIN BOUND
-                        scalar_prod[s] = LPPROBA_bernstein(u1, estimated_probabilities[s][a_idx], nb_states,
+                        dotp = LPPROBA_bernstein(u1, estimated_probabilities[s][a_idx], nb_states,
                                         sorted_indices, beta_p[s][a_idx], 0, 0)
                         r_optimal = min(tau_max*r_max,
                                         estimated_rewards[s][a_idx] + beta_r[s][a_idx])
-                        v = r_optimal + gamma * scalar_prod[s] * tau
+                        v = r_optimal + gamma * dotp * tau
                         tau_optimal = min(tau_max, max(
                             max(tau_min, r_optimal/r_max),
                             estimated_holding_times[s][a_idx] - sign(v) * beta_tau[s][a_idx]

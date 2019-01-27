@@ -60,9 +60,8 @@ cdef class TEVI:
             self.sorted_indices[i] = i
             self.sorted_indices_reachable[i] = i
 
-        # allocate space for matrix of max probabilities and the associated memory view
-        self.mtx_maxprob = <DTYPE_t *>malloc(nb_states * nb_states * sizeof(DTYPE_t))
-        self.mtx_maxprob_memview = <DTYPE_t[:nb_states, :nb_states]> self.mtx_maxprob
+        # allocate space for a vector of dimension S
+        self.scalar_prod = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
 
         n = len(actions_per_state)
         assert n == nb_states
@@ -84,7 +83,7 @@ cdef class TEVI:
         cdef SIZE_t i
         free(self.u1)
         free(self.u2)
-        free(self.mtx_maxprob)
+        free(self.scalar_prod)
         free(self.sorted_indices)
         free(self.sorted_indices_reachable)
         for i in range(self.nb_states):
@@ -103,7 +102,7 @@ cdef class TEVI:
                      DTYPE_t[:,:,:] beta_p,
                      DTYPE_t[:,:] bonus,
                      SIZE_t[:,:] is_truncated_sa,
-                     SIZE_t[:,:] reachable_states,
+                     SIZE_t[:] reachable_states,
                      SIZE_t[:] SEVI,
                      DTYPE_t r_max,
                      DTYPE_t tau,
@@ -115,7 +114,7 @@ cdef class TEVI:
 
         cdef SIZE_t ITERATIONS_LIMIT = 1000000
 
-        cdef SIZE_t i, a_idx, counter = 0, j
+        cdef SIZE_t i, a_idx, counter = 0, j, s_idx
         cdef SIZE_t first_action
         cdef DTYPE_t c1, new_span, old_span
         cdef DTYPE_t gamma = self.gamma
@@ -133,6 +132,7 @@ cdef class TEVI:
         cdef SIZE_t* sorted_indices_reachable = self.sorted_indices_reachable
 
         cdef DTYPE_t* action_noise
+        cdef DTYPE_t* scalar_prod = self.scalar_prod
 
         action_noise = <DTYPE_t*> malloc(max_nb_actions * sizeof(DTYPE_t))
 
@@ -181,17 +181,17 @@ cdef class TEVI:
                         if is_truncated_sa[SEVI[s_idx], a_idx]:
                             # compute max proba only on the states that are reachable
                             # add also bonus to confidence interval
-                            dotp = LPPROBA_bernstein_TUCRLmod(u1, estimated_probabilities[s][a_idx],
-                                                        num_reachable_state,
+                            scalar_prod[s_idx] = LPPROBA_bernstein(u1, estimated_probabilities[SEVI[s_idx]][a_idx],
+                                                        nb_reachable_states,
                                                         sorted_indices_reachable,
-                                                        beta_p[s][a_idx], bonus[s][a_idx], 0)
+                                                        beta_p[SEVI[s_idx]][a_idx], bonus[SEVI[s_idx]][a_idx], 0)
                         else:
-                            dotp = LPPROBA_bernstein(u1, estimated_probabilities[s][a_idx], nb_evi_states,
-                                                     sorted_indices, beta_p[s][a_idx], 0, 0)
+                            scalar_prod[s_idx] = LPPROBA_bernstein(u1, estimated_probabilities[SEVI[s_idx]][a_idx], nb_evi_states,
+                                                     sorted_indices, beta_p[SEVI[s_idx]][a_idx], 0, 0)
 
                         r_optimal = min(r_max,
                                         estimated_rewards[SEVI[s_idx]][a_idx] + beta_r[SEVI[s_idx]][a_idx])
-                        v = r_optimal + gamma * dotp * tau
+                        v = r_optimal + gamma * scalar_prod[s_idx] * tau
                         c1 = v + gamma * (1 - tau) * u1[SEVI[s_idx]]
 
                         # printf('%d, %d: %f [%f]\n', s, a_idx, c1, v)
@@ -202,7 +202,7 @@ cdef class TEVI:
                             policy_indices[SEVI[s_idx]] = a_idx
                         elif c1 + action_noise[a_idx] > u2[SEVI[s_idx]] + action_noise[policy_indices[SEVI[s_idx]]]:
                             u2[SEVI[s_idx]] = c1
-                            policy[s] = action
+                            policy[SEVI[s_idx]] = action
                             policy_indices[SEVI[s_idx]] = a_idx
 
                         first_action = 0
@@ -220,14 +220,14 @@ cdef class TEVI:
                     get_sorted_indices(u1, nb_evi_states, sorted_indices)
                     # quicksort_indices(u1, 0, nb_states-1, sorted_indices)
                     # get sorted index containing only reachable states
-                    if num_reachable_state < nb_evi_states:
+                    if nb_reachable_states < nb_evi_states:
                         j = 0
                         for i in range(nb_states):
-                            if isinsortedvector(sorted_indices[i], reachable_states, num_reachable_state) > 0:
+                            if isinsortedvector(sorted_indices[i], reachable_states, nb_reachable_states) > 0:
                                 sorted_indices_reachable[j] = sorted_indices[i]
                                 j += 1
 
-                        if j != num_reachable_state:
+                        if j != nb_reachable_states:
                             return -14
                     else:
                         for i in range(nb_evi_states):

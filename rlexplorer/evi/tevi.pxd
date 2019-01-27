@@ -19,8 +19,7 @@ cdef enum BoundType:
 cdef class TEVI:
     cdef DTYPE_t *u1
     cdef DTYPE_t *u2
-    cdef DTYPE_t *mtx_maxprob
-    cdef DTYPE_t[:,:] mtx_maxprob_memview
+    cdef DTYPE_t *scalar_prod
     cdef SIZE_t *sorted_indices
     cdef SIZE_t *sorted_indices_reachable
     cdef SIZE_t nb_states
