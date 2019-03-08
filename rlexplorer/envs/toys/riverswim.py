@@ -40,6 +40,9 @@ class RiverSwim(Environment):
                 self.P_mat[s, 1, s] = 0.6
                 self.P_mat[s, 1, s+1] = 0.35
 
+            for a in range(na):
+                assert np.isclose(1, np.sum(self.P_mat[s,a]))
+
         self.reward_distributions = [Rdists.BernouilliReward(r_max=1, proba=self.R_mat[0, 0]),
                                      Rdists.BernouilliReward(r_max=self.r_max, proba=0.9/self.r_max)]
         self.stochastic_reward = stochastic_reward
@@ -67,7 +70,7 @@ class RiverSwim(Environment):
                            estimated_probabilities=self.P_mat,
                            estimated_rewards=self.R_mat,
                            estimated_holding_times=np.ones((self.nb_states, na)),
-                           beta_p=np.zeros((self.nb_states, na, 1)),
+                           beta_p=np.zeros((self.nb_states, na, self.nb_states)),
                            beta_r=np.zeros((self.nb_states, na)),
                            beta_tau=np.zeros((self.nb_states, na)),
                            tau_max=1, tau_min=1, tau=1,

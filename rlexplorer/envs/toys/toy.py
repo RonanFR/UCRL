@@ -76,7 +76,7 @@ class Toy3D_1(Environment):
                            estimated_probabilities=self.P_mat,
                            estimated_rewards=self.R_mat,
                            estimated_holding_times=np.ones((self.nb_states, na)),
-                           beta_p=np.zeros((self.nb_states, na, 1)),
+                           beta_p=np.zeros((self.nb_states, na, self.nb_states)),
                            beta_r=np.zeros((self.nb_states, na)),
                            beta_tau=np.zeros((self.nb_states, na)),
                            tau_max=1, tau_min=1, tau=1,
