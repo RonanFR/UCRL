@@ -61,6 +61,7 @@ class Toy3D_1(Environment):
 
     def compute_max_gain(self):
         if not hasattr(self, "max_gain"):
+            na = max(map(len, self.state_actions))
             policy_indices = np.ones(self.nb_states, dtype=np.int)
             policy = np.ones(self.nb_states, dtype=np.int)
 
@@ -74,10 +75,10 @@ class Toy3D_1(Environment):
                            policy=policy,
                            estimated_probabilities=self.P_mat,
                            estimated_rewards=self.R_mat,
-                           estimated_holding_times=np.ones((self.nb_states, 4)),
-                           beta_p=np.zeros((self.nb_states, 2, 1)),
-                           beta_r=np.zeros((self.nb_states, 2)),
-                           beta_tau=np.zeros((self.nb_states, 2)),
+                           estimated_holding_times=np.ones((self.nb_states, na)),
+                           beta_p=np.zeros((self.nb_states, na, 1)),
+                           beta_r=np.zeros((self.nb_states, na)),
+                           beta_tau=np.zeros((self.nb_states, na)),
                            tau_max=1, tau_min=1, tau=1,
                            r_max=1.,
                            epsilon=1e-12,
