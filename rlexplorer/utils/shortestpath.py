@@ -33,7 +33,7 @@ def dpshortestpath(P, state_actions):
                 estimated_probabilities=Pshort,
                 estimated_rewards=R,
                 estimated_holding_times=np.ones((Ns, Na)),
-                beta_p=np.zeros((Ns, Na, 1)),
+                beta_p=np.zeros((Ns, Na, Ns)),
                 beta_r=np.zeros((Ns, Na)),
                 beta_tau=np.zeros((Ns, Na)),
                 tau_max=1, tau_min=1, tau=1,
@@ -50,6 +50,5 @@ def dpshortestpath(P, state_actions):
         if diameter < v:
             print("{} -> {} : {}".format(source, target, v))
             diameter = v
-
 
     return diameter
