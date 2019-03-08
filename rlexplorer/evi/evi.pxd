@@ -21,7 +21,7 @@ cdef enum BoundType:
 cdef class EVI:
     cdef DTYPE_t *u1
     cdef DTYPE_t *u2
-    # cdef DTYPE_t *value_lpproba
+    # cdef DTYPE_t *dotp
     cdef SIZE_t *sorted_indices
     cdef SIZE_t nb_states
     cdef SIZE_t max_macroactions_per_state

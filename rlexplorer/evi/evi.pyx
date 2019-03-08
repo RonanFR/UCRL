@@ -59,7 +59,7 @@ cdef class EVI:
             self.sorted_indices[i] = i
 
         # allocate space for a vector of dimension S
-        # self.value_lpproba = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
+        # self.dotp = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
 
         n = len(actions_per_state)
         assert n == nb_states
@@ -81,7 +81,7 @@ cdef class EVI:
         cdef SIZE_t i
         free(self.u1)
         free(self.u2)
-        # free(self.value_lpproba)
+        #free(self.dotp)
         free(self.sorted_indices)
         for i in range(self.nb_states):
             free(self.actions_per_state[i].values)
@@ -125,7 +125,7 @@ cdef class EVI:
         cdef SIZE_t* sorted_indices = self.sorted_indices
 
         cdef DTYPE_t* action_noise
-        # cdef DTYPE_t* scalar_prod = self.value_lpproba
+        # cdef DTYPE_t* dotp = self.dotp
 
         action_noise = <DTYPE_t*> malloc(max_nb_actions * sizeof(DTYPE_t))
 
