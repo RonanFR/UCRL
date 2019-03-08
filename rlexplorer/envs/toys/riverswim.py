@@ -56,11 +56,12 @@ class RiverSwim(Environment):
             policy_indices = np.ones(self.nb_states, dtype=np.int)
             policy = np.ones(self.nb_states, dtype=np.int)
 
+            print("creating model")
             evi = EVI(nb_states=self.nb_states,
                       actions_per_state=self.state_actions,
-                      bound_type="chernoff",
                       random_state=123456)
 
+            print("running model")
             span = evi.run(policy_indices=policy_indices,
                            policy=policy,
                            estimated_probabilities=self.P_mat,
@@ -80,7 +81,9 @@ class RiverSwim(Environment):
             self.optimal_policy_indices = policy_indices
             self.optimal_policy = policy
 
-            self.diameter = diameter = dpshortestpath(self.P_mat, self.state_actions)
+            print("solved model")
+
+            self.diameter = dpshortestpath(self.P_mat, self.state_actions)
 
         return self.max_gain
 

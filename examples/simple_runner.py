@@ -8,7 +8,7 @@ import datetime
 import shutil
 import json
 from rlexplorer.Ucrl import UcrlMdp
-from rlexplorer.envs.toys import Toy3D_1, Toy3D_2
+import rlexplorer.envs.toys as rlenvs
 import rlexplorer.logging as loginfo
 
 
@@ -19,7 +19,7 @@ random.seed(seed)
 
 print(seed)
 
-env = Toy3D_1()
+env = rlenvs.RiverSwim()
 
 
 env.reset()
@@ -64,6 +64,6 @@ with open(os.path.join(folder_results, pickle_name), 'wb') as f:
     pickle.dump(expalg, f)
 
 print(expalg.policy)
-
-from IPython import embed
-embed()
+#
+# from IPython import embed
+# embed()
