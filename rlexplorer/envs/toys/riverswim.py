@@ -72,7 +72,7 @@ class RiverSwim(Environment):
                            beta_tau=np.zeros((self.nb_states, na)),
                            tau_max=1, tau_min=1, tau=1,
                            r_max=1.,
-                           epsilon=1e-12,
+                           epsilon=1e-8,
                            initial_recenter=1, relative_vi=0
                            )
             u1, u2 = evi.get_uvectors()

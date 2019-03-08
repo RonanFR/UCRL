@@ -10,10 +10,11 @@ import json
 from rlexplorer.Ucrl import UcrlMdp
 import rlexplorer.envs.toys as rlenvs
 import rlexplorer.logging as loginfo
+import matplotlib.pyplot as plt
 
 
 seed = np.random.randint(1, 987988989)
-seed = 970859866
+# seed = 970859866
 np.random.seed(seed)
 random.seed(seed)
 
@@ -42,6 +43,8 @@ expalg_log = loginfo.create_multilogger(logger_name=name,
                                         path=folder_results)
 expalg_log.info("seed: {}".format(seed))
 expalg_log.info("mdp desc: {}".format(env_desc))
+env.compute_max_gain()
+expalg_log.info("problem info: gain: {}, span: {}, diameter: {}".format(env.max_gain, env.span, env.diameter))
 
 expalg = UcrlMdp(env,
                  r_max, random_state=seed,
@@ -67,3 +70,15 @@ print(expalg.policy)
 #
 # from IPython import embed
 # embed()
+
+plt.figure()
+plt.plot(expalg.span_values, '-')
+plt.xlabel("Points")
+plt.ylabel("Span")
+plt.savefig(os.path.join(folder_results, "span_{}.png".format(rep)))
+plt.figure()
+plt.plot(expalg.regret, '-')
+plt.xlabel("Points")
+plt.ylabel("Regret")
+plt.savefig(os.path.join(folder_results, "regret_{}.png".format(rep)))
+plt.show()
