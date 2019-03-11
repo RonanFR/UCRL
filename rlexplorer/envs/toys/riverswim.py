@@ -104,6 +104,9 @@ class RiverSwim(Environment):
                 self.reward = self.reward_distributions[1].generate()
         self.state = next_state
 
+    def true_reward(self, state, action_idx):
+        return self.R_mat[state, action_idx]
+
     def description(self):
         desc = {
             'name': type(self).__name__,

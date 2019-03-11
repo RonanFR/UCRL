@@ -11,7 +11,7 @@ from rlexplorer.Ucrl import UcrlMdp
 import rlexplorer.envs.toys as rlenvs
 import rlexplorer.logging as loginfo
 import matplotlib.pyplot as plt
-
+from rlexplorer.posteriorsampling import TSDE
 
 seed = np.random.randint(1, 987988989)
 # seed = 970859866
@@ -21,7 +21,6 @@ random.seed(seed)
 print(seed)
 
 env = rlenvs.RiverSwim()
-
 
 env.reset()
 env_desc = env.description()
@@ -51,6 +50,12 @@ expalg = UcrlMdp(env,
                  alpha_r=0.1, alpha_p=0.1,
                  verbose=1,
                  logger=expalg_log)
+# expalg = TSDE(env, r_max,
+#               posterior=None,
+#               known_reward=True,
+#               random_state=seed,
+#               verbose=1,
+#               logger=expalg_log)
 
 alg_desc = expalg.description()
 expalg_log.info("alg desc: {}".format(alg_desc))

@@ -152,8 +152,8 @@ class UcrlMdp(AbstractUCRL):
         if self.known_reward and not hasattr(self, 'true_reward'):
             self.true_reward = np.zeros((nb_states, max_nb_actions))
             for s in range(nb_states):
-                for a in self.environment.state_actions[s]:
-                    self.true_reward[s,a] = self.environment.true_reward(s, a)
+                for a_idx, a in enumerate(self.environment.state_actions[s]):
+                    self.true_reward[s, a_idx] = self.environment.true_reward(s, a_idx)
 
         self.speed = None
         self.solver_times = []
