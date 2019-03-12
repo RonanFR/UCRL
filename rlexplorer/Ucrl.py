@@ -25,8 +25,8 @@ class AbstractUCRL(object):
                  solver=None,
                  verbose=0,
                  logger=default_logger,
-                 bound_type_p="chernoff",
-                 bound_type_rew="chernoff",
+                 bound_type_p="bernstein",
+                 bound_type_rew="bernstein",
                  known_reward=False):
         self.environment = environment
         self.r_max = float(r_max)
