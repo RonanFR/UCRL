@@ -1,13 +1,10 @@
 from .evi import EVI
-# from .free_evi import EVI_FSUCRLv1, EVI_FSUCRLv2
-# from .scevi import SpanConstrainedEVI
-# from .tevi2 import TEVI2
+from .vi import value_iteration
+from ._lpproba import py_LPPROBA_bernstein, py_LPPROBA_hoeffding
 from .tevi import TEVI
 __all__ = ["EVI",
-           # "EVI_FSUCRLv1",
-           # "EVI_FSUCRLv2",
-           # "SpanConstrainedEVI",
-           # "TEVI2",
-           "TEVI"
+           "TEVI",
+           "py_LPPROBA_bernstein", "py_LPPROBA_hoeffding",
+           "value_iteration"
            ]
 

@@ -11,6 +11,7 @@ from rlexplorer.envs.toys import Toy3D_1, Toy3D_2, RiverSwim
 import rlexplorer.Ucrl as Ucrl
 import rlexplorer.tucrl as tucrl
 import rlexplorer.posteriorsampling as psalgs
+import rlexplorer.forcedxpl as forced
 # from rlexplorer.olp import OLP
 import rlexplorer.logging as ucrl_logger
 import matplotlib
@@ -25,27 +26,29 @@ import matplotlib.pyplot as plt
 # PARAMETERS
 
 from collections import namedtuple
-fields = ("nb_sim_offset", "nb_simulations", "id", "path", "algorithm", "domain", "seed_0",  "alpha_r",
-          "alpha_p", "posterior", "use_true_reward", "duration", "regret_time_steps", "quiet")
+
+fields = ("nb_sim_offset", "nb_simulations", "id", "path", "algorithm", "domain", "seed_0", "alpha_r",
+          "alpha_p", "posterior", "use_true_reward", "duration", "regret_time_steps", "quiet", "bound_type")
 Options = namedtuple("Options", fields)
 
 id_v = None
 
 in_options = Options(
-nb_sim_offset = 0,
-nb_simulations = 2,
-id = '{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
-path = None,
-algorithm = "TSDE", # ["UCRL", "TUCRL", "TSDE"]
-domain = "RiverSwim",
-seed_0 = 3131331,
-alpha_r = 1.,
-alpha_p = 1.,
-posterior = "Bernoulli", #["Bernoulli", "Normal", None]
-use_true_reward = True,
-duration = 50000,
-regret_time_steps=100,
-quiet=False
+    nb_sim_offset=0,
+    nb_simulations=1,
+    id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
+    path=None,
+    algorithm="UCRL",  # ["UCRL", "TUCRL", "TSDE", "BKIA"]
+    domain="RiverSwim",
+    seed_0=37643331,
+    alpha_r=1,
+    alpha_p=1,
+    posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
+    use_true_reward=True,
+    duration=30000,
+    regret_time_steps=100,
+    quiet=False,
+    bound_type="bernstein"  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
 )
 
 #####################################################################
@@ -122,6 +125,8 @@ for rep in range(start_sim, end_sim):
             verbose=1,
             logger=expalg_log,
             random_state=seed,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
             known_reward=in_options.use_true_reward)  # learning algorithm
     elif in_options.algorithm == "TUCRL":
         ofualg = tucrl.TUCRL(
@@ -141,17 +146,16 @@ for rep in range(start_sim, end_sim):
                              random_state=seed,
                              posterior=in_options.posterior,
                              known_reward=in_options.use_true_reward)
-    # elif in_options.algorithm == "OLP":
-    #     ofualg = OLP(
-    #         environment=env,
-    #         r_max=r_max,
-    #         alpha_r=alpha_r,
-    #         alpha_p=alpha_p,
-    #         verbose=1,
-    #         logger=ucrl_log,
-    #         bound_type_p=in_options.bound_type,
-    #         bound_type_rew=in_options.bound_type,
-    #         random_state=seed)
+    elif in_options.algorithm == "BKIA":
+        ofualg = forced.BKIA(environment=env,
+                             r_max=r_max,
+                             alpha_r=in_options.alpha_r,
+                             alpha_p=in_options.alpha_p,
+                             verbose=1,
+                             logger=expalg_log,
+                             bound_type_p=in_options.bound_type,
+                             bound_type_rew=in_options.bound_type,
+                             random_state=seed)
 
     expalg_log.info("[id: {}] {}".format(id, type(ofualg).__name__))
     expalg_log.info("seed: {}".format(seed))
@@ -161,14 +165,14 @@ for rep in range(start_sim, end_sim):
     expalg_log.info("alg desc: {}".format(alg_desc))
 
     pickle_name = 'run_{}.pickle'.format(rep)
-    try:
-        h = ofualg.learn(in_options.duration, in_options.regret_time_steps)  # learn task
-    except Ucrl.EVIException as valerr:
-        expalg_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))
-        pickle_name = 'exception_model_{}.pickle'.format(rep)
-    except:
-        expalg_log.info("EXCEPTION")
-        pickle_name = 'exception_model_{}.pickle'.format(rep)
+#    try:
+    h = ofualg.learn(in_options.duration, in_options.regret_time_steps)  # learn task
+    # except Ucrl.EVIException as valerr:
+    #     expalg_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))
+    #     pickle_name = 'exception_model_{}.pickle'.format(rep)
+    # except:
+    #     expalg_log.info("EXCEPTION")
+    #     pickle_name = 'exception_model_{}.pickle'.format(rep)
 
     ofualg.clear_before_pickle()
     with open(os.path.join(folder_results, pickle_name), 'wb') as f:
@@ -200,26 +204,25 @@ for rep in range(start_sim, end_sim):
         M2 = np.zeros_like(ofualg.regret)
         t_step = ofualg.regret_unit_time
     else:
-        x_nm1 = sum_regret / (rep-start_sim)
+        x_nm1 = sum_regret / (rep - start_sim)
         sum_regret += ofualg.regret
-        x_n = sum_regret / (rep-start_sim+1)
+        x_n = sum_regret / (rep - start_sim + 1)
         M2 = M2 + (ofualg.regret - x_nm1) * (ofualg.regret - x_n)
-
 
 plt.figure()
 y = sum_regret / in_options.nb_simulations
-sigma = np.sqrt(M2 / max(1,in_options.nb_simulations-1)) / math.sqrt(in_options.nb_simulations)
+sigma = np.sqrt(M2 / max(1, in_options.nb_simulations - 1)) / math.sqrt(in_options.nb_simulations)
 ax1 = plt.plot(t_step, y, '-')
 ax1_col = ax1[0].get_color()
-plt.fill_between(t_step, y - 2 * sigma , y + 2 * sigma, facecolor=ax1_col, alpha=0.4)
+plt.fill_between(t_step, y - 2 * sigma, y + 2 * sigma, facecolor=ax1_col, alpha=0.4)
 plt.xlabel("Time")
 plt.ylabel("Average Regret")
 plt.savefig(os.path.join(folder_results, "avg_regret.png"))
 plt.close('all')
 
 # save data for reuse
-data = np.zeros(len(t_step), dtype={'names':('time', 'avg_regret', 'std_regret'),
-                          'formats':('f8', 'f8', 'f8')})
+data = np.zeros(len(t_step), dtype={'names': ('time', 'avg_regret', 'std_regret'),
+                                    'formats': ('f8', 'f8', 'f8')})
 data['time'] = t_step
 data['avg_regret'] = y
 data['std_regret'] = sigma

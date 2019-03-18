@@ -122,9 +122,6 @@ class UcrlMdp(AbstractUCRL):
         :param alpha_p: multiplicative factor for the concentration bound on transition probabilities (default is 1)
         """
 
-        assert bound_type_p in ["bernstein"]
-        assert bound_type_rew in ["bernstein"]
-
         super(UcrlMdp, self).__init__(environment=environment,
                                       r_max=r_max, alpha_r=alpha_r,
                                       alpha_p=alpha_p, solver=solver,
@@ -274,12 +271,21 @@ class UcrlMdp(AbstractUCRL):
         if self.known_reward:
             return np.zeros((S, A))
 
-        # ------------------------ #
-        # BERNSTEIN CI
-        var_r = self.variance_proxy_reward / N[:, :] # this is the population variance
-        log_term = np.log(6 * S * A * N / self.delta) / N
-        B = 6 * self.r_max * log_term
-        beta = 2 * np.sqrt(var_r * log_term) + B
+        beta = None
+        if self.bound_type_rew == "bernstein":
+            # ------------------------ #
+            # BERNSTEIN CI
+            var_r = self.variance_proxy_reward / N[:, :] # this is the population variance
+            log_term = np.log(6 * S * A * N / self.delta) / N
+            B = 6 * self.r_max * log_term
+            beta = 2 * np.sqrt(var_r * log_term) + B
+        elif self.bound_type_rew == "hoeffding":
+            # ------------------------ #
+            # HOEFFDING CI
+            log_term = np.log(6 * S * A * N / self.delta) / N
+            beta = self.r_max * np.sqrt(log_term)
+        else:
+            raise ValueError("unknown reward bound type: {}".format(self.bound_type_rew))
 
         return beta * self.alpha_r
 
@@ -303,12 +309,21 @@ class UcrlMdp(AbstractUCRL):
         A = self.environment.max_nb_actions_per_state
         N = np.maximum(1, self.nb_observations)
 
-        # ------------------------ #
-        # BERNSTEIN CI
-        var_p = self.P * (1. - self.P)
-        log_term = np.log(6 * S * A * N / self.delta)
-        beta = 2 * np.sqrt(var_p * log_term[:, :, np.newaxis] / N[:, :, np.newaxis]) \
-               + 6 * log_term[:, :, np.newaxis] / N[:, :, np.newaxis]
+        beta = None
+        if self.bound_type_p == "bernstein":
+            # ------------------------ #
+            # BERNSTEIN CI
+            var_p = self.P * (1. - self.P)
+            log_term = np.log(6 * S * A * N / self.delta)
+            beta = 2 * np.sqrt(var_p * log_term[:, :, np.newaxis] / N[:, :, np.newaxis]) \
+                   + 6 * log_term[:, :, np.newaxis] / N[:, :, np.newaxis]
+        elif self.bound_type_p == "hoeffding":
+            # ------------------------ #
+            # HOEFFDING CI
+            log_term = np.log(6 * A * N / self.delta) / N
+            beta = np.sqrt(4 * S * log_term).reshape(S, A, 1)
+        else:
+            raise ValueError("unknown transition bound type: {}".format(self.bound_type_p))
         return beta * self.alpha_p
 
     def update(self, curr_state, curr_act_idx, curr_act):
@@ -415,10 +430,10 @@ class UcrlSmdpExp(UcrlMdp):
                  tau_min=1,
                  alpha_r=None, alpha_tau=None, alpha_p=None,
                  b_r=0., b_tau=0.,
-                 bound_type_p="chernoff", bound_type_rew="chernoff",
+                 bound_type_p="hoeffding", bound_type_rew="hoeffding",
                  verbose=0, logger=default_logger, random_state=None, known_reward=False):
-        assert bound_type_p in ["chernoff",  "bernstein"]
-        assert bound_type_rew in ["chernoff",  "bernstein"]
+        assert bound_type_p in ["hoeffding",  "bernstein"]
+        assert bound_type_rew in ["hoeffding",  "bernstein"]
         assert tau_min >= 1
         if sigma_r is None:
             sigma_r = np.sqrt(sigma_tau * sigma_tau + tau_max) * r_max
@@ -493,7 +508,7 @@ class UcrlSmdpBounded(UcrlSmdpExp):
 
     def __init__(self, environment, r_max, t_max, t_min=1,
                  alpha_r=None, alpha_tau=None, alpha_p=None,
-                 bound_type_p="chernoff", bound_type_rew="chernoff",
+                 bound_type_p="hoeffding", bound_type_rew="hoeffding",
                  verbose=0, logger=default_logger, random_state=None,
                  known_reward=False):
         super(UcrlSmdpBounded, self).__init__(environment=environment,

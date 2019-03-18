@@ -28,7 +28,7 @@ from ._utils cimport check_end
 from ._utils cimport dot_prod
 from ._utils cimport pos2index_2d
 
-from ._lpproba cimport LPPROBA_bernstein
+from ._lpproba cimport LPPROBA_bernstein, LPPROBA_hoeffding
 
 
 # =============================================================================
@@ -43,12 +43,12 @@ cdef class EVI:
         self.u1 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
         self.u2 = <DTYPE_t *>malloc(nb_states * sizeof(DTYPE_t))
 
-        # if bound_type == "chernoff":
-        #     self.bound_type = CHERNOFF
-        if bound_type == "bernstein":
+        if bound_type == "hoeffding":
+            self.bound_type = CHERNOFF
+        elif bound_type == "bernstein":
             self.bound_type = BERNSTEIN
         else:
-            printf("Unknown bound type")
+            printf("EVI: unknown bound type")
             raise ValueError("Unknown bound type")
 
         # allocate indices and memoryview (may slow down)
@@ -156,10 +156,14 @@ cdef class EVI:
 
                     for a_idx in range(self.actions_per_state[s].dim):
                         action = self.actions_per_state[s].values[a_idx]
-                        # JUST BERNSTEIN BOUND
-                        dotp = LPPROBA_bernstein(u1, estimated_probabilities[s][a_idx], nb_states,
-                                        sorted_indices, beta_p[s][a_idx], 0, 0)
-                        # printf("%f", dotp)
+                        if self.bound_type == CHERNOFF:
+                            dotp = LPPROBA_hoeffding(u1, estimated_probabilities[s][a_idx], nb_states,
+                                            sorted_indices, beta_p[s][a_idx][0], 0)
+                        else:
+                            # JUST BERNSTEIN BOUND
+                            dotp = LPPROBA_bernstein(u1, estimated_probabilities[s][a_idx], nb_states,
+                                            sorted_indices, beta_p[s][a_idx], 0, 0)
+                        # printf("%f ", dotp)
 
                         r_optimal = min(tau_max*r_max,
                                         estimated_rewards[s][a_idx] + beta_r[s][a_idx])

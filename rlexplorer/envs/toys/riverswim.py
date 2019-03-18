@@ -13,12 +13,11 @@ class RiverSwim(Environment):
     """
     def __init__(self, n_states=6, stochastic_reward=False):
         na = 2
-        ns = 6
 
         self.r_max = 1.
 
-        self.P_mat = np.zeros((ns, na, ns))
-        self.R_mat = np.zeros((ns, na))
+        self.P_mat = np.zeros((n_states, na, n_states))
+        self.R_mat = np.zeros((n_states, na))
 
         state_actions = []
         for s in range(n_states):
@@ -29,7 +28,7 @@ class RiverSwim(Environment):
                 self.P_mat[0, 1, 0] = 0.4
                 self.P_mat[0, 1, 1] = 0.6
                 self.R_mat[0, 0] = 5./1000.
-            elif s == ns - 1:
+            elif s == n_states - 1:
                 self.P_mat[s, 0, s-1] = 1
                 self.P_mat[s, 1, s-1] = 0.4
                 self.P_mat[s, 1, s] = 0.6

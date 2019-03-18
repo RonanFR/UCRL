@@ -12,3 +12,10 @@ cdef DTYPE_t LPPROBA_bernstein(DTYPE_t* v, DTYPE_t[:] p,
                           SIZE_t* asc_sorted_indices,
                           DTYPE_t[:] beta, DTYPE_t bplus,
                           SIZE_t reverse) nogil
+
+
+cdef DTYPE_t LPPROBA_hoeffding(DTYPE_t* v, DTYPE_t[:] p,
+                                SIZE_t n,
+                                SIZE_t* asc_sorted_indices,
+                                DTYPE_t beta,
+                                SIZE_t reverse) nogil
