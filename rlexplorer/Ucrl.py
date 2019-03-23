@@ -1,6 +1,5 @@
 from .evi.evi import EVI
 from .logging import default_logger
-from . import bounds as bounds
 from . import __version__ as ucrl_version
 
 import numbers

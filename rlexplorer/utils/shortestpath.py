@@ -43,12 +43,13 @@ def dpshortestpath(P, state_actions):
                 )
 
         u1, u2 = evi.get_uvectors()
-        max_gain = 0.5 * (max(u2 - u1) + min(u2 - u1))
+        # gain = 0.5 * (max(u2 - u1) + min(u2 - u1))
 
         v = -np.min(u1)
         source = np.argmin(u1)
         if diameter < v:
             print("{} -> {} : {}".format(source, target, v))
             diameter = v
+            # print(policy)
 
     return diameter

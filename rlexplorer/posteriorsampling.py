@@ -88,7 +88,7 @@ class TSDE(UcrlMdp):
     def _stopping_rule(self, curr_state, curr_act_idx, next_state):
         A = self.nu_k[curr_state][curr_act_idx] < max(1, self.nb_observations[curr_state][curr_act_idx])
         B = self.total_time <= self.tk + self.episode_length
-        return (A or B)
+        return (A and B)
 
     def update_at_episode_end(self):
 
