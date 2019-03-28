@@ -5,6 +5,8 @@
 
 # See _lpproba.pyx for details.
 
+# cython: language_level=3
+
 from ._utils cimport DTYPE_t, SIZE_t
 
 cdef DTYPE_t LPPROBA_bernstein(DTYPE_t* v, DTYPE_t[:] p,
