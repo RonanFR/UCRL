@@ -112,3 +112,12 @@ class RiverSwim(Environment):
             'nstates': len(self.state_actions)
         }
         return desc
+
+    def properties(self):
+        self.compute_max_gain()
+        props = {
+            'gain': self.max_gain,
+            'diameter': self.diameter,
+            'bias_span': self.span
+        }
+        return props

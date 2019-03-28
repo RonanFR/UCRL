@@ -25,7 +25,6 @@ from ._utils cimport sign
 from ._utils cimport isclose_c
 from ._utils cimport get_sorted_indices
 from ._utils cimport check_end
-from ._utils cimport dot_prod
 from ._utils cimport pos2index_2d
 
 from ._lpproba cimport LPPROBA_bernstein, LPPROBA_hoeffding

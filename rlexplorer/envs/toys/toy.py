@@ -124,6 +124,15 @@ class Toy3D_1(Environment):
         }
         return desc
 
+    def properties(self):
+        self.compute_max_gain()
+        props = {
+            'gain': self.max_gain,
+            'diameter': self.diameter,
+            'bias_span': self.span
+        }
+        return props
+
 
 class Toy3D_2(Toy3D_1):
 
