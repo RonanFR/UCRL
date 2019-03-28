@@ -88,4 +88,6 @@
 #   - added truncated UCRL
 # 0.37.dev0 (May 20, 2018)
 #   - changed terminal condition of TUCRL
-__version__ = '0.37.dev0'
+# 0.45.dev0 (Mar 28, 2019)
+#   - big refactoring
+__version__ = '0.45.dev0'
