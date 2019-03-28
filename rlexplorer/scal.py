@@ -2,7 +2,6 @@ import numpy as np
 from .Ucrl import UcrlMdp
 from .logging import default_logger
 from .evi import SCOPT
-from . import bounds as bounds
 
 
 class SCAL(UcrlMdp):
