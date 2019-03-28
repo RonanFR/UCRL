@@ -67,50 +67,49 @@ class SCAL(UcrlMdp):
         self.logger = logger
 
 
-# class SCAL_bonus(SCAL):
-#     """
-#     SCAL with Exploration Bonus
-#     """
-#
-#     def __init__(self, environment, r_max, span_constraint, alpha_r=None, alpha_p=None,
-#                  bound_type_p="chernoff", bound_type_rew="chernoff",
-#                  verbose=0, augment_reward=True,
-#                  logger=default_logger, random_state=None, relative_vi=True,
-#                  known_reward=False):
-#         super(SCAL_bonus, self).__init__(environment=environment, r_max=r_max, span_constraint=span_constraint,
-#                                          alpha_r=alpha_r, alpha_p=alpha_p,
-#                                          bound_type_p=bound_type_p, bound_type_rew=bound_type_rew,
-#                                          verbose=verbose, augment_reward=augment_reward,
-#                                          logger=logger, random_state=random_state, relative_vi=relative_vi,
-#                                          known_reward=known_reward)
-#
-#         self.r_max_vi = float(np.iinfo(np.int32).max)
-#
-#     def beta_p(self):
-#         return np.zeros((self.environment.nb_states, self.environment.max_nb_actions_per_state, 1))
-#
-#     def beta_r(self):
-#         beta_r = super(SCAL_bonus, self).beta_r()
-#
-#         S = self.environment.nb_states
-#         A = self.environment.max_nb_actions_per_state
-#         beta_p = bounds.chernoff(it=self.iteration, N=self.nb_observations,
-#                                  range=1., delta=self.delta,
-#                                  sqrt_C=7, log_C=2 * S * A)
-#         beta_p = beta_p + 1.0 / (self.nb_observations + 1.0)
-#
-#         P_term = self.alpha_p * self.span_constraint * np.minimum(beta_p, 2.)
-#         R_term = np.minimum(self.alpha_r * beta_r, self.r_max if not self.known_reward else 0)
-#
-#         final_bonus = R_term + P_term
-#         return final_bonus
-#
-#     def update_at_episode_end(self):
-#         self.nb_observations += self.nu_k
-#
-#         for (s, a) in self.visited_sa:
-#             Nsa = self.nb_observations[s, a]
-#             self.P[s, a] = self.P_counter[s, a] / Nsa
-#             self.P[s, a] = Nsa * self.P[s, a] / (Nsa + 1.0)
-#             self.P[s, a, 0] += 1.0 / (Nsa + 1.0)
-#             assert np.isclose(1., np.sum(self.P[s, a]))
+class SCALPLUS(SCAL):
+    """
+    SCAL with Exploration Bonus
+    """
+
+    def __init__(self, environment, r_max, span_constraint, alpha_r=None, alpha_p=None,
+                 verbose=0, augment_reward=True,
+                 logger=default_logger, random_state=None, relative_vi=True,
+                 known_reward=False):
+        super(SCALPLUS, self).__init__(environment=environment, r_max=r_max, span_constraint=span_constraint,
+                                       alpha_r=alpha_r, alpha_p=alpha_p,
+                                       bound_type_p="bernstein", bound_type_rew="bernstein",
+                                       verbose=verbose, augment_reward=augment_reward,
+                                       logger=logger, random_state=random_state, relative_vi=relative_vi,
+                                       known_reward=known_reward)
+
+        self.r_max_vi = float(np.iinfo(np.int32).max)
+
+    def beta_p(self):
+        return np.zeros(
+            (self.environment.nb_states, self.environment.max_nb_actions_per_state, self.environment.nb_states))
+
+    def beta_r(self):
+        # beta_r = super(SCALPLUS, self).beta_r() # this is using bernstein for reward
+
+        S = self.environment.nb_states
+        A = self.environment.max_nb_actions_per_state
+        N = np.maximum(1, self.nb_observations)
+        beta_r = self.r_max * np.sqrt(np.log(N * 20 * S * A / self.delta) / N)
+        beta_p = np.sqrt(np.log(N * 20 * S * A / self.delta) / N) + 1.0 / (self.nb_observations + 1.0)
+
+        P_term = self.alpha_p * self.span_constraint * np.minimum(beta_p, 2.)
+        R_term = self.alpha_r * np.minimum(beta_r, self.r_max if not self.known_reward else 0)
+
+        final_bonus = R_term + P_term
+        return final_bonus
+
+    def update_at_episode_end(self):
+        self.nb_observations += self.nu_k
+
+        for (s, a) in self.visited_sa:
+            Nsa = self.nb_observations[s, a]
+            self.P[s, a] = self.P_counter[s, a] / Nsa
+            self.P[s, a] = Nsa * self.P[s, a] / (Nsa + 1.0)
+            self.P[s, a, 0] += 1.0 / (Nsa + 1.0)
+            assert np.isclose(1., np.sum(self.P[s, a]))

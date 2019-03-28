@@ -44,13 +44,13 @@ in_options = Options(
     nb_simulations=1,
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
-    algorithm="SCAL",  # ["UCRL", "TUCRL", "TSDE", "BKIA", "SCAL"]
-    domain="RiverSwim",  # ["RiverSwim", "T3D1", "T3D2", "Taxi"]
+    algorithm="SCALPLUS",  # ["UCRL", "TUCRL", "TSDE", "BKIA", "SCAL", "SCALPLUS"]
+    domain="T3D1",  # ["RiverSwim", "T3D1", "T3D2", "Taxi"]
     seed_0=3764331,
     alpha_r=1,
     alpha_p=1,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
-    use_true_reward=True,
+    use_true_reward=False,
     duration=500000,
     regret_time_steps=100,
     quiet=False,
@@ -61,8 +61,8 @@ in_options = Options(
 )
 
 domain_options = DomainOptions(
-    mdp_delta=0.1,
-    stochastic_reward=False,
+    mdp_delta=0.005,
+    stochastic_reward=True,
     uniform_reward=False,
     unifrew_range=0.2,
 )
@@ -195,6 +195,19 @@ for rep in range(start_sim, end_sim):
             logger=expalg_log,
             bound_type_p=in_options.bound_type,
             bound_type_rew=in_options.bound_type,
+            random_state=seed,
+            augment_reward=in_options.augmented_reward,
+            known_reward=in_options.use_true_reward
+        )
+    elif in_options.algorithm == "SCALPLUS":
+        ofualg = scal.SCALPLUS(
+            environment=env,
+            r_max=r_max,
+            span_constraint=in_options.span_constraint,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            verbose=1,
+            logger=expalg_log,
             random_state=seed,
             augment_reward=in_options.augmented_reward,
             known_reward=in_options.use_true_reward
