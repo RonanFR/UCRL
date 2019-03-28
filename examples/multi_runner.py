@@ -8,8 +8,11 @@ import shutil
 import json
 import numpy as np
 from rlexplorer.envs.toys import Toy3D_1, Toy3D_2, RiverSwim
+from gym.envs.toy_text.taxi import TaxiEnv
+from rlexplorer.envs.wrappers import GymDiscreteEnvWrapper, GymDiscreteEnvWrapperTaxi
 import rlexplorer.Ucrl as Ucrl
 import rlexplorer.tucrl as tucrl
+import rlexplorer.scal as scal
 import rlexplorer.posteriorsampling as psalgs
 import rlexplorer.forcedxpl as forced
 # from rlexplorer.olp import OLP
@@ -28,19 +31,22 @@ import matplotlib.pyplot as plt
 from collections import namedtuple
 
 fields = ("nb_sim_offset", "nb_simulations", "id", "path", "algorithm", "domain", "seed_0", "alpha_r",
-          "alpha_p", "posterior", "use_true_reward", "duration", "regret_time_steps", "quiet", "bound_type")
+          "alpha_p", "posterior", "use_true_reward", "duration", "regret_time_steps", "quiet", "bound_type",
+          "span_constraint", "augmented_reward", "communicating_version")
 Options = namedtuple("Options", fields)
+dfields = ("mdp_delta","stochastic_reward","uniform_reward", "unifrew_range")
+DomainOptions = namedtuple("DomainOptions", dfields)
 
 id_v = None
 
 in_options = Options(
     nb_sim_offset=0,
-    nb_simulations=5,
+    nb_simulations=1,
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
-    algorithm="TSDE",  # ["UCRL", "TUCRL", "TSDE", "BKIA"]
-    domain="RiverSwim",
-    seed_0=37643331,
+    algorithm="SCAL",  # ["UCRL", "TUCRL", "TSDE", "BKIA", "SCAL"]
+    domain="RiverSwim",  # ["RiverSwim", "T3D1", "T3D2", "Taxi"]
+    seed_0=3764331,
     alpha_r=1,
     alpha_p=1,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
@@ -48,26 +54,45 @@ in_options = Options(
     duration=500000,
     regret_time_steps=100,
     quiet=False,
-    bound_type="bernstein"  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
+    bound_type="bernstein",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
+    span_constraint=5,
+    augmented_reward=True,
+    communicating_version=True,
+)
+
+domain_options = DomainOptions(
+    mdp_delta=0.1,
+    stochastic_reward=False,
+    uniform_reward=False,
+    unifrew_range=0.2,
 )
 
 #####################################################################
 
 config = in_options._asdict()
+domain_config = domain_options._asdict()
 
 # ------------------------------------------------------------------------------
 # Relevant code
 # ------------------------------------------------------------------------------
-
-# env = Toy3D_1(delta=in_options.mdp_delta,
-#               stochastic_reward=in_options.stochastic_reward,
-#               uniform_reward=in_options.uniform_reward,
-#               uniform_range=in_options.unifrew_range)
-# env = Toy3D_2(delta=in_options.mdp_delta,
-#               epsilon=in_options.mdp_delta/5.,
-#               stochastic_reward=in_options.stochastic_reward)
-env = RiverSwim()
-# gym_env = TaxiEnv()
+env = None
+if in_options.domain.upper() == "RIVERSWIM":
+    env = RiverSwim()
+elif in_options.domain.upper() == "T3D1":
+    env = Toy3D_1(delta=domain_options.mdp_delta,
+                  stochastic_reward=domain_options.stochastic_reward,
+                  uniform_reward=domain_options.uniform_reward,
+                  uniform_range=domain_options.unifrew_range)
+elif in_options.domain.upper() == "T3D2":
+    env = Toy3D_2(delta=domain_options.mdp_delta,
+                  epsilon=domain_options.mdp_delta / 5.,
+                  stochastic_reward=domain_options.stochastic_reward)
+elif in_options.domain.upper() == "TAXI":
+    gym_env = TaxiEnv()
+    if in_options.communicating_version:
+        env = GymDiscreteEnvWrapperTaxi(gym_env)
+    else:
+        env = GymDiscreteEnvWrapper(gym_env)
 
 r_max = max(1, np.asscalar(np.max(env.R_mat)))
 
@@ -89,7 +114,9 @@ seed_sequence = [random.randint(0, 2 ** 30) for _ in range(in_options.nb_simulat
 config['seed_sequence'] = seed_sequence
 
 with open(os.path.join(folder_results, 'settings{}.conf'.format(in_options.nb_sim_offset)), 'w') as f:
-    json.dump(config, f, indent=4, sort_keys=True)
+    cc = config.copy()
+    cc.update(domain_config)
+    json.dump(cc, f, indent=4, sort_keys=True)
 
 # ------------------------------------------------------------------------------
 # Main loop
@@ -115,6 +142,7 @@ for rep in range(start_sim, end_sim):
                                                 filename=name,
                                                 path=folder_results)
     expalg_log.info("mdp desc: {}".format(env_desc))
+    expalg_log.info("mdp prop: {}".format(env.properties()))
     ofualg = None
     if in_options.algorithm == "UCRL":
         ofualg = Ucrl.UcrlMdp(
@@ -156,8 +184,23 @@ for rep in range(start_sim, end_sim):
                              bound_type_p=in_options.bound_type,
                              bound_type_rew=in_options.bound_type,
                              random_state=seed)
+    elif in_options.algorithm == "SCAL":
+        ofualg = scal.SCAL(
+            environment=env,
+            r_max=r_max,
+            span_constraint=in_options.span_constraint,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            verbose=1,
+            logger=expalg_log,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
+            random_state=seed,
+            augment_reward=in_options.augmented_reward,
+            known_reward=in_options.use_true_reward
+        )
 
-    expalg_log.info("[id: {}] {}".format(id, type(ofualg).__name__))
+    expalg_log.info("[id: {}] {}".format(in_options.id, type(ofualg).__name__))
     expalg_log.info("seed: {}".format(seed))
     expalg_log.info("Config: {}".format(config))
 
@@ -165,7 +208,7 @@ for rep in range(start_sim, end_sim):
     expalg_log.info("alg desc: {}".format(alg_desc))
 
     pickle_name = 'run_{}.pickle'.format(rep)
-#    try:
+    #    try:
     h = ofualg.learn(in_options.duration, in_options.regret_time_steps)  # learn task
     # except Ucrl.EVIException as valerr:
     #     expalg_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))

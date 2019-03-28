@@ -1,7 +1,7 @@
 Exploration-Exploitation in Reinforcement Learning
 **************************************************
 This library contains several algorithms for exploration-exploitation in RL
-In particular we have implemented UCRL2, UCRL2B, SCAL, KL-UCB, TSDE, BKIA/OLP.
+In particular we have implemented UCRL2, UCRL2B, SCAL, KL-UCRL2, TSDE, BKIA/OLP.
 
 Note that this is a research project and by definition is unstable. Please write to us if you find something not correct or strange.
 
