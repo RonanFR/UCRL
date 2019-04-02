@@ -34,7 +34,7 @@ fields = ("nb_sim_offset", "nb_simulations", "id", "path", "algorithm", "domain"
           "alpha_p", "posterior", "use_true_reward", "duration", "regret_time_steps", "quiet", "bound_type",
           "span_constraint", "augmented_reward", "communicating_version")
 Options = namedtuple("Options", fields)
-dfields = ("mdp_delta","stochastic_reward","uniform_reward", "unifrew_range")
+dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range")
 DomainOptions = namedtuple("DomainOptions", dfields)
 
 id_v = None
@@ -44,13 +44,13 @@ in_options = Options(
     nb_simulations=1,
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
-    algorithm="SCALPLUS",  # ["UCRL", "TUCRL", "TSDE", "BKIA", "SCAL", "SCALPLUS"]
-    domain="T3D1",  # ["RiverSwim", "T3D1", "T3D2", "Taxi"]
+    algorithm="UCRL",  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS"]
+    domain="RiverSwim",  # ["RiverSwim", "T3D1", "T3D2", "Taxi"]
     seed_0=3764331,
     alpha_r=1,
     alpha_p=1,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
-    use_true_reward=False,
+    use_true_reward=True,
     duration=500000,
     regret_time_steps=100,
     quiet=False,
@@ -174,6 +174,14 @@ for rep in range(start_sim, end_sim):
                              random_state=seed,
                              posterior=in_options.posterior,
                              known_reward=in_options.use_true_reward)
+    elif in_options.algorithm == "DSPSRL":
+        ofualg = psalgs.DSPSRL(environment=env,
+                               r_max=r_max,
+                               verbose=1,
+                               logger=expalg_log,
+                               random_state=seed,
+                               posterior=in_options.posterior,
+                               known_reward=in_options.use_true_reward)
     elif in_options.algorithm == "BKIA":
         ofualg = forced.BKIA(environment=env,
                              r_max=r_max,

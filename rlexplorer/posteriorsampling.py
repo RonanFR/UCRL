@@ -143,6 +143,24 @@ class TSDE(UcrlMdp):
 
         return span_value
 
+
+class DSPSRL(TSDE):
+
+    def __init__(self, environment, r_max, verbose=0,
+                 logger=default_logger, random_state=None, known_reward=False,
+                 posterior="Bernoulli", prior_parameters=None):
+        super(DSPSRL, self).__init__(environment, r_max, verbose=verbose,
+                 logger=logger, random_state=random_state, known_reward=known_reward,
+                 posterior=posterior, prior_parameters=prior_parameters)
+        self.target_time = 1
+
+    def _stopping_rule(self, curr_state, curr_act_idx, next_state):
+        cont = self.total_time < self.target_time
+        if not cont:
+            self.target_time *= 2
+        return cont
+
+
 # class OptimisticPS(PS):
 #
 #     def __init__(self, environment, r_max, verbose=0,
