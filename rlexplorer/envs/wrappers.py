@@ -1,6 +1,6 @@
 import numpy as np
 from ..evi.evi import EVI
-from . import Environment
+from .Environment import Environment
 from ..utils.shortestpath import dpshortestpath
 from gym.envs.toy_text.taxi import TaxiEnv
 
