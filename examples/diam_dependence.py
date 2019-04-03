@@ -1,5 +1,6 @@
 import copy
 import os
+import sys
 import pickle
 import random
 import math
@@ -263,10 +264,11 @@ Options = namedtuple("Options", fields)
 dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range")
 DomainOptions = namedtuple("DomainOptions", dfields)
 
-N = 20
-x1 = np.logspace(0.1, 3, N, endpoint=True)
-x1 = x1 / (1.5*x1.max())
-for delta in x1.tolist():
+# N = 20
+# x1 = np.logspace(0.1, 3, N, endpoint=True)
+# x1 = x1 / (1.5*x1.max())
+# for delta in x1.tolist():
+for delta in [sys.argv[1]]:
     id_v = 'delta{}'.format(delta)
 
     in_options = Options(
