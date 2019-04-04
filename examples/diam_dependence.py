@@ -293,7 +293,7 @@ for delta in [sys.argv[1]]:
     )
 
     domain_options = DomainOptions(
-        mdp_delta=0.005,
+        mdp_delta=delta,
         stochastic_reward=True,
         uniform_reward=True,
         unifrew_range=0.2,
