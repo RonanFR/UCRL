@@ -1,5 +1,5 @@
 from .evi.evi import EVI
-from .logging import default_logger
+from .rllogging import default_logger
 from . import __version__ as ucrl_version
 
 import numbers

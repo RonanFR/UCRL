@@ -1,6 +1,6 @@
 import numpy as np
 from .Ucrl import UcrlMdp
-from .logging import default_logger
+from .rllogging import default_logger
 from .evi import SCOPT
 
 
