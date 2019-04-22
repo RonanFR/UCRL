@@ -16,7 +16,7 @@ def value_iteration(policy_indices,
     while True:
         for s in range(nb_states):
             for a_idx, action in enumerate(state_actions[s]):
-                v = r[s,a_idx] + aper * np.dot(p[s,a_idx], u1) + (1.-aper) * u1[s]
+                v = r[s,a_idx] + aper * p[s][a_idx].dot(u1) + (1.-aper) * u1[s]
                 if a_idx == 0:
                     u2[s] = v
                     policy[s] = action
