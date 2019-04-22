@@ -15,7 +15,7 @@ print("This is the name of the script: {}".format(sys.argv[0]))
 
 
 if len(sys.argv) == 1:
-    env_name = "POLE"  # ["MC", "POLE", "ACROBOT"]
+    env_name = "MC"  # ["MC", "POLE", "ACROBOT"]
     print("Running {} test".format(env_name))
     path = None
 else:
@@ -291,6 +291,7 @@ else:
 
     state_actions = [list(range(A)) for _ in range(S)]
 
+    print("solving value iteration")
     policy_indices = 99 * np.ones((S,), dtype=np.int)
     policy = 99 * np.ones((S,), dtype=np.int)
     gain, u2 = value_iteration(policy_indices,
@@ -298,7 +299,7 @@ else:
                                S, state_actions,
                                Pnz, Rsparse,
                                # P, R,
-                               1e-4, 0.99)
+                               1e-4, 0.99, verbose=1)
 
     print("SPAN: {}".format(np.max(u2) - np.min(u2)))
     print("GAIN: {}".format(gain))

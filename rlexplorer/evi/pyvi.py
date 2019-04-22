@@ -4,7 +4,7 @@ def value_iteration(policy_indices,
                     policy,
                     nb_states, state_actions,
                     p, r,
-                    epsilon, aper):
+                    epsilon, aper, verbose=0):
     u1 = np.zeros((nb_states,))
     u2 = np.zeros((nb_states,))
     nb_actions = max(map(len, state_actions))
@@ -13,6 +13,7 @@ def value_iteration(policy_indices,
     action_noise = np.random.random_sample(nb_actions) * noise_factor
 
     oldspan = np.inf
+    it = 1
     while True:
         for s in range(nb_states):
             for a_idx, action in enumerate(state_actions[s]):
@@ -28,9 +29,11 @@ def value_iteration(policy_indices,
 
         maxd = np.max(u2 - u1)
         mind = np.min(u2 - u1)
-        # print(oldspan, maxd - mind)
+        if verbose > 0:
+            print(it, oldspan, maxd - mind)
         if (maxd - mind) <= epsilon:
             return 0.5*(maxd + mind), u2
 
         u1 = u2.copy()
         oldspan = maxd - mind
+        it += 1
