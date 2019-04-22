@@ -89,5 +89,7 @@
 # 0.37.dev0 (May 20, 2018)
 #   - changed terminal condition of TUCRL
 # 0.45.dev0 (Mar 28, 2019)
-#   - big refactoring
-__version__ = '0.45.dev0'
+#   - big refactoring to match thesis
+# 0.46.dev0 (Apr 22, 2019)
+#   - added Continuous SCAL (SCCAL-PLUS)
+__version__ = '0.46.dev0'

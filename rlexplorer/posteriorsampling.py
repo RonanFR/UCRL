@@ -2,7 +2,7 @@ import numpy as np
 # import time
 import math as m
 from .evi import EVI  # , SpanConstrainedEVI
-from .logging import default_logger
+from .rllogging import default_logger
 from .Ucrl import UcrlMdp, EVIException
 
 

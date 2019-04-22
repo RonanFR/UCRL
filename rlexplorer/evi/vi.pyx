@@ -20,10 +20,11 @@ def value_iteration(INT[:] policy_indices,
     noise_factor = 0.1 * min(1e-6, epsilon)
     cdef DOUBLE[:] action_noise = np.random.random_sample(nb_actions) * noise_factor
 
+    oldspan = np.inf
     while True:
         for s in range(nb_states):
             for a_idx, action in enumerate(state_actions[s]):
-                v = r[s,a_idx] + aper * np.dot(p[s,a_idx], u1) + (1-aper)* u1[s]
+                v = r[s,a_idx] + aper * np.dot(p[s,a_idx], u1) + (1.-aper) * u1[s]
                 if a_idx == 0:
                     u2[s] = v
                     policy[s] = action
@@ -33,7 +34,11 @@ def value_iteration(INT[:] policy_indices,
                     policy[s] = action
                     policy_indices[s] = a_idx
 
-                maxd = np.max(u2 - u1)
-                mind = np.min(u2 - u1)
-                if maxd - mind <= epsilon:
-                    return 0.5*(maxd + mind), u2
+        maxd = np.max(u2 - u1)
+        mind = np.min(u2 - u1)
+        # print(oldspan, maxd - mind)
+        if (maxd - mind) <= epsilon:
+            return 0.5*(maxd + mind), u2
+
+        u1 = u2.copy()
+        oldspan = maxd - mind

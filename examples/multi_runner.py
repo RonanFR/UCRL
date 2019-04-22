@@ -16,8 +16,9 @@ import rlexplorer.scal as scal
 import rlexplorer.posteriorsampling as psalgs
 import rlexplorer.forcedxpl as forced
 # from rlexplorer.olp import OLP
-import rlexplorer.logging as ucrl_logger
+import rlexplorer.rllogging as ucrl_logger
 import matplotlib
+from rlexplorer.ofucontinuous import SCCALPlus, GymMCWrapper2
 
 # 'DISPLAY' will be something like this ':0'
 # on your local machine, and None otherwise
@@ -44,18 +45,18 @@ in_options = Options(
     nb_simulations=1,
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
-    algorithm="UCRL",  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS"]
-    domain="RiverSwim",  # ["RiverSwim", "T3D1", "T3D2", "Taxi"]
-    seed_0=3764331,
+    algorithm="SCCALPLUS",  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS"]
+    domain="MountainCar",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar"]
+    seed_0=76331,
     alpha_r=1,
     alpha_p=1,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
-    use_true_reward=True,
-    duration=500000,
+    use_true_reward=False,
+    duration=1000000,
     regret_time_steps=100,
     quiet=False,
     bound_type="bernstein",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
-    span_constraint=5,
+    span_constraint=200,
     augmented_reward=True,
     communicating_version=True,
 )
@@ -76,25 +77,35 @@ domain_config = domain_options._asdict()
 # Relevant code
 # ------------------------------------------------------------------------------
 env = None
+Hl = Ha = None
 if in_options.domain.upper() == "RIVERSWIM":
     env = RiverSwim()
+    r_max = max(1, np.asscalar(np.max(env.R_mat)))
 elif in_options.domain.upper() == "T3D1":
     env = Toy3D_1(delta=domain_options.mdp_delta,
                   stochastic_reward=domain_options.stochastic_reward,
                   uniform_reward=domain_options.uniform_reward,
                   uniform_range=domain_options.unifrew_range)
+    r_max = max(1, np.asscalar(np.max(env.R_mat)))
 elif in_options.domain.upper() == "T3D2":
     env = Toy3D_2(delta=domain_options.mdp_delta,
                   epsilon=domain_options.mdp_delta / 5.,
                   stochastic_reward=domain_options.stochastic_reward)
+    r_max = max(1, np.asscalar(np.max(env.R_mat)))
 elif in_options.domain.upper() == "TAXI":
     gym_env = TaxiEnv()
     if in_options.communicating_version:
         env = GymDiscreteEnvWrapperTaxi(gym_env)
     else:
         env = GymDiscreteEnvWrapper(gym_env)
+    r_max = max(1, np.asscalar(np.max(env.R_mat)))
+elif in_options.domain.upper() == "MOUNTAINCAR":
+    Hl = 1
+    Ha = 1
+    N = SCCALPlus.nb_discrete_state(in_options.duration, 3, Hl, Ha)
+    env = GymMCWrapper2(N)
+    r_max = 1
 
-r_max = max(1, np.asscalar(np.max(env.R_mat)))
 
 if in_options.path is None:
     folder_results = os.path.abspath('{}_{}_{}'.format(in_options.algorithm, type(env).__name__,
@@ -220,6 +231,21 @@ for rep in range(start_sim, end_sim):
             augment_reward=in_options.augmented_reward,
             known_reward=in_options.use_true_reward
         )
+    elif in_options.algorithm == "SCCALPLUS":
+        ofualg = SCCALPlus(
+            discretized_env=env,
+            r_max=r_max,
+            holder_L=Hl,
+            holder_alpha=Ha,
+            span_constraint=in_options.span_constraint,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            verbose=1,
+            logger=expalg_log,
+            random_state=seed,
+            augment_reward=in_options.augmented_reward,
+            known_reward=in_options.use_true_reward
+        )
 
     expalg_log.info("[id: {}] {}".format(in_options.id, type(ofualg).__name__))
     expalg_log.info("seed: {}".format(seed))
@@ -262,6 +288,9 @@ for rep in range(start_sim, end_sim):
 
     print('policy indices: ')
     print(ofualg.policy_indices)
+
+    print('policy: ')
+    print(ofualg.policy)
 
     if rep == start_sim:
         sum_regret = np.copy(ofualg.regret)
