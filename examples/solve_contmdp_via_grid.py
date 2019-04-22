@@ -1,13 +1,14 @@
 import numpy as np
 from gym.envs.classic_control import MountainCarEnv, CartPoleEnv, AcrobotEnv
 from rlexplorer.utils.discretization import Discretizer
-# from rlexplorer.evi.pyvi import value_iteration
+from rlexplorer.evi.pyvi import value_iteration
 from rlexplorer.evi.vi import value_iteration
 from rlexplorer.utils.shortestpath import dpshortestpath
 import datetime
 import pickle
 import os
 import sys
+from tqdm import tqdm
 
 print("This is the name of the script: {}".format(sys.argv[0]))
 
@@ -39,8 +40,6 @@ if env_name is None:
     R = np.zeros((S, A))
     R[Ridx] = Rnnz
 
-    print(Rnnz)
-
     env_name = data['env_name']
     if env_name == "MC":
         env = MountainCarEnv()
@@ -52,18 +51,18 @@ if env_name is None:
     bins = data['bins']
     grid = Discretizer(bins=bins)
 
-    # state_actions = [list(range(A)) for _ in range(S)]
-    #
-    # policy_indices = 99*np.ones((S,), dtype=np.int)
-    # policy = 99*np.ones((S,), dtype=np.int)
-    # gain, u2 = value_iteration(policy_indices,
-    #                     policy,
-    #                     S, state_actions,
-    #                     P, R,
-    #                     1e-10, 0.9)
-    #
-    # print("SPAN: {}".format(np.max(u2)-np.min(u2)))
-    # print("GAIN: {}".format(gain))
+    state_actions = [list(range(A)) for _ in range(S)]
+
+    policy_indices = 99*np.ones((S,), dtype=np.int)
+    policy = 99*np.ones((S,), dtype=np.int)
+    gain, u2 = value_iteration(policy_indices,
+                        policy,
+                        S, state_actions,
+                        P, R,
+                        1e-3, 0.9)
+
+    print("SPAN: {}".format(np.max(u2)-np.min(u2)))
+    print("GAIN: {}".format(gain))
 
 
 
@@ -152,7 +151,7 @@ else:
 
     reach_graph = [[] for _ in range(S)]
 
-    for point in samples:
+    for point in tqdm(samples):
         sd = np.asscalar(grid.dpos(point))
         for a in range(A):
             for n in range(Nsamples):
@@ -211,7 +210,7 @@ else:
         Rnnz = R[Ridx]
 
         pickle.dump({"Pnnz": Pnnz, "Rnnz": Rnnz, "Pidx": Pidx, "Ridx": Ridx, "S": S, "A": A, "env_name": env_name,
-                     "bins": bins}, f)
+                     "bins": bins, 'reachable_states': Rs}, f)
 
     state_actions = [list(range(A)) for _ in range(S)]
 
@@ -221,10 +220,14 @@ else:
                                policy,
                                S, state_actions,
                                P, R,
-                               1e-10, 1)
+                               1e-4, 0.99)
 
     print("SPAN: {}".format(np.max(u2) - np.min(u2)))
     print("GAIN: {}".format(gain))
+
+    pickle_name = "{}_{}_policy.pickle".format(env_name, id)
+    with open(os.path.join(folder_results, pickle_name), 'wb') as f:
+        pickle.dump({"policy": policy, "policy_indices": policy_indices}, f)
 
     if False:
         Preach = P[Rs]
