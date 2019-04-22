@@ -15,7 +15,7 @@ print("This is the name of the script: {}".format(sys.argv[0]))
 
 
 if len(sys.argv) == 1:
-    env_name = "MC"  # ["MC", "POLE", "ACROBOT"]
+    env_name = "ACROBOT"  # ["MC", "POLE", "ACROBOT"]
     print("Running {} test".format(env_name))
     path = None
 else:
@@ -133,24 +133,37 @@ else:
     elif env_name == "ACROBOT":
         env = AcrobotEnv()
 
-        Nbins = 6
-        Nsamples = 1
+        Nbins = 10
+        Nsamples = 6
 
+        # variables [theta1, theta2, dtheta1, dtheta2]
+
+        HM_t = np.array([2*np.pi, 2*np.pi, env.MAX_VEL_1, env.MAX_VEL_2])
+        LM_t = -HM_t
+
+        # state bounds
         LM = env.observation_space.low
         HM = env.observation_space.high
-        D = len(HM)
+
+        D = 6
 
         bins = []
         points = []
         for i in range(D):
             V = np.linspace(LM[i], HM[i], Nbins)
             bins.append(V[1:-1])
+        print(bins)
 
-            V = np.linspace(LM[i], HM[i], 3 * Nbins)
+        for i in range(4):
+            V = np.linspace(LM_t[i], HM_t[i], 11 * Nbins)
             points.append(V)
 
         samples = np.meshgrid(*points)
         samples = np.concatenate([M.reshape(-1, 1) for M in samples], axis=1)
+        # samples = np.concatenate([np.cos(samples[:,0]).reshape(-1,1),
+        #                           np.sin(samples[:,0]).reshape(-1,1),
+        #                           np.cos(samples[:,1]).reshape(-1,1),
+        #                           np.sin(samples[:,1]).reshape(-1,1), samples[:, [2,3]]], axis=1)
 
         grid = Discretizer(bins=bins)
         S, A = grid.n_bins(), env.action_space.n
@@ -172,12 +185,16 @@ else:
     Rsparse = {}
     Nsparse = {}
     for point in tqdm(samples):
-        sd = np.asscalar(grid.dpos(point))
+        if env_name == "ACROBOT":
+            env.state = point.copy()
+            sd = np.asscalar(grid.dpos(env._get_ob()))
+        else:
+            sd = np.asscalar(grid.dpos(point))
         for a in range(A):
             r_sa = 0
             for n in range(Nsamples):
                 env.state = point.copy()
-                nextstate, reward, done, _ = env.step(action=a)
+                nextstate, reward, done, _ = env.step(a)
 
                 if done:
                     nextstate = env.reset()
@@ -188,7 +205,7 @@ else:
                 if nsd not in reach_graph[sd]:
                     reach_graph[sd].append(nsd)
 
-                if env_name in ["MC"]:
+                if env_name in ["MC", "ACROBOT"]:
                     reward += 1
 
                 keyp = "{}_{}_{}".format(sd, a, nsd)
@@ -245,7 +262,7 @@ else:
             k = list(Pnz[s][a].keys())
             data = list(Pnz[s][a].values())
             Pnz[s][a] = csr_matrix((data, (np.zeros_like(k), k)), shape=(1,S))
-            assert np.allclose(Pnz[s][a].sum(), 1)
+            assert np.allclose(Pnz[s][a].sum(), 1), "{}".format(Pnz[s][a].sum())
 
 
     Rsparse = csr_matrix((r_data, (r_row, r_col)), shape=(S, A))
