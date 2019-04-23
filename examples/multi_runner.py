@@ -19,6 +19,7 @@ import rlexplorer.forcedxpl as forced
 import rlexplorer.rllogging as ucrl_logger
 import matplotlib
 from rlexplorer.ofucontinuous import SCCALPlus
+import sys
 
 # 'DISPLAY' will be something like this ':0'
 # on your local machine, and None otherwise
@@ -39,32 +40,35 @@ dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range")
 DomainOptions = namedtuple("DomainOptions", dfields)
 
 id_v = None
+alg_name = "SCAL"
+if len(sys.argv) > 1:
+    alg_name = sys.argv[1]
 
 in_options = Options(
     nb_sim_offset=0,
     nb_simulations=3,
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
-    algorithm="SCAL",  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS"]
-    domain="T3D1",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole"]
-    seed_0=522356,
+    algorithm=alg_name,    # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS"]
+    domain="MountainCar",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole"]
+    seed_0=158956,
     alpha_r=1,
     alpha_p=1,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
-    duration=500000,
-    regret_time_steps=500,
+    duration=100000000,
+    regret_time_steps=2000,
     quiet=False,
-    bound_type="hoeffding",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
-    span_constraint=5,
+    bound_type="bernstein",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
+    span_constraint=150,
     augmented_reward=True,
-    communicating_version=True,
+    communicating_version=False,
 )
 
 domain_options = DomainOptions(
     mdp_delta=0.005,
     stochastic_reward=True,
-    uniform_reward=False,
+    uniform_reward=True,
     unifrew_range=0.2,
 )
 
@@ -98,7 +102,7 @@ elif in_options.domain.upper() == "TAXI":
         env = gymwrap.GymDiscreteEnvWrapperTaxi(gym_env)
     else:
         env = gymwrap.GymDiscreteEnvWrapper(gym_env)
-    r_max = max(1, np.asscalar(np.max(env.R_mat)))
+    r_max = 1
 elif in_options.domain.upper() == "MOUNTAINCAR":
     Hl = 0.5
     Ha = 1

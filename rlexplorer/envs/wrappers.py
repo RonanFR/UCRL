@@ -68,7 +68,7 @@ class GymDiscreteEnvWrapper(Environment):
 
             evi = EVI(nb_states=nS,
                       actions_per_state=state_actions,
-                      bound_type="chernoff",
+                      bound_type="hoeffding",
                       random_state=123456)
 
             span = evi.run(policy_indices=policy_indices,
@@ -104,6 +104,15 @@ class GymDiscreteEnvWrapper(Environment):
             'name': type(self.gym_env).__name__
         }
         return desc
+
+    def properties(self):
+        self.compute_max_gain()
+        props = {
+            'gain': self.max_gain,
+            'diameter': np.inf,
+            'bias_span': self.span
+        }
+        return props
 
 
 class GymDiscreteEnvWrapperTaxi(Environment):
@@ -178,7 +187,7 @@ class GymDiscreteEnvWrapperTaxi(Environment):
 
             evi = EVI(nb_states=nS,
                       actions_per_state=state_actions,
-                      bound_type="chernoff",
+                      bound_type="hoeffding",
                       random_state=123456)
 
             span = evi.run(policy_indices=policy_indices,
@@ -215,6 +224,14 @@ class GymDiscreteEnvWrapperTaxi(Environment):
         }
         return desc
 
+    def properties(self):
+        self.compute_max_gain()
+        props = {
+            'gain': self.max_gain,
+            'diameter': self.compute_diameter(),
+            'bias_span': self.span
+        }
+        return props
 
 # ======================================================================================================================
 # ----------------------------------------------------------------------------------------------------------------------
