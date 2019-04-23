@@ -42,21 +42,21 @@ id_v = None
 
 in_options = Options(
     nb_sim_offset=0,
-    nb_simulations=1,
+    nb_simulations=3,
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
-    algorithm="SCCALPLUS",  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS"]
-    domain="MountainCar",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole"]
+    algorithm="SCAL",  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS"]
+    domain="T3D1",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole"]
     seed_0=522356,
     alpha_r=1,
     alpha_p=1,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
-    duration=10000000,
+    duration=500000,
     regret_time_steps=500,
     quiet=False,
-    bound_type="bernstein",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
-    span_constraint=100,
+    bound_type="hoeffding",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
+    span_constraint=5,
     augmented_reward=True,
     communicating_version=True,
 )

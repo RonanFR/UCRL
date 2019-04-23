@@ -47,7 +47,7 @@ cdef class SCOPT:
         self.u3_mina = <DTYPE_t*> malloc(nb_states * sizeof(DTYPE_t))
         self.u3 = <DTYPE_t*> malloc(nb_states * sizeof(DTYPE_t))
 
-        if bound_type == "chernoff":
+        if bound_type == "hoeffding":
             self.bound_type = CHERNOFF
         elif bound_type == "bernstein":
             self.bound_type = BERNSTEIN
