@@ -36,17 +36,17 @@ if env_name is None:
     policy_indices = data_policy['policy_indices']
     print(policy_indices)
 
-    Pnnz = data['Pnnz']
-    Pidx = data['Pidx']
-    Rnnz = data['Rnnz']
-    Ridx = data['Ridx']
+    # Pnnz = data['Pnnz']
+    # Pidx = data['Pidx']
+    # Rnnz = data['Rnnz']
+    # Ridx = data['Ridx']
     S = data['S']
     A = data['A']
 
-    P = np.zeros((S, A, S))
-    P[Pidx] = Pnnz
-    R = np.zeros((S, A))
-    R[Ridx] = Rnnz
+    # P = np.zeros((S, A, S))
+    # P[Pidx] = Pnnz
+    # R = np.zeros((S, A))
+    # R[Ridx] = Rnnz
 
     env_name = data['env_name']
     if env_name == "MC":
@@ -54,7 +54,7 @@ if env_name is None:
     elif env_name == "POLE":
         env = CartPoleEnv()
     elif env_name == "ACROBOT":
-        env = AcrobotEnv
+        env = AcrobotEnv()
 
     bins = data['bins']
     grid = Discretizer(bins=bins)
@@ -80,10 +80,10 @@ else:
     if env_name == "POLE":
         env = CartPoleEnv()
 
-        Nbins = 30
+        Nbins = 20
         Nsamples = 4
 
-        HM = np.array([1.2 * env.x_threshold, 2., 1.2 * env.theta_threshold_radians, 3.])
+        HM = np.array([1.5 * env.x_threshold, 2., 1.5 * env.theta_threshold_radians, 3.])
         LM = -HM
         D = len(HM)
 
