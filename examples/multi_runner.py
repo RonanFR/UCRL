@@ -9,7 +9,7 @@ import json
 import numpy as np
 from rlexplorer.envs.toys import Toy3D_1, Toy3D_2, RiverSwim
 from gym.envs.toy_text.taxi import TaxiEnv
-from rlexplorer.envs.wrappers import GymDiscreteEnvWrapper, GymDiscreteEnvWrapperTaxi
+import rlexplorer.envs.wrappers as gymwrap
 import rlexplorer.Ucrl as Ucrl
 import rlexplorer.tucrl as tucrl
 import rlexplorer.scal as scal
@@ -18,7 +18,7 @@ import rlexplorer.forcedxpl as forced
 # from rlexplorer.olp import OLP
 import rlexplorer.rllogging as ucrl_logger
 import matplotlib
-from rlexplorer.ofucontinuous import SCCALPlus, GymMCWrapper2
+from rlexplorer.ofucontinuous import SCCALPlus
 
 # 'DISPLAY' will be something like this ':0'
 # on your local machine, and None otherwise
@@ -46,17 +46,17 @@ in_options = Options(
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
     algorithm="SCCALPLUS",  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS"]
-    domain="MountainCar",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar"]
-    seed_0=76331,
+    domain="MountainCar",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole"]
+    seed_0=522356,
     alpha_r=1,
     alpha_p=1,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
-    duration=1000000,
-    regret_time_steps=100,
+    duration=10000000,
+    regret_time_steps=500,
     quiet=False,
     bound_type="bernstein",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
-    span_constraint=200,
+    span_constraint=100,
     augmented_reward=True,
     communicating_version=True,
 )
@@ -95,15 +95,22 @@ elif in_options.domain.upper() == "T3D2":
 elif in_options.domain.upper() == "TAXI":
     gym_env = TaxiEnv()
     if in_options.communicating_version:
-        env = GymDiscreteEnvWrapperTaxi(gym_env)
+        env = gymwrap.GymDiscreteEnvWrapperTaxi(gym_env)
     else:
-        env = GymDiscreteEnvWrapper(gym_env)
+        env = gymwrap.GymDiscreteEnvWrapper(gym_env)
     r_max = max(1, np.asscalar(np.max(env.R_mat)))
 elif in_options.domain.upper() == "MOUNTAINCAR":
-    Hl = 1
+    Hl = 0.5
     Ha = 1
     N = SCCALPlus.nb_discrete_state(in_options.duration, 3, Hl, Ha)
-    env = GymMCWrapper2(N)
+    env = gymwrap.GymMountainCarWr(N)
+    r_max = 1
+elif in_options.domain.upper() == "CARTPOLE":
+    Hl = 0.1
+    Ha = 1
+    N = SCCALPlus.nb_discrete_state(in_options.duration, 3, Hl, Ha)
+    N = 6
+    env = gymwrap.GymCartPoleWr(N)
     r_max = 1
 
 

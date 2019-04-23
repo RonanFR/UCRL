@@ -134,7 +134,8 @@ class UcrlMdp(AbstractUCRL):
         self.P = np.ones((nb_states, max_nb_actions, nb_states)) / nb_states
         self.visited_sa = set()
 
-        self.estimated_rewards = np.ones((nb_states, max_nb_actions)) * (r_max + 99)
+        # self.estimated_rewards = np.ones((nb_states, max_nb_actions)) * (r_max + 99)
+        self.estimated_rewards = np.zeros((nb_states, max_nb_actions))
         self.variance_proxy_reward = np.zeros((nb_states, max_nb_actions))
         self.estimated_holding_times = np.ones((nb_states, max_nb_actions))
 
