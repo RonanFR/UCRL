@@ -115,18 +115,19 @@ class GymDiscreteEnvWrapper(Environment):
         return props
 
 
-class GymDiscreteEnvWrapperTaxi(Environment):
+class GymTaxiCom(Environment):
     def __init__(self, taxi_env):
         assert isinstance(taxi_env, TaxiEnv)
         self.gym_env = taxi_env
         nS = self.gym_env.nS - 100
         nA = self.gym_env.nA
         state_actions = [list(range(nA)) for _ in range(nS)]
-        super(GymDiscreteEnvWrapperTaxi, self).__init__(state_actions=state_actions, initial_state=None)
+        super(GymTaxiCom, self).__init__(state_actions=state_actions, initial_state=None)
         self.reset()
 
         self.fictitious_state = 0
         self.holding_time = 1
+        self.precomputed_diameter = 72.02269121380132
 
     def convert_fictitious_real_state(self, fictitious_state):
         return fictitious_state - fictitious_state // 5 - 1
@@ -198,7 +199,7 @@ class GymDiscreteEnvWrapperTaxi(Environment):
                            beta_p=np.zeros((nS, nA, 1)),
                            beta_r=np.zeros((nS, nA)),
                            beta_tau=np.zeros((nS, nA)),
-                           tau_max=1, tau_min=1, tau=1,
+                           tau_max=1, tau_min=1, tau=0.99,
                            r_max=1.,
                            epsilon=1e-12,
                            initial_recenter=1, relative_vi=0
@@ -228,7 +229,7 @@ class GymDiscreteEnvWrapperTaxi(Environment):
         self.compute_max_gain()
         props = {
             'gain': self.max_gain,
-            'diameter': self.compute_diameter(),
+            'diameter': self.precomputed_diameter,
             'bias_span': self.span
         }
         return props
@@ -237,6 +238,7 @@ class GymDiscreteEnvWrapperTaxi(Environment):
 # ----------------------------------------------------------------------------------------------------------------------
 # CONTINUOUS STATE MDPS
 # ----------------------------------------------------------------------------------------------------------------------
+
 
 class GymContinuousWrapper:
 
