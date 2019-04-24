@@ -275,15 +275,17 @@ class UcrlMdp(AbstractUCRL):
         if self.bound_type_rew == "bernstein":
             # ------------------------ #
             # BERNSTEIN CI
+            L_CONST = 6
             var_r = self.variance_proxy_reward / N[:, :] # this is the population variance
-            log_term = np.log(6 * S * A * N / self.delta) / N
-            B = 6 * self.r_max * log_term
+            log_term = np.log(L_CONST * S * A * N / self.delta) / N
+            B = self.r_max * log_term
             beta = 2 * np.sqrt(var_r * log_term) + B
         elif self.bound_type_rew == "hoeffding":
             # ------------------------ #
             # HOEFFDING CI
-            log_term = np.log(6 * S * A * N / self.delta) / N
-            beta = self.r_max * np.sqrt(log_term)
+            L_CONST = 6
+            log_term = np.log(L_CONST * S * A * N / self.delta) / N
+            beta = self.r_max * 2 * np.sqrt(log_term)
         else:
             raise ValueError("unknown reward bound type: {}".format(self.bound_type_rew))
 
@@ -314,14 +316,16 @@ class UcrlMdp(AbstractUCRL):
             # ------------------------ #
             # BERNSTEIN CI
             var_p = self.P * (1. - self.P)
-            log_term = np.log(6 * S * A * N / self.delta)
+            L_CONST = 6
+            log_term = np.log(L_CONST * S * A * N / self.delta)
             beta = 2 * np.sqrt(var_p * log_term[:, :, np.newaxis] / N[:, :, np.newaxis]) \
-                   + 6 * log_term[:, :, np.newaxis] / N[:, :, np.newaxis]
+                   + log_term[:, :, np.newaxis] / N[:, :, np.newaxis]
         elif self.bound_type_p == "hoeffding":
             # ------------------------ #
             # HOEFFDING CI
-            log_term = np.log(6 * A * N / self.delta) / N
-            beta = np.sqrt(4 * S * log_term).reshape(S, A, 1)
+            L_CONST = 6
+            log_term = np.log(L_CONST * A * N / self.delta)
+            beta = 2 * np.sqrt(S * log_term / N).reshape(S, A, 1)
         else:
             raise ValueError("unknown transition bound type: {}".format(self.bound_type_p))
         return beta * self.alpha_p
