@@ -5,7 +5,54 @@ from .. import RewardDistributions as Rdists
 from ...utils.shortestpath import dpshortestpath
 
 
-class Toy3D_1(Environment):
+class AbstractDiscreteMDP(Environment):
+
+    def compute_max_gain(self):
+        if not hasattr(self, "max_gain"):
+            na = max(map(len, self.state_actions))
+            policy_indices = np.ones(self.nb_states, dtype=np.int)
+            policy = np.ones(self.nb_states, dtype=np.int)
+
+            print("creating model")
+            evi = EVI(nb_states=self.nb_states,
+                      actions_per_state=self.state_actions,
+                      random_state=123456)
+
+            print("running model")
+            span = evi.run(policy_indices=policy_indices,
+                           policy=policy,
+                           estimated_probabilities=self.P_mat,
+                           estimated_rewards=self.R_mat,
+                           estimated_holding_times=np.ones((self.nb_states, na)),
+                           beta_p=np.zeros((self.nb_states, na, self.nb_states)),
+                           beta_r=np.zeros((self.nb_states, na)),
+                           beta_tau=np.zeros((self.nb_states, na)),
+                           tau_max=1, tau_min=1, tau=1,
+                           r_max=1.,
+                           epsilon=1e-12,
+                           initial_recenter=1, relative_vi=0
+                           )
+            u1, u2 = evi.get_uvectors()
+            self.span = span
+            self.max_gain = 0.5 * (max(u2 - u1) + min(u2 - u1))
+            self.optimal_policy_indices = policy_indices
+            self.optimal_policy = policy
+
+            print("solved model")
+
+        return self.max_gain
+
+    def properties(self):
+        self.compute_max_gain()
+        props = {
+            'gain': self.max_gain,
+            'diameter': self.diameter,
+            'bias_span': self.span
+        }
+        return props
+
+
+class Toy3D_1(AbstractDiscreteMDP):
     def __init__(self, delta=0.99, stochastic_reward=False,
                  uniform_reward=False, uniform_range=0.1):
         state_actions = [[0], [0], [0, 1]]
@@ -56,48 +103,10 @@ class Toy3D_1(Environment):
                                       state_actions=state_actions)
         self.holding_time = 1
 
+        self.diameter = dpshortestpath(self.P_mat, self.state_actions)
+
     def reset(self):
         self.state = 0
-
-    def compute_max_gain(self):
-        if not hasattr(self, "max_gain"):
-            na = max(map(len, self.state_actions))
-            policy_indices = np.ones(self.nb_states, dtype=np.int)
-            policy = np.ones(self.nb_states, dtype=np.int)
-
-            print("creating model")
-            evi = EVI(nb_states=self.nb_states,
-                      actions_per_state=self.state_actions,
-                      random_state=123456)
-
-            print("running model")
-            span = evi.run(policy_indices=policy_indices,
-                           policy=policy,
-                           estimated_probabilities=self.P_mat,
-                           estimated_rewards=self.R_mat,
-                           estimated_holding_times=np.ones((self.nb_states, na)),
-                           beta_p=np.zeros((self.nb_states, na, self.nb_states)),
-                           beta_r=np.zeros((self.nb_states, na)),
-                           beta_tau=np.zeros((self.nb_states, na)),
-                           tau_max=1, tau_min=1, tau=1,
-                           r_max=1.,
-                           epsilon=1e-12,
-                           initial_recenter=1, relative_vi=0
-                           )
-            u1, u2 = evi.get_uvectors()
-            self.span = span
-            self.max_gain = 0.5 * (max(u2 - u1) + min(u2 - u1))
-            self.optimal_policy_indices = policy_indices
-            self.optimal_policy = policy
-
-            print("solved model")
-
-            if self.delta > 0:
-                self.diameter = dpshortestpath(self.P_mat, self.state_actions)
-            else:
-                self.diameter = np.inf
-
-        return self.max_gain
 
     def execute(self, action):
         try:
@@ -123,15 +132,6 @@ class Toy3D_1(Environment):
             'uniform_range': self.uniform_range
         }
         return desc
-
-    def properties(self):
-        self.compute_max_gain()
-        props = {
-            'gain': self.max_gain,
-            'diameter': self.diameter,
-            'bias_span': self.span
-        }
-        return props
 
 
 class Toy3D_2(Toy3D_1):
