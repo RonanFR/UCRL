@@ -26,6 +26,7 @@ class Environment(metaclass=ABCMeta):
         self.nb_states = len(self.state_actions)  # Total number of states
         self.max_nb_actions_per_state = max(map(len, self.state_actions))
         self.max_gain = self.compute_max_gain()  # Optimal gain of the SMDP
+        self.max_branching = self.nb_states
 
     def reset(self):
         """

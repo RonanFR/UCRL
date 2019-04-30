@@ -33,8 +33,8 @@ import matplotlib.pyplot as plt
 from collections import namedtuple
 
 fields = ("nb_sim_offset", "nb_simulations", "id", "path", "algorithm", "domain", "seed_0", "alpha_r",
-          "alpha_p", "posterior", "use_true_reward", "duration", "regret_time_steps", "quiet", "bound_type",
-          "span_constraint", "augmented_reward", "communicating_version")
+          "alpha_p", "posterior", "use_true_reward", "duration", "regret_time_steps", "span_episode_steps",
+          "quiet", "bound_type", "span_constraint", "augmented_reward", "communicating_version")
 Options = namedtuple("Options", fields)
 dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range",
            "garnet_ns", "garnet_na", "garnet_gamma")
@@ -51,16 +51,17 @@ in_options = Options(
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
     algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS"]
-    domain="T3D1",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet"]
+    domain="Garnet",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet"]
     seed_0=158956,
-    alpha_r=1,
-    alpha_p=1,
+    alpha_r=0.5,
+    alpha_p=0.2,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
-    duration=500000,
-    regret_time_steps=1000,
+    duration=100000000,
+    regret_time_steps=10000,
+    span_episode_steps=2,
     quiet=False,
-    bound_type="bernstein",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
+    bound_type="hoeffding",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
     span_constraint=5,
     augmented_reward=True,
     communicating_version=True,
@@ -71,15 +72,21 @@ domain_options = DomainOptions(
     stochastic_reward=True,
     uniform_reward=True,
     unifrew_range=0.2,
-    garnet_ns=10,
-    garnet_gamma=3,
-    garnet_na=5
+    garnet_ns=200,
+    garnet_gamma=60,
+    garnet_na=4,
 )
 
 #####################################################################
 
 config = in_options._asdict()
 domain_config = domain_options._asdict()
+
+# ------------------------------------------------------------------------------
+# Reset Random Generators (envs may use it)
+# ------------------------------------------------------------------------------
+np.random.seed(in_options.seed_0)
+random.seed(in_options.seed_0)
 
 # ------------------------------------------------------------------------------
 # Relevant code
@@ -137,10 +144,7 @@ else:
     if not os.path.exists(folder_results):
         os.makedirs(folder_results)
 
-np.random.seed(in_options.seed_0)
-random.seed(in_options.seed_0)
 seed_sequence = [random.randint(0, 2 ** 30) for _ in range(in_options.nb_simulations)]
-
 config['seed_sequence'] = seed_sequence
 
 with open(os.path.join(folder_results, 'settings{}.conf'.format(in_options.nb_sim_offset)), 'w') as f:
@@ -155,7 +159,7 @@ sum_regret = None
 M2 = None
 t_step = None
 
-VERBOSITY = 2
+VERBOSITY = 1
 
 start_sim = in_options.nb_sim_offset
 end_sim = start_sim + in_options.nb_simulations
@@ -279,7 +283,9 @@ for rep in range(start_sim, end_sim):
 
     pickle_name = 'run_{}.pickle'.format(rep)
     #    try:
-    h = ofualg.learn(in_options.duration, in_options.regret_time_steps)  # learn task
+    h = ofualg.learn(duration=in_options.duration,
+                     regret_time_step=in_options.regret_time_steps,
+                     span_episode_step=in_options.span_episode_steps)  # learn task
     # except Ucrl.EVIException as valerr:
     #     expalg_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))
     #     pickle_name = 'exception_model_{}.pickle'.format(rep)

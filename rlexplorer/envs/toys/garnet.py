@@ -25,8 +25,10 @@ class Garnet(AbstractDiscreteMDP):
         super(Garnet, self).__init__(initial_state=0,
                                      state_actions=self.state_actions)
 
-        self.diameter = dpshortestpath(self.P_mat, self.state_actions)
+        # self.diameter = dpshortestpath(self.P_mat, self.state_actions)
+        self.diameter = None
         self.holding_time = 1
+        self.max_branching = self.Nb
 
     def generate(self):
         self.P_mat = np.zeros((self.nb_states, self.Na, self.nb_states))
@@ -46,7 +48,7 @@ class Garnet(AbstractDiscreteMDP):
                     self.P_mat[s, a, sn] = partition[i + 1] - partition[i]
 
                 # enforce unichain model
-                self.P_mat[s, a, 0] += 0.01
+                self.P_mat[s, a, 0] += 0.001
                 self.P_mat[s, a] /= np.sum(self.P_mat[s, a])
 
                 self.R_mat[s, a] = (np.random.rand() > 0.5) * np.random.rand()
