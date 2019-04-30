@@ -1,17 +1,17 @@
-import UCRL.Ucrl as Ucrl
-from UCRL.span_algorithms import SCAL
-from UCRL.evi.scevi import SpanConstrainedEVI
+import rlexplorer.Ucrl as Ucrl
+from rlexplorer.scal import SCAL
+from rlexplorer.evi.scopt import SCOPT
 import time
 import numpy as np
 import math as m
 import random
-from UCRL.envs.toys import Toy3D_1
+from rlexplorer.envs.toys import Toy3D_1
 import pytest
 
 
 class TUCRL(Ucrl.UcrlMdp):
     def learn(self, duration, regret_time_step, render=False):
-        self.scevi = SpanConstrainedEVI(nb_states=self.environment.nb_states,
+        self.scevi = SCOPT(nb_states=self.environment.nb_states,
                                         actions_per_state=self.environment.get_state_actions(),
                                         bound_type=self.bound_type_p, random_state=self.random_state,
                                         augmented_reward=0,
@@ -103,8 +103,7 @@ class TUCRL(Ucrl.UcrlMdp):
 
 
 @pytest.mark.parametrize("seed_0", [12345, 5687, 2363, 8939, 36252, 38598125])
-@pytest.mark.parametrize("operator_type", ['T', 'N'])
-def test_srevi(seed_0, operator_type):
+def test_srevi(seed_0):
     env = Toy3D_1(delta=0.99)
     r_max = max(1, np.asscalar(np.max(env.R_mat)))
 
@@ -126,8 +125,8 @@ def test_srevi(seed_0, operator_type):
             alpha_r=1,
             alpha_p=1,
             verbose=1,
-            bound_type_p="chernoff",
-            bound_type_rew="chernoff",
+            bound_type_p="hoeffding",
+            bound_type_rew="hoeffding",
             random_state=seed)  # learning algorithm
 
         alg_desc = ofualg.description()
@@ -144,8 +143,8 @@ def test_srevi(seed_0, operator_type):
             alpha_r=1,
             alpha_p=1,
             verbose=1,
-            bound_type_p="chernoff",
-            bound_type_rew="chernoff",
+            bound_type_p="hoeffding",
+            bound_type_rew="hoeffding",
             random_state=seed)  # learning algorithm
         ucrl.learn(duration, regret_time_steps)  # learn task
 
@@ -158,13 +157,12 @@ def test_srevi(seed_0, operator_type):
             alpha_r=1,
             alpha_p=1,
             verbose=1,
-            bound_type_p="chernoff",
-            bound_type_rew="chernoff",
+            bound_type_p="hoeffding",
+            bound_type_rew="hoeffding",
             augment_reward=False,
             random_state=seed,
             span_constraint=np.inf,
-            relative_vi=True,
-            operator_type=operator_type)  # learning algorithm
+            relative_vi=True)  # learning algorithm
         scucrl.learn(duration, regret_time_steps)  # learn task
 
         assert np.allclose(ucrl.regret, scucrl.regret)
@@ -179,4 +177,4 @@ def test_srevi(seed_0, operator_type):
 
 
 if __name__ == '__main__':
-    test_srevi(seed_0=3179336,operator_type='N')
+    test_srevi(seed_0=3179336)

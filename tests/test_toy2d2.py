@@ -1,8 +1,8 @@
 # This is to test the difference between operator T and N
 import numpy as np
 from collections import namedtuple
-from UCRL.evi.scevi import SpanConstrainedEVI
-from UCRL.evi.evi import EVI
+from rlexplorer.evi.scopt import SCOPT
+from rlexplorer.evi.evi import EVI
 import pytest
 
 
@@ -52,60 +52,48 @@ def test_srevi(params):
 
     rs = np.random.randint(1, 2131243)
     print(rs)
-    evi = SpanConstrainedEVI(nb_states=mdp.S,
+    evi = SCOPT(nb_states=mdp.S,
                              actions_per_state=mdp.A,
-                             bound_type="chernoff",
+                             bound_type="bernstein",
                              span_constraint=np.inf,
                              augmented_reward=0,
                              relative_vi=0,
                              random_state=rs,
                              gamma=mdp.gamma)
 
-    epsi = 0.000001
+    epsi = 0.00000001
     c = alpha + beta
     u0 = np.zeros((mdp.S,))
 
-    for oper in ['T', 'N']:
-        evi.reset_u(u0)
-        span_value_new = evi.run(policy_indices=policy_indices,
-                                 policy=policy,
-                                 estimated_probabilities=mdp.P,
-                                 estimated_rewards=mdp.R,
-                                 estimated_holding_times=np.ones((mdp.S, maxa)),
-                                 beta_r=np.zeros((mdp.S, maxa)),
-                                 beta_p=np.zeros((mdp.S, maxa, mdp.S)),
-                                 beta_tau=np.zeros((mdp.S, maxa)),
-                                 tau_max=1.,
-                                 r_max=r_max,
-                                 tau=1.,
-                                 tau_min=1.,
-                                 epsilon=epsi,
-                                 span_constraint=c,
-                                 initial_recenter=1,
-                                 relative_vi=0,
-                                 operator_type=oper)
-        # estimate gain
-        u1, u2 = evi.get_uvectors()
-        print('{}: {}'.format(oper, u1 - u1[2]))
-        if oper == 'T':
-            assert np.isclose(span_value_new, -21), span_value_new
-            assert np.allclose(u1 - u1[2], [alpha + beta, delta, 0])
-            assert np.isclose(np.max(u1) - np.min(u1), c)
+    evi.reset_u(u0)
+    span_value_new = evi.run(policy_indices=policy_indices,
+                             policy=policy,
+                             estimated_probabilities=mdp.P,
+                             estimated_rewards=mdp.R,
+                             estimated_holding_times=np.ones((mdp.S, maxa)),
+                             beta_r=np.zeros((mdp.S, maxa)),
+                             beta_p=np.zeros((mdp.S, maxa, mdp.S)),
+                             beta_tau=np.zeros((mdp.S, maxa)),
+                             tau_max=1.,
+                             r_max=r_max,
+                             tau=1.,
+                             tau_min=1.,
+                             epsilon=epsi,
+                             span_constraint=c,
+                             initial_recenter=1,
+                             relative_vi=0)
+    # estimate gain
+    u1, u2 = evi.get_uvectors()
+    print('{}'.format(u1 - u1[2]))
+    assert np.allclose(u1 - u1[2], [alpha + delta, delta, 0])
+    assert np.isclose(np.max(u1) - np.min(u1), alpha + delta)
 
-            assert np.allclose(policy_indices, [[-1, -1], [0, 1], [0, 0]]) or \
-                   np.allclose(policy_indices, [[-1, -1], [1, 1], [0, 0]])
-            assert np.allclose(policy, [[-1, -1], [0, 1.], [1., 0]], atol=1e-5)\
-                   or np.allclose(policy, [[-1, -1], [0, 1.], [0, 1.]], atol=1e-5), policy
-        else:
-            assert np.allclose(u1 - u1[2], [alpha + delta, delta, 0])
-            assert np.isclose(np.max(u1) - np.min(u1), alpha + delta)
-
-            print(policy_indices)
-            print(policy)
-            assert np.allclose(policy_indices, [[0, 0], [0, 1], [0, 0]]) or \
-                   np.allclose(policy_indices, [[0, 0], [1, 1], [0, 0]])
-            assert np.allclose(policy, [[1., 0], [0, 1], [1., 0]], atol=1e-5)\
-                   or np.allclose(policy, [[1., 0], [0, 1], [0, 1.]], atol=1e-5), policy
+    print(policy_indices)
+    print(policy)
+    assert np.allclose(policy_indices, [[0, 0], [0, 1], [0, 0]]) or \
+           np.allclose(policy_indices, [[0, 0], [1, 1], [0, 0]])
+    assert np.allclose(policy, [[1., 0], [0, 1], [1., 0]], atol=1e-5)\
+           or np.allclose(policy, [[1., 0], [0, 1], [0, 1.]], atol=1e-5), policy
 
 if __name__ == '__main__':
     test_srevi([1.1,1,0.9])

@@ -1,6 +1,6 @@
 import numpy as np
 from collections import namedtuple
-from rlexplorer.evi.scevi import SpanConstrainedEVI
+from rlexplorer.evi.scopt import SCOPT
 from rlexplorer.evi.evi import EVI
 from rlexplorer.evi import TEVI
 import pytest
@@ -8,11 +8,11 @@ import pytest
 MDP = namedtuple('MDP', 'S,A,P,R,gamma')
 
 
-def core_op(mdp, evi, constraint=np.inf, opT="T"):
+def core_op(mdp, evi, constraint=np.inf):
     r_max = np.max(mdp.R)
 
     na = max(map(len, mdp.A))
-    if isinstance(evi, SpanConstrainedEVI):
+    if isinstance(evi, SCOPT):
         policy_indices = np.zeros((mdp.S, 2), dtype=np.int)
         policy = np.zeros((mdp.S, 2), dtype=np.float)
     else:
@@ -35,8 +35,6 @@ def core_op(mdp, evi, constraint=np.inf, opT="T"):
                   "initial_recenter": 0,
                   "relative_vi": 0,
                   "span_constraint": constraint}
-    if isinstance(evi, SpanConstrainedEVI):
-        run_params['operator_type'] = opT
     if isinstance(evi, TEVI):
         run_params['is_truncated_sa'] = np.zeros((mdp.S, na), dtype=np.int)
         run_params['unreachable_states'] = np.array([], dtype=np.int)
@@ -169,43 +167,37 @@ def test_state_action(count):
 
     evi1 = EVI(nb_states=mdp.S,
                actions_per_state=mdp.A,
-               bound_type="bernstein", random_state=0,
+               bound_type="hoeffding", random_state=0,
                gamma=mdp.gamma)
 
     u2_L, policy_indices_L, policy_L = core_op(mdp, evi1)
-    #
-    # evi2 = SpanConstrainedEVI(nb_states=mdp.S,
-    #                           actions_per_state=mdp.A,
-    #                           bound_type="bernstein", random_state=0,
-    #                           gamma=mdp.gamma,
-    #                           augmented_reward=0,
-    #                           relative_vi=0,
-    #                           span_constraint=np.random.random_sample(),
-    #                           operator_type="T"
-    #                           )
-    #
-    # u2_T, policy_indices_T, policy_T = core_op(mdp, evi2, opT='T')
-    # u2_N, policy_indices_N, policy_N = core_op(mdp, evi2, opT='N')
-    #
-    # assert np.allclose(u2_L, u2_T)
-    #
+
+    evi2 = SCOPT(nb_states=mdp.S,
+                 actions_per_state=mdp.A,
+                 bound_type="hoeffding", random_state=0,
+                 gamma=mdp.gamma,
+                 augmented_reward=0,
+                 relative_vi=0,
+                 span_constraint=np.random.random_sample()
+                 )
+
+    u2_T, policy_indices_T, policy_T = core_op(mdp, evi2)
+
     # print("idx_P_L:\n {}".format(policy_indices_L))
     # print("P_L:\n {}".format(policy_indices_L))
     # print()
     # print("idx_P_T:\n {}".format(policy_indices_T))
     # print("P_T:\n {}".format(policy_T))
-    #
+
     assert np.allclose(policy_indices_L, [1, 0])
     assert np.allclose(policy_L, [0, 0])
-    #
-    # assert np.allclose(policy_indices_T, [[1, 1], [0, 0]])
-    # assert np.allclose(policy_T, [[0, 1], [1, 0]]) \
-    #        or np.allclose(policy_T, [[0, 1], [0, 1]]), policy_T
-    #
-    # assert np.allclose(u2_T, u2_N)
-    # assert np.allclose(policy_indices_T, policy_indices_N)
-    # assert np.allclose(policy_T, policy_N)
-    #
+
+    assert np.allclose(policy_indices_T, [[1, 1], [0, 0]])
+    assert np.allclose(policy_T, [[0, 1], [1, 0]]) \
+           or np.allclose(policy_T, [[0, 1], [0, 1]]), policy_T
+
+    assert np.allclose(u2_T, u2_L)
+
     # evi3 = TEVI(nb_states=mdp.S,
     #             actions_per_state=mdp.A,
     #             bound_type="bernstein", random_state=0,

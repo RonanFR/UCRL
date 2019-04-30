@@ -1,7 +1,7 @@
 import numpy as np
 from collections import namedtuple
-from UCRL.evi.scevi import SpanConstrainedEVI
-from UCRL.evi.evi import EVI
+from rlexplorer.evi.scopt import SCOPT
+from rlexplorer.evi.evi import EVI
 import pytest
 
 
@@ -43,14 +43,13 @@ def test_srevi(count):
 
     rs = np.random.randint(1, 2131243)
     print(rs)
-    evi = SpanConstrainedEVI(nb_states=mdp.S,
+    evi = SCOPT(nb_states=mdp.S,
                              actions_per_state=mdp.A,
-                             bound_type="chernoff",
+                             bound_type="bernstein",
                              span_constraint=np.inf,
                              augmented_reward=0,
                              relative_vi=0, random_state=rs,
-                             gamma=mdp.gamma,
-                             operator_type='T')
+                             gamma=mdp.gamma)
 
     epsi = 0.0001
     for c in constraints:
@@ -104,7 +103,7 @@ def test_srevi(count):
 
     evi = EVI(nb_states=mdp.S,
               actions_per_state=mdp.A,
-              bound_type="chernoff", random_state=np.random.randint(1, 2131243),
+              bound_type="bernstein", random_state=np.random.randint(1, 2131243),
               gamma=mdp.gamma)
 
     policy_indices = np.zeros((mdp.S,), dtype=np.int)
