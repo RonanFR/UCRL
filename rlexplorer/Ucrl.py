@@ -6,6 +6,8 @@ import numbers
 import math as m
 import numpy as np
 import time
+from visdom import Visdom
+
 
 
 class EVIException(Exception):
@@ -67,6 +69,7 @@ class AbstractUCRL(object):
         self.unit_duration = [1]  # ratios (nb of time steps)/(nb of decision steps)
         self.span_values = []
         self.span_times = []
+        self.span_episodes = []
         self.iteration = 0
         self.episode = 0
         self.delta = 1.  # confidence
@@ -78,10 +81,12 @@ class AbstractUCRL(object):
         self.version = ucrl_version
         self.random_state = random_state
         self.local_random = np.random.RandomState(seed=random_state)
+        self.viz = None # for visualization
 
     def clear_before_pickle(self):
         del self.opt_solver
         del self.logger
+        del self.viz
 
     def reset_after_pickle(self, solver=None, logger=default_logger):
         if solver is None:
@@ -159,7 +164,7 @@ class UcrlMdp(AbstractUCRL):
     def _stopping_rule(self, curr_state, curr_act_idx, next_state):
         return self.nu_k[curr_state][curr_act_idx] < max(1, self.nb_observations[curr_state][curr_act_idx])
 
-    def learn(self, duration, regret_time_step, render=False):
+    def learn(self, duration, regret_time_step, span_episode_step=1, render=False):
         """ Run UCRL on the provided environment
 
         Args:
@@ -167,13 +172,24 @@ class UcrlMdp(AbstractUCRL):
                             exceeds "duration"
             regret_time_step (int): the value of the cumulative regret is stored
                                     every "regret_time_step" time steps
-            render (flag): True for rendering the domain, False otherwise
+            span_episode_step (int): the value of the bias span returned by EVI is stored
+                                     every "span_episode_step" episodes
 
         """
         if self.total_time >= duration:
             return
-        threshold = self.total_time + regret_time_step
-        threshold_span = threshold
+
+        # --------------------------------------------
+        self.first_span = True
+        self.first_regret = True
+        self.viz_plots = {}
+        self.viz = Visdom()
+        if not self.viz.check_connection(timeout_seconds=3):
+            self.viz = None
+        # --------------------------------------------
+
+        threshold = self.total_time
+        threshold_span = self.episode
 
         self.solver_times = []
         self.simulation_times = []
@@ -208,10 +224,26 @@ class UcrlMdp(AbstractUCRL):
                 self.logger.info("regret: {}, {:.2f}".format(self.total_time, curr_regret))
                 self.logger.info("evi time: {:.4f} s".format(t1-t0))
 
-            if self.total_time > threshold_span:
+            if self.episode > threshold_span:
                 self.span_values.append(span_value)
                 self.span_times.append(self.total_time)
-                threshold_span = self.total_time + regret_time_step
+                self.span_episodes.append(self.episode)
+                threshold_span = self.episode + span_episode_step
+
+                if self.viz is not None:
+                    if self.first_span:
+                        self.first_span = False
+                        self.viz_plots["span"] = self.viz.line(X=np.array(self.span_times), Y=np.array(self.span_values),
+                                                               env="main", opts=dict(
+                                title="{} - Span".format(type(self).__name__),
+                                xlabel="Time",
+                                ylabel="span",
+                                markers=True
+                            ))
+                    else:
+                        self.viz.line(X=np.array([self.total_time]), Y=np.array([span_value]),
+                                      env="main", win=self.viz_plots["span"],
+                                      update='append')
 
             # execute the recovered policy
             t0 = time.perf_counter()
@@ -258,6 +290,20 @@ class UcrlMdp(AbstractUCRL):
         self.regret_unit_time.append(self.total_time)
         self.unit_duration.append(self.total_time / self.iteration)
 
+        if self.viz is not None:
+            if self.first_regret:
+                self.first_regret = False
+                self.viz_plots["regret"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([curr_regret]),
+                                                  env="main", opts=dict(
+                        title="{} - Regret".format(type(self).__name__),
+                        xlabel="Time",
+                        ylabel="Cumulative Regret"
+                    ))
+            else:
+                self.viz.line(X=np.array([self.total_time]), Y=np.array([curr_regret]),
+                              env="main", win=self.viz_plots["regret"],
+                              update='append')
+
     def beta_r(self):
         """ Confidence bounds on the reward
 
@@ -279,7 +325,7 @@ class UcrlMdp(AbstractUCRL):
             var_r = self.variance_proxy_reward / N[:, :] # this is the population variance
             log_term = np.log(L_CONST * S * A * N / self.delta) / N
             B = self.r_max * log_term
-            beta = np.sqrt(var_r * log_term) + 3 * B
+            beta = np.sqrt(var_r * log_term) + B
         elif self.bound_type_rew == "hoeffding":
             # ------------------------ #
             # HOEFFDING CI
@@ -319,7 +365,7 @@ class UcrlMdp(AbstractUCRL):
             L_CONST = 6
             log_term = np.log(L_CONST * S * A * N / self.delta)
             beta = np.sqrt(var_p * log_term[:, :, np.newaxis] / N[:, :, np.newaxis]) \
-                   + 3 * log_term[:, :, np.newaxis] / N[:, :, np.newaxis]
+                   + log_term[:, :, np.newaxis] / N[:, :, np.newaxis]
         elif self.bound_type_p == "hoeffding":
             # ------------------------ #
             # HOEFFDING CI
@@ -332,6 +378,8 @@ class UcrlMdp(AbstractUCRL):
             beta = np.sqrt(log_term / N).reshape(S, A, 1)
         else:
             raise ValueError("unknown transition bound type: {}".format(self.bound_type_p))
+        # print(beta * self.alpha_p)
+        # print(self.nb_observations)
         return beta * self.alpha_p
 
     def update(self, curr_state, curr_act_idx, curr_act):
@@ -413,9 +461,7 @@ class UcrlMdp(AbstractUCRL):
         tn = t1 - t0
         self.solver_times.append(tn)
         if self.verbose > 1:
-            self.logger.info("[%d]NEW EVI: %.3f seconds" % (self.episode, tn))
-            if self.verbose > 2:
-                self.logger.info(self.policy_indices)
+            self.logger.info(self.policy_indices)
 
         if span_value < 0:
             raise EVIException(error_value=span_value)

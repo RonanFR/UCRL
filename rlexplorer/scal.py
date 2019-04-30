@@ -38,7 +38,7 @@ class SCAL(UcrlMdp):
         self.span_constraint = span_constraint
         self.relative_vi = relative_vi
 
-        # self.r_max_vi = float(np.iinfo(np.int32).max)
+        self.r_max_vi = float(np.iinfo(np.int32).max)
 
     # @property
     # def span_constraint(self):
@@ -86,8 +86,8 @@ class SCALPLUS(SCAL):
                                        logger=logger, random_state=random_state, relative_vi=relative_vi,
                                        known_reward=known_reward)
 
-        # self.r_max_vi = float(np.iinfo(np.int32).max)
-        self.r_max_vi = (self.span_constraint + self.r_max) * 3
+        self.r_max_vi = float(np.iinfo(np.int32).max)
+        # self.r_max_vi = (self.span_constraint + self.r_max) * 3
 
     def beta_p(self):
         if self.bound_type_p == "bernstein":
@@ -104,29 +104,30 @@ class SCALPLUS(SCAL):
         N = np.maximum(1, self.nb_observations)
 
         if self.bound_type_p == "bernstein":
-            # var_r = self.variance_proxy_reward / N[:, :]
-            # var_p = self.P * (1. - self.P)
-            # L_CONST = 6
-            # log_term = np.log(L_CONST * S * A * N / self.delta) / N
-            # beta_r = np.sqrt(var_r * log_term) + self.r_max * log_term
-            # beta_p = np.sqrt(var_p.sum(axis=-1) * log_term) \
-            #          + log_term + 1.0 / (self.nb_observations + 1.0)
-            # P_term = self.alpha_p * self.span_constraint * beta_p
-            # R_term = self.alpha_r * beta_r if not self.known_reward else 0
-            raise ValueError('Not implemented')
+            var_r = self.variance_proxy_reward / N[:, :]
+            var_p = self.P * (1. - self.P)
+            L_CONST = 6
+            log_term = np.log(L_CONST * S * A * N / self.delta) / N
+            beta_r = np.sqrt(var_r * log_term) + self.r_max * log_term
+            beta_p = np.sqrt(var_p.sum(axis=-1) * log_term) \
+                     + log_term + 1.0 / (self.nb_observations + 1.0)
+            P_term = self.alpha_p * self.span_constraint * beta_p
+            R_term = self.alpha_r * beta_r if not self.known_reward else 0
         elif self.bound_type_p == "hoeffding":
             L_CONST = 6  # 20
             beta_r = np.sqrt(np.log(L_CONST * S * A * N / self.delta) / N)
             beta_p = np.sqrt(np.log(L_CONST * S * A * N / self.delta) / N) + 1.0 / (self.nb_observations + 1.0)
 
-            P_term = self.alpha_p * self.span_constraint * np.minimum(beta_p, 2.)
-            R_term = self.alpha_r * self.r_max * np.minimum(beta_r, 1 if not self.known_reward else 0)
-            # P_term = self.alpha_p * self.span_constraint * beta_p
-            # R_term = self.alpha_r * self.r_max * beta_r if not self.known_reward else 0
+            # P_term = self.alpha_p * self.span_constraint * np.minimum(beta_p, 2.)
+            # R_term = self.alpha_r * self.r_max * np.minimum(beta_r, 1 if not self.known_reward else 0)
+            P_term = self.alpha_p * self.span_constraint * beta_p
+            R_term = self.alpha_r * self.r_max * beta_r if not self.known_reward else 0
         else:
             raise ValueError("unknown transition bound type: {}".format(self.bound_type_p))
 
         final_bonus = R_term + P_term
+        # print(final_bonus)
+        # print(self.nb_observations)
         return final_bonus
 
     def update_at_episode_end(self):

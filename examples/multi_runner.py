@@ -7,7 +7,7 @@ import datetime
 import shutil
 import json
 import numpy as np
-from rlexplorer.envs.toys import Toy3D_1, Toy3D_2, RiverSwim
+from rlexplorer.envs.toys import Toy3D_1, Toy3D_2, RiverSwim, Garnet
 from gym.envs.toy_text.taxi import TaxiEnv
 import rlexplorer.envs.wrappers as gymwrap
 import rlexplorer.Ucrl as Ucrl
@@ -36,33 +36,34 @@ fields = ("nb_sim_offset", "nb_simulations", "id", "path", "algorithm", "domain"
           "alpha_p", "posterior", "use_true_reward", "duration", "regret_time_steps", "quiet", "bound_type",
           "span_constraint", "augmented_reward", "communicating_version")
 Options = namedtuple("Options", fields)
-dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range")
+dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range",
+           "garnet_ns", "garnet_na", "garnet_gamma")
 DomainOptions = namedtuple("DomainOptions", dfields)
 
 id_v = None
-alg_name = "SCAL"
+alg_name = "SCALPLUS"
 if len(sys.argv) > 1:
     alg_name = sys.argv[1]
 
 in_options = Options(
     nb_sim_offset=0,
-    nb_simulations=3,
+    nb_simulations=10,
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
-    algorithm=alg_name,    # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS"]
-    domain="MountainCar",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole"]
+    algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS"]
+    domain="T3D1",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet"]
     seed_0=158956,
     alpha_r=1,
     alpha_p=1,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
-    duration=100000000,
-    regret_time_steps=2000,
+    duration=500000,
+    regret_time_steps=1000,
     quiet=False,
     bound_type="bernstein",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
-    span_constraint=150,
+    span_constraint=5,
     augmented_reward=True,
-    communicating_version=False,
+    communicating_version=True,
 )
 
 domain_options = DomainOptions(
@@ -70,6 +71,9 @@ domain_options = DomainOptions(
     stochastic_reward=True,
     uniform_reward=True,
     unifrew_range=0.2,
+    garnet_ns=10,
+    garnet_gamma=3,
+    garnet_na=5
 )
 
 #####################################################################
@@ -96,15 +100,20 @@ elif in_options.domain.upper() == "T3D2":
                   epsilon=domain_options.mdp_delta / 5.,
                   stochastic_reward=domain_options.stochastic_reward)
     r_max = max(1, np.asscalar(np.max(env.R_mat)))
+elif in_options.domain.upper() == "GARNET":
+    env = Garnet(Ns=domain_options.garnet_ns,
+                 Nb=domain_options.garnet_gamma,
+                 Na=domain_options.garnet_na)
+    r_max = max(1, np.asscalar(np.max(env.R_mat)))
 elif in_options.domain.upper() == "TAXI":
     gym_env = TaxiEnv()
     if in_options.communicating_version:
-        env = gymwrap.GymDiscreteEnvWrapperTaxi(gym_env)
+        env = gymwrap.GymTaxiCom(gym_env)
     else:
         env = gymwrap.GymDiscreteEnvWrapper(gym_env)
     r_max = 1
 elif in_options.domain.upper() == "MOUNTAINCAR":
-    Hl = 0.5
+    Hl = 1
     Ha = 1
     N = SCCALPlus.nb_discrete_state(in_options.duration, 3, Hl, Ha)
     env = gymwrap.GymMountainCarWr(N)
@@ -116,7 +125,6 @@ elif in_options.domain.upper() == "CARTPOLE":
     N = 6
     env = gymwrap.GymCartPoleWr(N)
     r_max = 1
-
 
 if in_options.path is None:
     folder_results = os.path.abspath('{}_{}_{}'.format(in_options.algorithm, type(env).__name__,
@@ -147,6 +155,8 @@ sum_regret = None
 M2 = None
 t_step = None
 
+VERBOSITY = 2
+
 start_sim = in_options.nb_sim_offset
 end_sim = start_sim + in_options.nb_simulations
 for rep in range(start_sim, end_sim):
@@ -160,7 +170,7 @@ for rep in range(start_sim, end_sim):
 
     name = "trace_{}".format(rep)
     expalg_log = ucrl_logger.create_multilogger(logger_name=name,
-                                                console=not in_options.quiet,
+                                                console=False, #not in_options.quiet,
                                                 filename=name,
                                                 path=folder_results)
     expalg_log.info("mdp desc: {}".format(env_desc))
@@ -172,7 +182,7 @@ for rep in range(start_sim, end_sim):
             r_max=r_max,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
-            verbose=1,
+            verbose=VERBOSITY,
             logger=expalg_log,
             random_state=seed,
             bound_type_p=in_options.bound_type,
@@ -184,14 +194,14 @@ for rep in range(start_sim, end_sim):
             r_max=r_max,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
-            verbose=1,
+            verbose=VERBOSITY,
             logger=expalg_log,
             random_state=seed,
             known_reward=in_options.use_true_reward)
     elif in_options.algorithm == "TSDE":
         ofualg = psalgs.TSDE(environment=env,
                              r_max=r_max,
-                             verbose=1,
+                             verbose=VERBOSITY,
                              logger=expalg_log,
                              random_state=seed,
                              posterior=in_options.posterior,
@@ -199,7 +209,7 @@ for rep in range(start_sim, end_sim):
     elif in_options.algorithm == "DSPSRL":
         ofualg = psalgs.DSPSRL(environment=env,
                                r_max=r_max,
-                               verbose=1,
+                               verbose=VERBOSITY,
                                logger=expalg_log,
                                random_state=seed,
                                posterior=in_options.posterior,
@@ -209,7 +219,7 @@ for rep in range(start_sim, end_sim):
                              r_max=r_max,
                              alpha_r=in_options.alpha_r,
                              alpha_p=in_options.alpha_p,
-                             verbose=1,
+                             verbose=VERBOSITY,
                              logger=expalg_log,
                              bound_type_p=in_options.bound_type,
                              bound_type_rew=in_options.bound_type,
@@ -221,7 +231,7 @@ for rep in range(start_sim, end_sim):
             span_constraint=in_options.span_constraint,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
-            verbose=1,
+            verbose=VERBOSITY,
             logger=expalg_log,
             bound_type_p=in_options.bound_type,
             bound_type_rew=in_options.bound_type,
@@ -236,8 +246,10 @@ for rep in range(start_sim, end_sim):
             span_constraint=in_options.span_constraint,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
-            verbose=1,
+            verbose=VERBOSITY,
             logger=expalg_log,
+            bound_type_p=in_options.bound_type,
+            bound_type_rew=in_options.bound_type,
             random_state=seed,
             augment_reward=in_options.augmented_reward,
             known_reward=in_options.use_true_reward
@@ -251,7 +263,7 @@ for rep in range(start_sim, end_sim):
             span_constraint=in_options.span_constraint,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
-            verbose=1,
+            verbose=VERBOSITY,
             logger=expalg_log,
             random_state=seed,
             augment_reward=in_options.augmented_reward,
