@@ -9,7 +9,6 @@ import time
 from visdom import Visdom
 
 
-
 class EVIException(Exception):
     def __init__(self, error_value):
         self.error_value = error_value
@@ -28,10 +27,15 @@ class AbstractUCRL(object):
                  logger=default_logger,
                  bound_type_p="bernstein",
                  bound_type_rew="bernstein",
-                 known_reward=False):
+                 known_reward=False,
+                 max_branching=None,
+                 r_max_vi=None):
         self.environment = environment
         self.r_max = float(r_max)
-        self.r_max_vi = float(r_max)
+        if r_max_vi is None:
+            self.r_max_vi = float(r_max)
+        else:
+            self.r_max_vi = r_max_vi
 
         if alpha_r is None:
             self.alpha_r = 1
@@ -58,8 +62,9 @@ class AbstractUCRL(object):
             self.opt_solver = solver
 
         # initialize matrices
-        self.policy = np.zeros((self.environment.nb_states,), dtype=np.int_) #[0]*self.environment.nb_states  # initial policy
-        self.policy_indices = np.zeros((self.environment.nb_states,), dtype=np.int_) #[0]*self.environment.nb_states
+        self.policy = np.zeros((self.environment.nb_states,),
+                               dtype=np.int_)  # [0]*self.environment.nb_states  # initial policy
+        self.policy_indices = np.zeros((self.environment.nb_states,), dtype=np.int_)  # [0]*self.environment.nb_states
 
         # initialization
         self.total_reward = 0
@@ -81,7 +86,13 @@ class AbstractUCRL(object):
         self.version = ucrl_version
         self.random_state = random_state
         self.local_random = np.random.RandomState(seed=random_state)
-        self.viz = None # for visualization
+        self.local_random_policy = np.random.RandomState(seed=random_state)
+        self.viz = None  # for visualization
+
+        if max_branching is None:
+            self.max_branching = self.environment.max_branching
+        else:
+            self.max_branching = max_branching
 
     def clear_before_pickle(self):
         del self.opt_solver
@@ -92,8 +103,8 @@ class AbstractUCRL(object):
         if solver is None:
             self.opt_solver = EVI(nb_states=self.environment.nb_states,
                                   actions_per_state=self.environment.get_state_actions(),
-                                  bound_type= self.bound_type_p,
-                                  random_state = self.random_state,
+                                  bound_type=self.bound_type_p,
+                                  random_state=self.random_state,
                                   gamma=1.
                                   )
         else:
@@ -132,7 +143,8 @@ class UcrlMdp(AbstractUCRL):
                                       verbose=verbose,
                                       logger=logger, bound_type_p=bound_type_p,
                                       bound_type_rew=bound_type_rew,
-                                      random_state=random_state, known_reward=known_reward)
+                                      random_state=random_state, known_reward=known_reward,
+                                      r_max_vi=r_max)
         nb_states = self.environment.nb_states
         max_nb_actions = self.environment.max_nb_actions_per_state
         self.P_counter = np.zeros((nb_states, max_nb_actions, nb_states), dtype=np.int64)
@@ -207,7 +219,7 @@ class UcrlMdp(AbstractUCRL):
             self.delta = 1 / m.sqrt(self.iteration + 1)
 
             if self.verbose > 0:
-                self.logger.info("{}/{} = {:3.2f}%".format(self.total_time, duration, self.total_time / duration *100))
+                self.logger.info("{}/{} = {:3.2f}%".format(self.total_time, duration, self.total_time / duration * 100))
 
             # solve the optimistic (extended) model
             t0 = time.time()
@@ -222,7 +234,7 @@ class UcrlMdp(AbstractUCRL):
                 self.logger.info("span({}): {:.9f}".format(self.episode, span_value))
                 curr_regret = self.total_time * self.environment.max_gain - self.total_reward
                 self.logger.info("regret: {}, {:.2f}".format(self.total_time, curr_regret))
-                self.logger.info("evi time: {:.4f} s".format(t1-t0))
+                self.logger.info("evi time: {:.4f} s".format(t1 - t0))
 
             if self.episode > threshold_span:
                 self.span_values.append(span_value)
@@ -233,7 +245,8 @@ class UcrlMdp(AbstractUCRL):
                 if self.viz is not None:
                     if self.first_span:
                         self.first_span = False
-                        self.viz_plots["span"] = self.viz.line(X=np.array(self.span_times), Y=np.array(self.span_values),
+                        self.viz_plots["span"] = self.viz.line(X=np.array(self.span_times),
+                                                               Y=np.array(self.span_values),
                                                                env="main", opts=dict(
                                 title="{} - Span".format(type(self).__name__),
                                 xlabel="Time",
@@ -248,7 +261,7 @@ class UcrlMdp(AbstractUCRL):
             # execute the recovered policy
             t0 = time.perf_counter()
             self.visited_sa.clear()
-            execute_policy = True # reset flag
+            execute_policy = True  # reset flag
 
             curr_act_idx, curr_act = self.sample_action(curr_state)  # sample action from the policy
 
@@ -268,9 +281,9 @@ class UcrlMdp(AbstractUCRL):
             self.update_at_episode_end()
 
             t1 = time.perf_counter()
-            self.simulation_times.append(t1-t0)
+            self.simulation_times.append(t1 - t0)
             if self.verbose > 0:
-                self.logger.info("expl time: {:.4f} s".format(t1-t0))
+                self.logger.info("expl time: {:.4f} s".format(t1 - t0))
 
         t_end_all = time.perf_counter()
         self.speed = t_end_all - t_star_all
@@ -294,7 +307,7 @@ class UcrlMdp(AbstractUCRL):
             if self.first_regret:
                 self.first_regret = False
                 self.viz_plots["regret"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([curr_regret]),
-                                                  env="main", opts=dict(
+                                                         env="main", opts=dict(
                         title="{} - Regret".format(type(self).__name__),
                         xlabel="Time",
                         ylabel="Cumulative Regret"
@@ -321,17 +334,21 @@ class UcrlMdp(AbstractUCRL):
         if self.bound_type_rew == "bernstein":
             # ------------------------ #
             # BERNSTEIN CI
-            L_CONST = 6
-            var_r = self.variance_proxy_reward / N[:, :] # this is the population variance
-            log_term = np.log(L_CONST * S * A * N / self.delta) / N
-            B = self.r_max * log_term
-            beta = np.sqrt(var_r * log_term) + B
+
+            # LOG_TERM = np.log(6 * S * A * N / self.delta) / N
+            LOG_TERM = np.log(S * A / self.delta)
+
+            var_r = self.variance_proxy_reward / N[:, :]  # this is the population variance
+
+            B = self.r_max * LOG_TERM / N
+            beta = np.sqrt(var_r * LOG_TERM / N) + B
         elif self.bound_type_rew == "hoeffding":
             # ------------------------ #
             # HOEFFDING CI
-            L_CONST = 6
-            log_term = np.log(L_CONST * S * A * N / self.delta) / N
-            beta = self.r_max * np.sqrt(log_term)
+
+            # LOG_TERM = np.log(6 * S * A * N / self.delta)
+            LOG_TERM = np.log(S * A / self.delta)
+            beta = self.r_max * np.sqrt(LOG_TERM / N)
         else:
             raise ValueError("unknown reward bound type: {}".format(self.bound_type_rew))
 
@@ -357,25 +374,22 @@ class UcrlMdp(AbstractUCRL):
         A = self.environment.max_nb_actions_per_state
         N = np.maximum(1, self.nb_observations)
 
+        # LOG_TERM = np.log(6 * S * A * N / self.delta)
+        LOG_TERM = np.log(S * A / self.delta)
+
         beta = None
         if self.bound_type_p == "bernstein":
             # ------------------------ #
             # BERNSTEIN CI
+
             var_p = self.P * (1. - self.P)
-            L_CONST = 6
-            log_term = np.log(L_CONST * S * A * N / self.delta)
-            beta = np.sqrt(var_p * log_term[:, :, np.newaxis] / N[:, :, np.newaxis]) \
-                   + log_term[:, :, np.newaxis] / N[:, :, np.newaxis]
+            beta = np.sqrt(var_p * LOG_TERM[:, :, np.newaxis] / N[:, :, np.newaxis]) \
+                   + LOG_TERM[:, :, np.newaxis] / N[:, :, np.newaxis]
         elif self.bound_type_p == "hoeffding":
             # ------------------------ #
             # HOEFFDING CI
-            L_CONST = 6
-            # log_term = np.log(L_CONST * S * A * N / self.delta)
-            # beta = 2 * np.sqrt(S * log_term / N).reshape(S, A, 1)
 
-            # see (UCRL paper page App C.1) and Tor&Csaba book
-            log_term = np.log(L_CONST * S * A * N / self.delta) + S * np.log(2)
-            beta = np.sqrt(log_term / N).reshape(S, A, 1)
+            beta = np.sqrt(self.max_branching * LOG_TERM / N).reshape(S, A, 1)
         else:
             raise ValueError("unknown transition bound type: {}".format(self.bound_type_p))
         # print(beta * self.alpha_p)
@@ -400,7 +414,8 @@ class UcrlMdp(AbstractUCRL):
         old_estimated_reward = self.estimated_rewards[s, curr_act_idx]
         self.estimated_rewards[s, curr_act_idx] *= scale_f / (scale_f + 1.)
         self.estimated_rewards[s, curr_act_idx] += r / (scale_f + 1.)
-        self.variance_proxy_reward[s, curr_act_idx] += (r - old_estimated_reward) * (r - self.estimated_rewards[s, curr_act_idx])
+        self.variance_proxy_reward[s, curr_act_idx] += (r - old_estimated_reward) * (
+                    r - self.estimated_rewards[s, curr_act_idx])
 
         # update holding time
         self.estimated_holding_times[s, curr_act_idx] *= scale_f / (scale_f + 1.)
@@ -409,7 +424,7 @@ class UcrlMdp(AbstractUCRL):
         # self.estimated_probabilities[s][curr_act_idx] *= scale_f / (scale_f + 1.)
         # self.estimated_probabilities[s][curr_act_idx][s2] += 1. / (scale_f + 1.)
         self.P_counter[s, curr_act_idx, s2] += 1
-        self.visited_sa.add((s,curr_act_idx))
+        self.visited_sa.add((s, curr_act_idx))
 
         self.nu_k[s][curr_act_idx] += 1
         self.total_reward += r
@@ -427,7 +442,7 @@ class UcrlMdp(AbstractUCRL):
         """
         if len(self.policy.shape) > 1:
             # this is a stochastic policy
-            action_idx = self.local_random.choice(self.policy_indices[s], p=self.policy[s])
+            action_idx = self.local_random_policy.choice(self.policy_indices[s], p=self.policy[s])
             action = self.environment.state_actions[s][action_idx]
         else:
             action_idx = self.policy_indices[s]
@@ -486,8 +501,8 @@ class UcrlSmdpExp(UcrlMdp):
                  b_r=0., b_tau=0.,
                  bound_type_p="hoeffding", bound_type_rew="hoeffding",
                  verbose=0, logger=default_logger, random_state=None, known_reward=False):
-        assert bound_type_p in ["hoeffding",  "bernstein"]
-        assert bound_type_rew in ["hoeffding",  "bernstein"]
+        assert bound_type_p in ["hoeffding", "bernstein"]
+        assert bound_type_rew in ["hoeffding", "bernstein"]
         assert tau_min >= 1
         if sigma_r is None:
             sigma_r = np.sqrt(sigma_tau * sigma_tau + tau_max) * r_max
@@ -497,7 +512,7 @@ class UcrlSmdpExp(UcrlMdp):
             alpha_r=alpha_r, alpha_p=alpha_p, solver=None,
             bound_type_p=bound_type_p,
             bound_type_rew=bound_type_rew,
-            verbose=verbose, logger=logger,random_state=random_state,
+            verbose=verbose, logger=logger, random_state=random_state,
             known_reward=known_reward)
         self.tau = tau_min - 0.1
         self.tau_max = tau_max
@@ -531,12 +546,12 @@ class UcrlSmdpExp(UcrlMdp):
         i_k = self.iteration
         beta = bounds.chernoff(it=self.iteration, N=self.nb_observations,
                                range=sigma, delta=self.delta,
-                               sqrt_C=3.5, log_C=2*S*A)
+                               sqrt_C=3.5, log_C=2 * S * A)
         if b > 0. and sigma > 0.:
             N = np.maximum(1, self.nb_observations)
-            ci_2 = b * 3.5 * m.log(2 * S * A * (i_k+1) / self.delta) / N
+            ci_2 = b * 3.5 * m.log(2 * S * A * (i_k + 1) / self.delta) / N
             mask = (
-                self.nb_observations < 2 * np.power(b / sigma, 2) * m.log(240 * S * A * m.pow(i_k, 7) / self.delta))
+                    self.nb_observations < 2 * np.power(b / sigma, 2) * m.log(240 * S * A * m.pow(i_k, 7) / self.delta))
             beta[mask] = ci_2[mask]
         return beta
 

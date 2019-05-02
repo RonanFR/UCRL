@@ -7,7 +7,7 @@ import datetime
 import shutil
 import json
 import numpy as np
-from rlexplorer.envs.toys import Toy3D_1, Toy3D_2, RiverSwim, Garnet
+from rlexplorer.envs.toys import Toy3D_1, Toy3D_2, RiverSwim, Garnet, GarnetChain
 from gym.envs.toy_text.taxi import TaxiEnv
 import rlexplorer.envs.wrappers as gymwrap
 import rlexplorer.Ucrl as Ucrl
@@ -41,7 +41,7 @@ dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range",
 DomainOptions = namedtuple("DomainOptions", dfields)
 
 id_v = None
-alg_name = "SCALPLUS"
+alg_name = "UCRL"
 if len(sys.argv) > 1:
     alg_name = sys.argv[1]
 
@@ -51,18 +51,18 @@ in_options = Options(
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
     algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS"]
-    domain="Garnet",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet"]
+    domain="GarnetChain",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet"]
     seed_0=158956,
     alpha_r=0.5,
     alpha_p=0.2,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
-    duration=100000000,
+    duration=10000000,
     regret_time_steps=10000,
     span_episode_steps=2,
     quiet=False,
     bound_type="hoeffding",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
-    span_constraint=5,
+    span_constraint=2,
     augmented_reward=True,
     communicating_version=True,
 )
@@ -73,8 +73,8 @@ domain_options = DomainOptions(
     uniform_reward=True,
     unifrew_range=0.2,
     garnet_ns=200,
-    garnet_gamma=60,
-    garnet_na=4,
+    garnet_gamma=81,
+    garnet_na=3,
 )
 
 #####################################################################
@@ -112,6 +112,13 @@ elif in_options.domain.upper() == "GARNET":
                  Nb=domain_options.garnet_gamma,
                  Na=domain_options.garnet_na)
     r_max = max(1, np.asscalar(np.max(env.R_mat)))
+elif in_options.domain.upper() == "GARNETCHAIN":
+    env = GarnetChain(Ns=domain_options.garnet_ns,
+                      Nb=domain_options.garnet_gamma,
+                      Na=domain_options.garnet_na,
+                      chain_length=2,
+                      chain_proba=0.4)
+    r_max = max(1, np.asscalar(np.max(env.R_mat)))
 elif in_options.domain.upper() == "TAXI":
     gym_env = TaxiEnv()
     if in_options.communicating_version:
@@ -120,7 +127,7 @@ elif in_options.domain.upper() == "TAXI":
         env = gymwrap.GymDiscreteEnvWrapper(gym_env)
     r_max = 1
 elif in_options.domain.upper() == "MOUNTAINCAR":
-    Hl = 1
+    Hl = 0.1
     Ha = 1
     N = SCCALPlus.nb_discrete_state(in_options.duration, 3, Hl, Ha)
     env = gymwrap.GymMountainCarWr(N)
@@ -174,7 +181,7 @@ for rep in range(start_sim, end_sim):
 
     name = "trace_{}".format(rep)
     expalg_log = ucrl_logger.create_multilogger(logger_name=name,
-                                                console=False, #not in_options.quiet,
+                                                console=not in_options.quiet,
                                                 filename=name,
                                                 path=folder_results)
     expalg_log.info("mdp desc: {}".format(env_desc))

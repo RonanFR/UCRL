@@ -2,6 +2,6 @@
 from .toy import Toy3D_1, Toy3D_2
 from .riverswim import RiverSwim
 from .resourcecollection import ResourceCollection
-from .garnet import Garnet
+from .garnet import Garnet, GarnetChain
 
-__all__ = ["Toy3D_1", "Toy3D_2", "RiverSwim", "ResourceCollection", "Garnet"]
+__all__ = ["Toy3D_1", "Toy3D_2", "RiverSwim", "ResourceCollection", "Garnet", "GarnetChain"]

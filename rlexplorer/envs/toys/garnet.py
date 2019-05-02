@@ -10,6 +10,11 @@ class Garnet(AbstractDiscreteMDP):
         Parameters NS and NA are respectively the number of states and the number of actions.
         Parameter NB is the branching factor defining the number of possible next states for any state-action pair.
         '''
+
+        assert Ns >= 2
+        assert Na >= 2
+        assert Nb >= 1
+
         self.nb_states = Ns
         self.Na = Na
         self.Nb = Nb
@@ -48,10 +53,10 @@ class Garnet(AbstractDiscreteMDP):
                     self.P_mat[s, a, sn] = partition[i + 1] - partition[i]
 
                 # enforce unichain model
-                self.P_mat[s, a, 0] += 0.001
+                self.P_mat[s, a, 0] = max(0.01, self.P_mat[s, a, 0]) if np.random.rand() > 0.4 else 0.01
                 self.P_mat[s, a] /= np.sum(self.P_mat[s, a])
 
-                self.R_mat[s, a] = (np.random.rand() > 0.5) * np.random.rand()
+                self.R_mat[s, a] = np.random.rand() # (np.random.rand() > 0.5) * np.random.rand()
 
     def reset(self):
         self.state = 0
@@ -74,3 +79,41 @@ class Garnet(AbstractDiscreteMDP):
             'name': type(self).__name__
         }
         return desc
+
+
+class GarnetChain(Garnet):
+
+    def __init__(self, Ns, Na, Nb, chain_length, chain_proba=0.05):
+        super(GarnetChain, self).__init__(Ns, Na, Nb)
+
+        self.chain_length = chain_length
+        self.chain_proba = chain_proba
+        self.generate_chain()
+
+    def generate_chain(self):
+        P = np.zeros((self.nb_states + self.chain_length, self.Na, self.nb_states + self.chain_length))
+        R = np.zeros((self.nb_states + self.chain_length, self.Na))
+        P[0:self.nb_states, 0:self.Na, 0:self.nb_states] = self.P_mat
+        R[0:self.nb_states, 0:self.Na] = self.R_mat
+        offset = self.nb_states
+        P[0, 0, offset] = 0.01
+        P[0, 0] /= np.sum(P[0, 0])
+        for i in range(self.chain_length - 1):
+            P[offset + i, 0, offset + i] = 1. - self.chain_proba
+            P[offset + i, 0, offset + i + 1] = self.chain_proba
+            self.state_actions.append([0])
+            R[offset + i, 0] = np.random.rand()
+        P[offset + self.chain_length - 1, 0, offset + self.chain_length - 1] = 1. - self.chain_proba
+        P[offset + self.chain_length - 1, 0, self.nb_states-1] = self.chain_proba
+        R[offset + self.chain_length - 1, 0] = np.random.rand()
+        self.state_actions.append([0])
+        self.P_mat = P
+        self.R_mat = R
+
+        self.nb_states += self.chain_length
+
+        del self.max_gain
+        self.compute_max_gain()
+        print(self.max_gain, self.span)
+        self.diameter = None
+        #self.diameter = dpshortestpath(self.P_mat, self.state_actions)

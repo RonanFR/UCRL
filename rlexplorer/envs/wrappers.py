@@ -191,6 +191,7 @@ class GymTaxiCom(Environment):
                       bound_type="hoeffding",
                       random_state=123456)
 
+            TAU = 0.9
             span = evi.run(policy_indices=policy_indices,
                            policy=policy,
                            estimated_probabilities=P,
@@ -199,13 +200,13 @@ class GymTaxiCom(Environment):
                            beta_p=np.zeros((nS, nA, 1)),
                            beta_r=np.zeros((nS, nA)),
                            beta_tau=np.zeros((nS, nA)),
-                           tau_max=1, tau_min=1, tau=0.99,
+                           tau_max=1, tau_min=1, tau=TAU,
                            r_max=1.,
                            epsilon=1e-12,
                            initial_recenter=1, relative_vi=0
                            )
             u1, u2 = evi.get_uvectors()
-            self.span = span
+            self.span = span * TAU
             self.max_gain = 0.5 * (max(u2 - u1) + min(u2 - u1))
             self.optimal_policy_indices = policy_indices
             self.optimal_policy = policy
@@ -267,6 +268,7 @@ class GymContinuousWrapper:
         self.diameter = diameter
         self.done = False
         self.reset()
+        self.max_branching = nS
 
     def reset(self):
         next_state = self.gym_env.reset()
@@ -323,7 +325,7 @@ class GymMountainCarWr(GymContinuousWrapper):
             gym_env=env, grid=grid,
             min_reward=-1, max_reward=0,
             reward_done=1,
-            max_gain=0.009054722111333291,
+            max_gain=0, #0.009054722111333291,
             bias_span=1.0597499799932173,
             diameter=None
         )

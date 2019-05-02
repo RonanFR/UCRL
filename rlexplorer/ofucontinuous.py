@@ -22,14 +22,17 @@ class SCCALPlus(SCALPLUS):
                                         known_reward=known_reward)
         self.holder_alpha = holder_alpha
         self.holder_L = holder_L
+        self.r_max_vi = (self.span_constraint + self.r_max) * 3
+        self.r_max_vi = float(np.iinfo(np.int32).max)
 
     def beta_r(self):
 
         S = self.environment.nb_states
         A = self.environment.max_nb_actions_per_state
         N = np.maximum(1, self.nb_observations)
-        beta_r = np.sqrt(np.log(N * 20 * S * A / self.delta) / N)
-        beta_p = np.sqrt(np.log(N * 20 * S * A / self.delta) / N) + 1.0 / (self.nb_observations + 1.0)
+        LOG_TERM = np.log(S * A / self.delta)
+        beta_r = np.sqrt(LOG_TERM / N)
+        beta_p = np.sqrt(LOG_TERM / N) # + 1.0 / (self.nb_observations + 1.0)
 
         L_term = self.holder_L * m.pow(1.0 / S, self.holder_alpha)
         # P_term = self.alpha_p * self.span_constraint * np.minimum(beta_p + L_term, 2.)
@@ -41,7 +44,7 @@ class SCCALPlus(SCALPLUS):
         return final_bonus
 
     @staticmethod
-    def nb_discrete_state(T, nA, holder_L, holder_alpha):
-        exp_val = 1./(1.+holder_alpha)
+    def nb_discrete_state(T, d, nA, holder_L, holder_alpha):
+        exp_val = 1./(2.*d+2*holder_alpha)
         N = m.pow(holder_alpha * holder_L * m.sqrt(T/nA), exp_val)
         return max(10, int(m.ceil(N)))

@@ -16,9 +16,11 @@ class AbstractDiscreteMDP(Environment):
             print("creating model")
             evi = EVI(nb_states=self.nb_states,
                       actions_per_state=self.state_actions,
-                      random_state=123456)
-
+                      random_state=123456,
+                      bound_type="bernstein"
+                      )
             print("running model")
+            TAU = 0.9
             span = evi.run(policy_indices=policy_indices,
                            policy=policy,
                            estimated_probabilities=self.P_mat,
@@ -27,16 +29,19 @@ class AbstractDiscreteMDP(Environment):
                            beta_p=np.zeros((self.nb_states, na, self.nb_states)),
                            beta_r=np.zeros((self.nb_states, na)),
                            beta_tau=np.zeros((self.nb_states, na)),
-                           tau_max=1, tau_min=1, tau=1,
+                           tau_max=1., tau_min=1., tau=TAU,
                            r_max=1.,
-                           epsilon=1e-12,
+                           epsilon=1e-10,
                            initial_recenter=1, relative_vi=0
                            )
             u1, u2 = evi.get_uvectors()
-            self.span = span
+            self.span = span * TAU
             self.max_gain = 0.5 * (max(u2 - u1) + min(u2 - u1))
             self.optimal_policy_indices = policy_indices
             self.optimal_policy = policy
+
+            if span < 0:
+                exit(5)
 
             print("solved model")
 
