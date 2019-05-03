@@ -37,7 +37,7 @@ fields = ("nb_sim_offset", "nb_simulations", "id", "path", "algorithm", "domain"
           "quiet", "bound_type", "span_constraint", "augmented_reward", "communicating_version")
 Options = namedtuple("Options", fields)
 dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range",
-           "garnet_ns", "garnet_na", "garnet_gamma")
+           "garnet_ns", "garnet_na", "garnet_gamma", "chain_length", "chain_proba")
 DomainOptions = namedtuple("DomainOptions", dfields)
 
 id_v = None
@@ -52,7 +52,7 @@ in_options = Options(
     path=None,
     algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS"]
     domain="GarnetChain",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet"]
-    seed_0=158956,
+    seed_0=458650,
     alpha_r=0.5,
     alpha_p=0.2,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
@@ -73,8 +73,10 @@ domain_options = DomainOptions(
     uniform_reward=True,
     unifrew_range=0.2,
     garnet_ns=200,
-    garnet_gamma=81,
+    garnet_gamma=25,
     garnet_na=3,
+    chain_length=2,
+    chain_proba=0.4
 )
 
 #####################################################################
@@ -116,8 +118,8 @@ elif in_options.domain.upper() == "GARNETCHAIN":
     env = GarnetChain(Ns=domain_options.garnet_ns,
                       Nb=domain_options.garnet_gamma,
                       Na=domain_options.garnet_na,
-                      chain_length=2,
-                      chain_proba=0.4)
+                      chain_length=domain_options.chain_length,
+                      chain_proba=domain_options.chain_proba)
     r_max = max(1, np.asscalar(np.max(env.R_mat)))
 elif in_options.domain.upper() == "TAXI":
     gym_env = TaxiEnv()
