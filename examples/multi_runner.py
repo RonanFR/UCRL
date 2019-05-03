@@ -7,7 +7,7 @@ import datetime
 import shutil
 import json
 import numpy as np
-from rlexplorer.envs.toys import Toy3D_1, Toy3D_2, RiverSwim, Garnet, GarnetChain
+from rlexplorer.envs.toys import Toy3D_1, Toy3D_2, RiverSwim, Garnet, GarnetChain, DiscreteLQR
 from gym.envs.toy_text.taxi import TaxiEnv
 import rlexplorer.envs.wrappers as gymwrap
 import rlexplorer.Ucrl as Ucrl
@@ -20,6 +20,7 @@ import rlexplorer.rllogging as ucrl_logger
 import matplotlib
 from rlexplorer.ofucontinuous import SCCALPlus
 import sys
+from rlexplorer.qlearning import QLearning
 
 # 'DISPLAY' will be something like this ':0'
 # on your local machine, and None otherwise
@@ -37,11 +38,12 @@ fields = ("nb_sim_offset", "nb_simulations", "id", "path", "algorithm", "domain"
           "quiet", "bound_type", "span_constraint", "augmented_reward", "communicating_version")
 Options = namedtuple("Options", fields)
 dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range",
-           "garnet_ns", "garnet_na", "garnet_gamma", "chain_length", "chain_proba")
+           "garnet_ns", "garnet_na", "garnet_gamma", "chain_length", "chain_proba",
+           "N_bins")
 DomainOptions = namedtuple("DomainOptions", dfields)
 
 id_v = None
-alg_name = "UCRL"
+alg_name = "QLEARNING"
 if len(sys.argv) > 1:
     alg_name = sys.argv[1]
 
@@ -50,19 +52,19 @@ in_options = Options(
     nb_simulations=10,
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
-    algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS"]
-    domain="GarnetChain",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet"]
+    algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS", "QLEARNING"]
+    domain="MountainCar",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR"]
     seed_0=458650,
     alpha_r=0.5,
     alpha_p=0.2,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
-    duration=10000000,
+    duration=5000000,
     regret_time_steps=10000,
     span_episode_steps=2,
     quiet=False,
     bound_type="hoeffding",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
-    span_constraint=2,
+    span_constraint=15,
     augmented_reward=True,
     communicating_version=True,
 )
@@ -76,7 +78,8 @@ domain_options = DomainOptions(
     garnet_gamma=25,
     garnet_na=3,
     chain_length=2,
-    chain_proba=0.4
+    chain_proba=0.4,
+    N_bins=15
 )
 
 #####################################################################
@@ -129,18 +132,27 @@ elif in_options.domain.upper() == "TAXI":
         env = gymwrap.GymDiscreteEnvWrapper(gym_env)
     r_max = 1
 elif in_options.domain.upper() == "MOUNTAINCAR":
-    Hl = 0.1
+    Hl = 1
     Ha = 1
-    N = SCCALPlus.nb_discrete_state(in_options.duration, 3, Hl, Ha)
-    env = gymwrap.GymMountainCarWr(N)
+    N = SCCALPlus.nb_discrete_state(in_options.duration, 2, 3, Hl, Ha)
+    n = 15
+    env = gymwrap.GymMountainCarWr(domain_options.N_bins)
     r_max = 1
 elif in_options.domain.upper() == "CARTPOLE":
-    Hl = 0.1
+    Hl = 0.5
     Ha = 1
     N = SCCALPlus.nb_discrete_state(in_options.duration, 3, Hl, Ha)
     N = 6
     env = gymwrap.GymCartPoleWr(N)
     r_max = 1
+elif in_options.domain.upper() == "DLQR":
+    Hl = 1
+    Ha = 1
+    N = 20
+    Na = 11
+    env = DiscreteLQR(Ns=N, Na=Na, sigma_noise=0.1)
+    r_max = 1.
+
 
 if in_options.path is None:
     folder_results = os.path.abspath('{}_{}_{}'.format(in_options.algorithm, type(env).__name__,
@@ -281,6 +293,15 @@ for rep in range(start_sim, end_sim):
             random_state=seed,
             augment_reward=in_options.augmented_reward,
             known_reward=in_options.use_true_reward
+        )
+    elif in_options.algorithm == "QLEARNING":
+        ofualg = QLearning(
+            environment=env,
+            r_max=r_max, random_state=seed,
+            lr_alpha_init=1.0, exp_epsilon_init=1.0, gamma=1.0, initq=0.0,
+            verbose=VERBOSITY,
+            logger=expalg_log,
+            known_reward=False
         )
 
     expalg_log.info("[id: {}] {}".format(in_options.id, type(ofualg).__name__))

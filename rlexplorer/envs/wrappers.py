@@ -5,6 +5,7 @@ from ..utils.shortestpath import dpshortestpath
 from ..utils.discretization import Discretizer
 from gym.envs.toy_text.taxi import TaxiEnv
 from gym.envs.classic_control import MountainCarEnv, CartPoleEnv
+from .mountaincar import MountainCar
 
 
 class GymDiscreteEnvWrapper(Environment):
@@ -311,7 +312,7 @@ class GymMountainCarWr(GymContinuousWrapper):
 
     def __init__(self, Nbins):
         self.Nbins = Nbins
-        env = MountainCarEnv()
+        env = MountainCar()
         LM = env.observation_space.low
         HM = env.observation_space.high
         D = len(HM)
@@ -329,6 +330,12 @@ class GymMountainCarWr(GymContinuousWrapper):
             bias_span=1.0597499799932173,
             diameter=None
         )
+
+    def reset(self):
+        next_state = self.gym_env.reset()
+        # next_state = np.array([self.gym_env.np_random.uniform(low=-1.2, high=0.45), self.gym_env.np_random.uniform(low=-0.06, high=0.06)])
+        # self.gym_env.state = next_state
+        self.state = np.asscalar(self.grid.dpos(next_state))
 
 
 class GymCartPoleWr(GymContinuousWrapper):
