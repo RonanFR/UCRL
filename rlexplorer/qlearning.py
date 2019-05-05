@@ -8,7 +8,7 @@ class QLearning():
 
     def __init__(self, environment,
                  r_max, random_state,
-                 lr_alpha_init=1.0, exp_epsilon_init=1.0, gamma=1.0, initq=0.0,
+                 lr_alpha_init=1.0, exp_epsilon_init=1.0, gamma=1.0, initq=0.0, exp_power=0.5,
                  verbose=0,
                  logger=default_logger,
                  known_reward=False):
@@ -17,6 +17,7 @@ class QLearning():
 
         self.lr_alpha_init = lr_alpha_init
         self.exp_epsilon_init = exp_epsilon_init
+        self.exp_power = exp_power
 
         self.lr_alpha = lr_alpha_init
         self.exp_epsilon = exp_epsilon_init
@@ -93,7 +94,7 @@ class QLearning():
                 action_idx = greedy_actions
                 action = greedy_actions
 
-        return action_idx, action
+        return np.asscalar(action_idx), np.asscalar(action)
 
     def learn(self, duration, regret_time_step, span_episode_step=1, render=False):
         """ Run UCRL on the provided environment
@@ -134,22 +135,22 @@ class QLearning():
             curr_state = self.environment.state
             curr_act_idx, curr_act = self.sample_action(curr_state)  # sample action from the policy
 
-            self.environment.execute(np.asscalar(curr_act))
+            self.environment.execute(curr_act)
 
             next_state = self.environment.state  # new state
             r = self.environment.reward
 
             # update Q value
             self.lr_alpha = self.lr_alpha_init / np.sqrt(self.nb_observations[curr_state, curr_act_idx] + 1)
-            MIN_EXP = 200000
+            MIN_EXP = 0 #200000
             # N0 = 0
             if self.total_time < MIN_EXP:
                 self.exp_epsilon = 1.0
-                N0 = self.nb_observations.copy()
+                # N0 = self.nb_observations.copy()
 
             else:
                 self.exp_epsilon = self.exp_epsilon_init / np.power(
-                    np.maximum(self.nb_observations[curr_state, curr_act_idx] - N0[curr_state, curr_act_idx], 1), 1. / 3.)
+                    np.maximum(self.nb_observations[curr_state, curr_act_idx], 1), self.exp_power)
 
             # self.exp_epsilon = self.exp_epsilon_init / np.power(np.maximum(self.nb_observations[curr_state, curr_act_idx] - 1000, 1), 2/3)
             # self.exp_epsilon = 1.0

@@ -35,7 +35,8 @@ from collections import namedtuple
 
 fields = ("nb_sim_offset", "nb_simulations", "id", "path", "algorithm", "domain", "seed_0", "alpha_r",
           "alpha_p", "posterior", "use_true_reward", "duration", "regret_time_steps", "span_episode_steps",
-          "quiet", "bound_type", "span_constraint", "augmented_reward", "communicating_version")
+          "quiet", "bound_type", "span_constraint", "augmented_reward", "communicating_version",
+          "exp_epsilon_init", "exp_power")
 Options = namedtuple("Options", fields)
 dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range",
            "garnet_ns", "garnet_na", "garnet_gamma", "chain_length", "chain_proba",
@@ -44,6 +45,8 @@ DomainOptions = namedtuple("DomainOptions", dfields)
 
 id_v = None
 alg_name = "QLEARNING"
+# alg_name = "SCALPLUS"
+
 if len(sys.argv) > 1:
     alg_name = sys.argv[1]
 
@@ -60,13 +63,15 @@ in_options = Options(
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
     duration=5000000,
-    regret_time_steps=10000,
+    regret_time_steps=1000,
     span_episode_steps=2,
     quiet=False,
     bound_type="hoeffding",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
-    span_constraint=15,
+    span_constraint=2,
     augmented_reward=True,
     communicating_version=True,
+    exp_epsilon_init=5.,
+    exp_power=0.5
 )
 
 domain_options = DomainOptions(
@@ -135,7 +140,6 @@ elif in_options.domain.upper() == "MOUNTAINCAR":
     Hl = 1
     Ha = 1
     N = SCCALPlus.nb_discrete_state(in_options.duration, 2, 3, Hl, Ha)
-    n = 15
     env = gymwrap.GymMountainCarWr(domain_options.N_bins)
     r_max = 1
 elif in_options.domain.upper() == "CARTPOLE":
@@ -298,7 +302,9 @@ for rep in range(start_sim, end_sim):
         ofualg = QLearning(
             environment=env,
             r_max=r_max, random_state=seed,
-            lr_alpha_init=1.0, exp_epsilon_init=1.0, gamma=1.0, initq=0.0,
+            lr_alpha_init=1.0, exp_epsilon_init=in_options.exp_epsilon_init,
+            exp_power=in_options.exp_power,
+            gamma=1.0, initq=0.0,
             verbose=VERBOSITY,
             logger=expalg_log,
             known_reward=False
