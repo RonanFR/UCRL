@@ -5,7 +5,7 @@ from ...utils.shortestpath import dpshortestpath
 
 class Garnet(AbstractDiscreteMDP):
 
-    def __init__(self, Ns, Na, Nb):
+    def __init__(self, Ns, Na, Nb, reward_seed=0):
         '''
         Parameters NS and NA are respectively the number of states and the number of actions.
         Parameter NB is the branching factor defining the number of possible next states for any state-action pair.
@@ -25,13 +25,17 @@ class Garnet(AbstractDiscreteMDP):
         self.R_mat = None
         self.state_actions = None
 
+        self.nplocal = np.random.RandomState()
+        self.nplocal.seed(reward_seed)
+        self.reward_states = self.nplocal.choice(a=self.nb_states, size=10, replace=False).tolist()
+
         self.generate()
 
         super(Garnet, self).__init__(initial_state=0,
                                      state_actions=self.state_actions)
 
         print(self.max_gain, self.span)
-        self.diameter = dpshortestpath(self.P_mat, self.state_actions)
+        # self.diameter = dpshortestpath(self.P_mat, self.state_actions)
         self.diameter = None
         self.holding_time = 1
         self.max_branching = self.Nb
@@ -59,7 +63,9 @@ class Garnet(AbstractDiscreteMDP):
                 self.P_mat[s, a, SBAR] = max(MP, self.P_mat[s, a, SBAR]) if np.random.rand() > 0.4 else MP
                 self.P_mat[s, a] /= np.sum(self.P_mat[s, a])
 
-                self.R_mat[s, a] = np.random.rand() # (np.random.rand() > 0.5) * np.random.rand()
+                if s in self.reward_states:
+                    self.R_mat[s, a] = 1.
+                    # self.R_mat[s, a] = np.random.rand() # self.nplocal.rand() # (np.random.rand() > 0.5) * np.random.rand()
 
     def reset(self):
         self.state = 0

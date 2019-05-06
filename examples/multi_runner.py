@@ -52,17 +52,17 @@ if len(sys.argv) > 1:
 
 in_options = Options(
     nb_sim_offset=0,
-    nb_simulations=10,
+    nb_simulations=1,
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
     algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS", "QLEARNING"]
-    domain="MountainCar",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR"]
-    seed_0=458650,
+    domain="Garnet",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR"]
+    seed_0=1307784, #1393728,
     alpha_r=0.5,
     alpha_p=0.2,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
-    duration=5000000,
+    duration=10000000,
     regret_time_steps=1000,
     span_episode_steps=2,
     quiet=False,
@@ -80,7 +80,7 @@ domain_options = DomainOptions(
     uniform_reward=True,
     unifrew_range=0.2,
     garnet_ns=200,
-    garnet_gamma=25,
+    garnet_gamma=144,
     garnet_na=3,
     chain_length=2,
     chain_proba=0.4,
@@ -334,13 +334,13 @@ for rep in range(start_sim, end_sim):
         pickle.dump(ofualg, f)
 
     plt.figure()
-    plt.plot(ofualg.span_values, '-')
-    plt.xlabel("Points")
+    plt.plot(ofualg.span_times, ofualg.span_values, '-')
+    plt.xlabel("time")
     plt.ylabel("Span")
     plt.savefig(os.path.join(folder_results, "span_{}.png".format(rep)))
     plt.figure()
-    plt.plot(ofualg.regret, '-')
-    plt.xlabel("Points")
+    plt.plot(ofualg.regret_unit_time, ofualg.regret, '-')
+    plt.xlabel("Time")
     plt.ylabel("Regret")
     plt.savefig(os.path.join(folder_results, "regret_{}.png".format(rep)))
     plt.show()
