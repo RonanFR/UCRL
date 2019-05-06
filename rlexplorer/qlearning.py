@@ -300,8 +300,8 @@ class QLearningUCB(QLearning):
             r = self.environment.reward
 
             # update Q value
-            # self.lr_alpha = self.exp_epsilon_init * (self.span_constraint + 1) / (self.span_constraint +self.nb_observations[curr_state, curr_act_idx])
-            self.lr_alpha = self.exp_epsilon_init / (np.sqrt(self.nb_observations[curr_state, curr_act_idx]+1))
+            self.lr_alpha = self.exp_epsilon_init * (self.span_constraint + 1) / (self.span_constraint +self.nb_observations[curr_state, curr_act_idx])
+            # self.lr_alpha = self.exp_epsilon_init / (np.sqrt(self.nb_observations[curr_state, curr_act_idx]+1))
 
             self.bonus = self.beta_r(curr_state, curr_act_idx)
             MM = min(self.span_constraint, np.max(self.q[next_state, :]))
