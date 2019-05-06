@@ -48,6 +48,7 @@ class QLearning():
 
         self.nb_states = self.environment.nb_states
         self.max_nb_actions = self.environment.max_nb_actions_per_state
+        self.known_reward = known_reward
 
         self.q = initq * np.ones((self.nb_states, self.max_nb_actions))
         self.nb_observations = np.zeros((self.nb_states, self.max_nb_actions), dtype=np.int64)
@@ -142,7 +143,7 @@ class QLearning():
 
             # update Q value
             self.lr_alpha = self.lr_alpha_init / np.sqrt(self.nb_observations[curr_state, curr_act_idx] + 1)
-            MIN_EXP = 0 #200000
+            MIN_EXP = 0  # 200000
             # N0 = 0
             if self.total_time < MIN_EXP:
                 self.exp_epsilon = 1.0
@@ -155,7 +156,8 @@ class QLearning():
             # self.exp_epsilon = self.exp_epsilon_init / np.power(np.maximum(self.nb_observations[curr_state, curr_act_idx] - 1000, 1), 2/3)
             # self.exp_epsilon = 1.0
             self.q[curr_state, curr_act_idx] = (1 - self.lr_alpha) * self.q[
-                curr_state, curr_act_idx] + self.lr_alpha * (r + self.gamma * np.max(self.q[next_state, :]) - self.q[0, 0])
+                curr_state, curr_act_idx] + self.lr_alpha * (r + self.gamma * np.max(self.q[next_state, :]) - self.q[
+                0, 0])
 
             self.nb_observations[curr_state, curr_act_idx] += 1
 
@@ -191,7 +193,7 @@ class QLearning():
                         ylabel="Cumulative Regret"
                     ))
                 self.viz_plots["epsilon"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.exp_epsilon]),
-                                                         env="main", opts=dict(
+                                                          env="main", opts=dict(
                         title="{} - Expl. Epsilon".format(type(self).__name__),
                         xlabel="Time",
                         ylabel="Exploration Epsilon"
@@ -204,3 +206,152 @@ class QLearning():
                               env="main", win=self.viz_plots["epsilon"],
                               update='append')
 
+
+class QLearningUCB(QLearning):
+
+    def __init__(self, environment, r_max, random_state,
+                 span_constraint, alpha_r=None, alpha_p=None,
+                 lr_alpha_init=1.0, exp_epsilon_init=1.0, gamma=1.0, exp_power=0.5,
+                 verbose=0,
+                 logger=default_logger,
+                 known_reward=False):
+        initq = span_constraint
+        super(QLearningUCB, self).__init__(environment=environment, r_max=r_max, random_state=random_state,
+                                           lr_alpha_init=lr_alpha_init, exp_epsilon_init=exp_epsilon_init,
+                                           gamma=gamma, initq=initq, exp_power=exp_power,
+                                           verbose=verbose, logger=logger, known_reward=known_reward)
+        self.span_constraint = span_constraint
+        self.alpha_r = alpha_r
+        self.alpha_p = alpha_p
+
+    def beta_r(self, state, action):
+        S = self.environment.nb_states
+        A = self.environment.max_nb_actions_per_state
+        N = np.maximum(1, self.nb_observations[state, action])
+
+        LOG_TERM = np.log(S * A / self.delta)
+
+        beta_r = np.sqrt(LOG_TERM / N)
+        beta_p = np.sqrt(LOG_TERM / N)  # + 1.0 / (self.nb_observations + 1.0)
+
+        P_term = self.alpha_p * self.span_constraint * np.minimum(beta_p, 2.)
+        R_term = self.alpha_r * self.r_max * np.minimum(beta_r, 1 if not self.known_reward else 0)
+        # P_term = self.alpha_p * self.span_constraint * beta_p
+        # R_term = self.alpha_r * self.r_max * beta_r if not self.known_reward else 0
+
+        final_bonus = R_term + P_term
+        # print(final_bonus)
+        # print(self.nb_observations)
+        return final_bonus
+
+    def description(self):
+        super_desc = super().description()
+        desc = {
+            "span_constraint": self.span_constraint,
+            "bound_type": "hoeffding",
+            "alpha_p": self.alpha_p,
+            "alpha_r": self.alpha_r,
+        }
+        super_desc.update(desc)
+        return super_desc
+
+    def learn(self, duration, regret_time_step, span_episode_step=1, render=False):
+        """ Run UCRL on the provided environment
+
+        Args:
+            duration (int): the algorithm is run until the number of time steps
+                            exceeds "duration"
+            regret_time_step (int): the value of the cumulative regret is stored
+                                    every "regret_time_step" time steps
+            render (flag): True for rendering the domain, False otherwise
+
+        """
+        if self.total_time >= duration:
+            return
+
+        # --------------------------------------------
+        self.first_span = True
+        self.first_regret = True
+        self.viz_plots = {}
+        self.viz = Visdom()
+        if not self.viz.check_connection(timeout_seconds=3):
+            self.viz = None
+        # --------------------------------------------
+
+        threshold = self.total_time + regret_time_step
+
+        # get initial state
+        curr_state = self.environment.state
+        self.exp_epsilon = 0.
+
+        self.first_regret = True
+        while self.total_time < duration:
+
+            if self.verbose > 0:
+                curr_regret = self.total_time * self.environment.max_gain - self.total_reward
+                self.logger.info("regret: {}, {:.2f}".format(self.total_time, curr_regret))
+
+            curr_state = self.environment.state
+            curr_act_idx, curr_act = self.sample_action(curr_state)  # sample action from the policy
+
+            self.environment.execute(curr_act)
+
+            next_state = self.environment.state  # new state
+            r = self.environment.reward
+
+            # update Q value
+            # self.lr_alpha = self.exp_epsilon_init * (self.span_constraint + 1) / (self.span_constraint +self.nb_observations[curr_state, curr_act_idx])
+            self.lr_alpha = self.exp_epsilon_init / (np.sqrt(self.nb_observations[curr_state, curr_act_idx]+1))
+
+            self.bonus = self.beta_r(curr_state, curr_act_idx)
+            MM = min(self.span_constraint, np.max(self.q[next_state, :]))
+            self.q[curr_state, curr_act_idx] = (1 - self.lr_alpha) * self.q[
+                curr_state, curr_act_idx] + self.lr_alpha * (r + self.bonus + self.gamma * MM - self.q[0, 0])
+
+            self.nb_observations[curr_state, curr_act_idx] += 1
+
+            # update time
+            self.total_time += 1
+            self.iteration += 1
+            self.total_reward += r
+
+            if self.total_time > threshold:
+                self.save_information()
+                threshold = self.total_time + regret_time_step
+
+        if self.verbose > 0:
+            self.logger.info(self.q)
+            self.logger.info(np.sum(self.nb_observations, 1))
+            self.logger.info(np.sum(self.nb_observations, 1) / self.total_time)
+            self.logger.info(self.lr_alpha)
+            self.logger.info(self.exp_epsilon)
+
+
+    def save_information(self):
+        curr_regret = self.total_time * self.environment.max_gain - self.total_reward
+        self.regret.append(curr_regret)
+        self.regret_unit_time.append(self.total_time)
+        self.unit_duration.append(self.total_time / self.iteration)
+
+        if self.viz is not None:
+            if self.first_regret:
+                self.first_regret = False
+                self.viz_plots["regret"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([curr_regret]),
+                                                         env="main", opts=dict(
+                        title="{} - Regret".format(type(self).__name__),
+                        xlabel="Time",
+                        ylabel="Cumulative Regret"
+                    ))
+                self.viz_plots["bonus"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.bonus]),
+                                                          env="main", opts=dict(
+                        title="{} - Expl. bonus".format(type(self).__name__),
+                        xlabel="Time",
+                        ylabel="Exploration Bonus"
+                    ))
+            else:
+                self.viz.line(X=np.array([self.total_time]), Y=np.array([curr_regret]),
+                              env="main", win=self.viz_plots["regret"],
+                              update='append')
+                self.viz.line(X=np.array([self.total_time]), Y=np.array([self.bonus]),
+                              env="main", win=self.viz_plots["bonus"],
+                              update='append')

@@ -20,7 +20,7 @@ import rlexplorer.rllogging as ucrl_logger
 import matplotlib
 from rlexplorer.ofucontinuous import SCCALPlus
 import sys
-from rlexplorer.qlearning import QLearning
+from rlexplorer.qlearning import QLearning, QLearningUCB
 
 # 'DISPLAY' will be something like this ':0'
 # on your local machine, and None otherwise
@@ -44,22 +44,22 @@ dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range",
 DomainOptions = namedtuple("DomainOptions", dfields)
 
 id_v = None
-alg_name = "QLEARNING"
-# alg_name = "SCALPLUS"
+alg_name = "QLEARNINGUCB"
+alg_name = "SCALPLUS"
 
 if len(sys.argv) > 1:
     alg_name = sys.argv[1]
 
 in_options = Options(
     nb_sim_offset=0,
-    nb_simulations=1,
+    nb_simulations=10,
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
-    algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS", "QLEARNING"]
-    domain="Garnet",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR"]
+    algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS", "QLEARNING", "QLEARNINGUCB"]
+    domain="MountainCar",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR"]
     seed_0=1307784, #1393728,
     alpha_r=0.5,
-    alpha_p=0.2,
+    alpha_p=0.5,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
     duration=10000000,
@@ -139,15 +139,15 @@ elif in_options.domain.upper() == "TAXI":
 elif in_options.domain.upper() == "MOUNTAINCAR":
     Hl = 1
     Ha = 1
-    N = SCCALPlus.nb_discrete_state(in_options.duration, 2, 3, Hl, Ha)
+    # N = SCCALPlus.nb_discrete_state(in_options.duration, 2, 3, Hl, Ha)
     env = gymwrap.GymMountainCarWr(domain_options.N_bins)
     r_max = 1
 elif in_options.domain.upper() == "CARTPOLE":
     Hl = 0.5
     Ha = 1
-    N = SCCALPlus.nb_discrete_state(in_options.duration, 3, Hl, Ha)
-    N = 6
-    env = gymwrap.GymCartPoleWr(N)
+    # N = SCCALPlus.nb_discrete_state(in_options.duration, 3, Hl, Ha)
+    # N = 6
+    env = gymwrap.GymCartPoleWr(domain_options.N_bins)
     r_max = 1
 elif in_options.domain.upper() == "DLQR":
     Hl = 1
@@ -305,6 +305,20 @@ for rep in range(start_sim, end_sim):
             lr_alpha_init=1.0, exp_epsilon_init=in_options.exp_epsilon_init,
             exp_power=in_options.exp_power,
             gamma=1.0, initq=0.0,
+            verbose=VERBOSITY,
+            logger=expalg_log,
+            known_reward=False
+        )
+    elif in_options.algorithm == "QLEARNINGUCB":
+        ofualg = QLearningUCB(
+            environment=env,
+            r_max=r_max, random_state=seed,
+            span_constraint=in_options.span_constraint,
+            alpha_r=in_options.alpha_r,
+            alpha_p=in_options.alpha_p,
+            lr_alpha_init=1.0, exp_epsilon_init=in_options.exp_epsilon_init,
+            exp_power=in_options.exp_power,
+            gamma=1.0,
             verbose=VERBOSITY,
             logger=expalg_log,
             known_reward=False
