@@ -23,7 +23,7 @@ class SCCALPlus(SCALPLUS):
         self.holder_alpha = holder_alpha
         self.holder_L = holder_L
         self.r_max_vi = (self.span_constraint + self.r_max) * 3
-        self.r_max_vi = float(np.iinfo(np.int32).max)
+        # self.r_max_vi = float(np.iinfo(np.int32).max)
 
     def beta_r(self):
 
@@ -48,3 +48,11 @@ class SCCALPlus(SCALPLUS):
         exp_val = 1./(2.*d+2*holder_alpha)
         N = m.pow(holder_alpha * holder_L * m.sqrt(T/nA), exp_val)
         return max(10, int(m.ceil(N)))
+
+    # def update_at_episode_end(self):
+    #     self.nb_observations += self.nu_k
+    #
+    #     for (s, a) in self.visited_sa:
+    #         Nsa = self.nb_observations[s, a]
+    #         self.P[s, a] = self.P_counter[s, a] / Nsa
+    #         assert np.isclose(1., np.sum(self.P[s, a]))
