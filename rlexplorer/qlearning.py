@@ -305,7 +305,7 @@ class QLearningUCB(QLearning):
             self.lr_alpha = self.exp_epsilon_init * (self.span_constraint + 1) / (self.span_constraint +self.nb_observations[curr_state, curr_act_idx])
             # self.lr_alpha = self.exp_epsilon_init / (np.sqrt(self.nb_observations[curr_state, curr_act_idx]+1))
 
-            self.bonus = self.beta_r(curr_state, curr_act_idx) + self.lipschitz_const / (1 + self.nb_observations[curr_state, curr_act_idx])
+            self.bonus = self.beta_r(curr_state, curr_act_idx) + self.lipschitz_const / np.sqrt(1 + self.nb_observations[curr_state, curr_act_idx])
             MM = min(self.span_constraint, np.max(self.q[next_state, :]))
             self.q[curr_state, curr_act_idx] = (1 - self.lr_alpha) * self.q[
                 curr_state, curr_act_idx] + self.lr_alpha * (r + self.bonus + self.gamma * MM - self.q[0, 0])
