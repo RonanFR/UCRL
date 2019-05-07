@@ -45,7 +45,7 @@ DomainOptions = namedtuple("DomainOptions", dfields)
 
 id_v = None
 alg_name = "QLEARNINGUCB"
-alg_name = "SCALPLUS"
+# alg_name = "SCALPLUS"
 
 if len(sys.argv) > 1:
     alg_name = sys.argv[1]
@@ -102,7 +102,7 @@ random.seed(in_options.seed_0)
 # Relevant code
 # ------------------------------------------------------------------------------
 env = None
-Hl = Ha = None
+Hl = Ha = 0
 if in_options.domain.upper() == "RIVERSWIM":
     env = RiverSwim()
     r_max = max(1, np.asscalar(np.max(env.R_mat)))
@@ -319,6 +319,7 @@ for rep in range(start_sim, end_sim):
             lr_alpha_init=1.0, exp_epsilon_init=in_options.exp_epsilon_init,
             exp_power=in_options.exp_power,
             gamma=1.0,
+            lipschitz_const=Hl,
             verbose=VERBOSITY,
             logger=expalg_log,
             known_reward=False

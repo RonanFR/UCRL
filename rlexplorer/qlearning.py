@@ -212,6 +212,7 @@ class QLearningUCB(QLearning):
     def __init__(self, environment, r_max, random_state,
                  span_constraint, alpha_r=None, alpha_p=None,
                  lr_alpha_init=1.0, exp_epsilon_init=1.0, gamma=1.0, exp_power=0.5,
+                 lipschitz_const=0.0,
                  verbose=0,
                  logger=default_logger,
                  known_reward=False):
@@ -223,6 +224,7 @@ class QLearningUCB(QLearning):
         self.span_constraint = span_constraint
         self.alpha_r = alpha_r
         self.alpha_p = alpha_p
+        self.lipschitz_const = lipschitz_const
 
     def beta_r(self, state, action):
         S = self.environment.nb_states
@@ -303,7 +305,7 @@ class QLearningUCB(QLearning):
             self.lr_alpha = self.exp_epsilon_init * (self.span_constraint + 1) / (self.span_constraint +self.nb_observations[curr_state, curr_act_idx])
             # self.lr_alpha = self.exp_epsilon_init / (np.sqrt(self.nb_observations[curr_state, curr_act_idx]+1))
 
-            self.bonus = self.beta_r(curr_state, curr_act_idx)
+            self.bonus = self.beta_r(curr_state, curr_act_idx) + self.lipschitz_const / (1 + self.nb_observations[curr_state, curr_act_idx])
             MM = min(self.span_constraint, np.max(self.q[next_state, :]))
             self.q[curr_state, curr_act_idx] = (1 - self.lr_alpha) * self.q[
                 curr_state, curr_act_idx] + self.lr_alpha * (r + self.bonus + self.gamma * MM - self.q[0, 0])
