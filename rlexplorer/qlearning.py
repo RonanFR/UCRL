@@ -83,19 +83,16 @@ class QLearning():
         rnd = self.local_random.uniform()
         if rnd < self.exp_epsilon:
             # uniform random action
-            action_idx = self.local_random.choice(self.environment.state_actions[s], 1)
-            action = action_idx
+            action_idx = np.asscalar(self.local_random.choice(self.environment.state_actions[s], 1))
+            action = self.environment.state_actions[s][action_idx]
         else:
-            greedy_actions = np.argmax(self.q[s, :])
-            if greedy_actions.size > 1:
-                # this is a stochastic policy
-                action_idx = self.local_random.choice(greedy_actions, 1)
-                action = self.environment.state_actions[s][action_idx]
-            else:
-                action_idx = greedy_actions
-                action = greedy_actions
-
-        return np.asscalar(action_idx), np.asscalar(action)
+            na = self.environment.state_actions[s]
+            b = self.q[s, na]
+            # print(s, b)
+            idxs = np.flatnonzero(np.isclose(b, b.max()))
+            action_idx = np.asscalar(self.local_random.choice(idxs))
+            action = self.environment.state_actions[s][action_idx]
+        return action_idx, action
 
     def learn(self, duration, regret_time_step, span_episode_step=1, render=False):
         """ Run UCRL on the provided environment
@@ -125,6 +122,8 @@ class QLearning():
 
         # get initial state
         curr_state = self.environment.state
+        self.sbar = curr_state
+        self.abar = 0
 
         self.first_regret = True
         while self.total_time < duration:
@@ -156,8 +155,7 @@ class QLearning():
             # self.exp_epsilon = self.exp_epsilon_init / np.power(np.maximum(self.nb_observations[curr_state, curr_act_idx] - 1000, 1), 2/3)
             # self.exp_epsilon = 1.0
             self.q[curr_state, curr_act_idx] = (1 - self.lr_alpha) * self.q[
-                curr_state, curr_act_idx] + self.lr_alpha * (r + self.gamma * np.max(self.q[next_state, :]) - self.q[
-                0, 0])
+                curr_state, curr_act_idx] + self.lr_alpha * (r + self.gamma * np.max(self.q[next_state, :]) - self.q[self.sbar, self.abar])
 
             self.nb_observations[curr_state, curr_act_idx] += 1
 
@@ -216,7 +214,7 @@ class QLearningUCB(QLearning):
                  verbose=0,
                  logger=default_logger,
                  known_reward=False):
-        initq = span_constraint
+        initq = 2*span_constraint
         super(QLearningUCB, self).__init__(environment=environment, r_max=r_max, random_state=random_state,
                                            lr_alpha_init=lr_alpha_init, exp_epsilon_init=exp_epsilon_init,
                                            gamma=gamma, initq=initq, exp_power=exp_power,
@@ -284,10 +282,13 @@ class QLearningUCB(QLearning):
 
         # get initial state
         curr_state = self.environment.state
-        self.exp_epsilon = 0.
+        self.sbar = curr_state
+        self.abar = 0
+        self.exp_epsilon = -1
 
         self.first_regret = True
         while self.total_time < duration:
+            self.delta = 1 / np.sqrt(self.total_time + 1)
 
             if self.verbose > 0:
                 curr_regret = self.total_time * self.environment.max_gain - self.total_reward
@@ -302,13 +303,13 @@ class QLearningUCB(QLearning):
             r = self.environment.reward
 
             # update Q value
-            self.lr_alpha = self.exp_epsilon_init * (self.span_constraint + 1) / (self.span_constraint +self.nb_observations[curr_state, curr_act_idx])
-            # self.lr_alpha = self.exp_epsilon_init / (np.sqrt(self.nb_observations[curr_state, curr_act_idx]+1))
+            #self.lr_alpha = (self.span_constraint + 1) / (self.span_constraint + np.sqrt(self.nb_observations[curr_state, curr_act_idx] + 1))
+            self.lr_alpha = self.lr_alpha_init / (np.sqrt(self.nb_observations[curr_state, curr_act_idx]+1))
 
             self.bonus = self.beta_r(curr_state, curr_act_idx) + self.lipschitz_const / np.sqrt(1 + self.nb_observations[curr_state, curr_act_idx])
             MM = min(self.span_constraint, np.max(self.q[next_state, :]))
             self.q[curr_state, curr_act_idx] = (1 - self.lr_alpha) * self.q[
-                curr_state, curr_act_idx] + self.lr_alpha * (r + self.bonus + self.gamma * MM - self.q[0, 0])
+                curr_state, curr_act_idx] + self.lr_alpha * (r + self.bonus + self.gamma * MM - self.q[self.sbar, self.abar])
 
             self.nb_observations[curr_state, curr_act_idx] += 1
 
@@ -350,10 +351,19 @@ class QLearningUCB(QLearning):
                         xlabel="Time",
                         ylabel="Exploration Bonus"
                     ))
+                self.viz_plots["alpha"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.lr_alpha]),
+                                                          env="main", opts=dict(
+                        title="{} - LR Alpha".format(type(self).__name__),
+                        xlabel="Time",
+                        ylabel="LR Alpha"
+                    ))
             else:
                 self.viz.line(X=np.array([self.total_time]), Y=np.array([curr_regret]),
                               env="main", win=self.viz_plots["regret"],
                               update='append')
                 self.viz.line(X=np.array([self.total_time]), Y=np.array([self.bonus]),
                               env="main", win=self.viz_plots["bonus"],
+                              update='append')
+                self.viz.line(X=np.array([self.total_time]), Y=np.array([self.lr_alpha]),
+                              env="main", win=self.viz_plots["alpha"],
                               update='append')
