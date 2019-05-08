@@ -6,6 +6,7 @@ from ..utils.discretization import Discretizer
 from gym.envs.toy_text.taxi import TaxiEnv
 from gym.envs.classic_control import MountainCarEnv, CartPoleEnv
 from .mountaincar import MountainCar
+from .toys.riverswim import ContinuousRiverSwim
 
 
 class GymDiscreteEnvWrapper(Environment):
@@ -236,6 +237,7 @@ class GymTaxiCom(Environment):
         }
         return props
 
+
 # ======================================================================================================================
 # ----------------------------------------------------------------------------------------------------------------------
 # CONTINUOUS STATE MDPS
@@ -310,9 +312,10 @@ class GymContinuousWrapper:
 
 class GymMountainCarWr(GymContinuousWrapper):
 
-    def __init__(self, Nbins):
+    def __init__(self, Nbins, seed=None):
         self.Nbins = Nbins
         env = MountainCar()
+        env.seed(seed=seed)
         LM = env.observation_space.low
         HM = env.observation_space.high
         D = len(HM)
@@ -326,7 +329,7 @@ class GymMountainCarWr(GymContinuousWrapper):
             gym_env=env, grid=grid,
             min_reward=-1, max_reward=0,
             reward_done=1,
-            max_gain=0, #0.009054722111333291,
+            max_gain=0,  # 0.009054722111333291,
             bias_span=1.0597499799932173,
             diameter=None
         )
@@ -340,9 +343,10 @@ class GymMountainCarWr(GymContinuousWrapper):
 
 class GymCartPoleWr(GymContinuousWrapper):
 
-    def __init__(self, Nbins):
+    def __init__(self, Nbins, seed=None):
         self.Nbins = Nbins
         env = CartPoleEnv()
+        env.seed(seed=seed)
         HM = np.array([1.5 * env.x_threshold, 2., 1.5 * env.theta_threshold_radians, 3.])
         LM = -HM
         D = len(HM)
@@ -361,6 +365,30 @@ class GymCartPoleWr(GymContinuousWrapper):
             diameter=None
         )
 
+
+class ContRiverSwimWr(GymContinuousWrapper):
+
+    def __init__(self, Nbins, max_pos=6., dx=0.1, seed=None):
+        self.Nbins = Nbins
+        env = ContinuousRiverSwim(max_pos=max_pos, dx=dx)
+        env.seed(seed=seed)
+        LM = env.observation_space.low
+        HM = env.observation_space.high
+        D = len(HM)
+
+        bins = []
+        for i in range(D):
+            V = np.linspace(LM[i], HM[i], Nbins)
+            bins.append(V[1:-1])
+        grid = Discretizer(bins=bins)
+        super(ContRiverSwimWr, self).__init__(
+            gym_env=env, grid=grid,
+            min_reward=0, max_reward=1,
+            reward_done=0,
+            max_gain=0., #0.3377335,
+            bias_span=0.,
+            diameter=None
+        )
 
 # class GymMCWrapper2:
 #     def __init__(self, N):

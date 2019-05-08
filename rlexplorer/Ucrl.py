@@ -312,9 +312,18 @@ class UcrlMdp(AbstractUCRL):
                         xlabel="Time",
                         ylabel="Cumulative Regret"
                     ))
+                self.viz_plots["reward"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.environment.reward]),
+                                                         env="main", opts=dict(
+                        title="{} - Reward".format(type(self).__name__),
+                        xlabel="Time",
+                        ylabel="Immediate Reward"
+                    ))
             else:
                 self.viz.line(X=np.array([self.total_time]), Y=np.array([curr_regret]),
                               env="main", win=self.viz_plots["regret"],
+                              update='append')
+                self.viz.line(X=np.array([self.total_time]), Y=np.array([self.environment.reward]),
+                              env="main", win=self.viz_plots["reward"],
                               update='append')
 
     def beta_r(self):

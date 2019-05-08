@@ -40,7 +40,7 @@ fields = ("nb_sim_offset", "nb_simulations", "id", "path", "algorithm", "domain"
 Options = namedtuple("Options", fields)
 dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range",
            "garnet_ns", "garnet_na", "garnet_gamma", "chain_length", "chain_proba",
-           "N_bins")
+           "N_bins", "dx")
 DomainOptions = namedtuple("DomainOptions", dfields)
 
 id_v = None
@@ -56,21 +56,21 @@ in_options = Options(
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
     algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS", "QLEARNING", "QLEARNINGUCB"]
-    domain="MountainCar",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR"]
+    domain="ContRiverSwim",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR", "ContRiverSwim"]
     seed_0=1307784, #1393728,
     alpha_r=0.5,
     alpha_p=0.5,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
-    duration=10000000,
+    duration=4000000,
     regret_time_steps=1000,
     span_episode_steps=2,
     quiet=False,
     bound_type="hoeffding",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
-    span_constraint=2,
+    span_constraint=30,
     augmented_reward=True,
     communicating_version=True,
-    exp_epsilon_init=5.,
+    exp_epsilon_init=10.,
     exp_power=0.5
 )
 
@@ -84,7 +84,8 @@ domain_options = DomainOptions(
     garnet_na=3,
     chain_length=2,
     chain_proba=0.4,
-    N_bins=15
+    N_bins=50,
+    dx=0.1
 )
 
 #####################################################################
@@ -155,6 +156,11 @@ elif in_options.domain.upper() == "DLQR":
     N = 20
     Na = 11
     env = DiscreteLQR(Ns=N, Na=Na, sigma_noise=0.1)
+    r_max = 1.
+elif in_options.domain.upper() == "CONTRIVERSWIM":
+    Hl = 1
+    Ha = 1
+    env = gymwrap.ContRiverSwimWr(Nbins=domain_options.N_bins, dx=domain_options.dx)
     r_max = 1.
 
 
@@ -333,16 +339,16 @@ for rep in range(start_sim, end_sim):
     expalg_log.info("alg desc: {}".format(alg_desc))
 
     pickle_name = 'run_{}.pickle'.format(rep)
-    #    try:
-    h = ofualg.learn(duration=in_options.duration,
+    try:
+        h = ofualg.learn(duration=in_options.duration,
                      regret_time_step=in_options.regret_time_steps,
                      span_episode_step=in_options.span_episode_steps)  # learn task
-    # except Ucrl.EVIException as valerr:
-    #     expalg_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))
-    #     pickle_name = 'exception_model_{}.pickle'.format(rep)
-    # except:
-    #     expalg_log.info("EXCEPTION")
-    #     pickle_name = 'exception_model_{}.pickle'.format(rep)
+    except Ucrl.EVIException as valerr:
+        expalg_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))
+        pickle_name = 'exception_model_{}.pickle'.format(rep)
+    except:
+        expalg_log.info("EXCEPTION")
+        pickle_name = 'exception_model_{}.pickle'.format(rep)
 
     ofualg.clear_before_pickle()
     with open(os.path.join(folder_results, pickle_name), 'wb') as f:

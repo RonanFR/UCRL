@@ -92,6 +92,8 @@ class QLearning():
             idxs = np.flatnonzero(np.isclose(b, b.max()))
             action_idx = np.asscalar(self.local_random.choice(idxs))
             action = self.environment.state_actions[s][action_idx]
+        self.policy_indices[s] = action_idx
+        self.policy[s] = action
         return action_idx, action
 
     def learn(self, duration, regret_time_step, span_episode_step=1, render=False):
@@ -118,7 +120,7 @@ class QLearning():
         # --------------------------------------------
 
         threshold = self.total_time + regret_time_step
-        threshold_span = threshold
+        threshold_span = self.total_time
 
         # get initial state
         curr_state = self.environment.state
@@ -128,9 +130,10 @@ class QLearning():
         self.first_regret = True
         while self.total_time < duration:
 
-            if self.verbose > 0:
+            if self.verbose > 0 and self.total_time >= threshold_span:
                 curr_regret = self.total_time * self.environment.max_gain - self.total_reward
                 self.logger.info("regret: {}, {:.2f}".format(self.total_time, curr_regret))
+                threshold_span += regret_time_step
 
             curr_state = self.environment.state
             curr_act_idx, curr_act = self.sample_action(curr_state)  # sample action from the policy
@@ -196,12 +199,30 @@ class QLearning():
                         xlabel="Time",
                         ylabel="Exploration Epsilon"
                     ))
+                self.viz_plots["alpha"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.lr_alpha]),
+                                                          env="main", opts=dict(
+                        title="{} - LR Alpha".format(type(self).__name__),
+                        xlabel="Time",
+                        ylabel="LR Alpha"
+                    ))
+                self.viz_plots["reward"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.environment.reward]),
+                                                          env="main", opts=dict(
+                        title="{} - Reward".format(type(self).__name__),
+                        xlabel="Time",
+                        ylabel="Immediate reward"
+                    ))
             else:
                 self.viz.line(X=np.array([self.total_time]), Y=np.array([curr_regret]),
                               env="main", win=self.viz_plots["regret"],
                               update='append')
                 self.viz.line(X=np.array([self.total_time]), Y=np.array([self.exp_epsilon]),
                               env="main", win=self.viz_plots["epsilon"],
+                              update='append')
+                self.viz.line(X=np.array([self.total_time]), Y=np.array([self.lr_alpha]),
+                              env="main", win=self.viz_plots["alpha"],
+                              update='append')
+                self.viz.line(X=np.array([self.total_time]), Y=np.array([self.environment.reward]),
+                              env="main", win=self.viz_plots["reward"],
                               update='append')
 
 
@@ -279,6 +300,7 @@ class QLearningUCB(QLearning):
         # --------------------------------------------
 
         threshold = self.total_time + regret_time_step
+        threshold_span = self.total_time
 
         # get initial state
         curr_state = self.environment.state
@@ -290,9 +312,11 @@ class QLearningUCB(QLearning):
         while self.total_time < duration:
             self.delta = 1 / np.sqrt(self.total_time + 1)
 
-            if self.verbose > 0:
+            if self.verbose > 0 and self.total_time >= threshold_span:
                 curr_regret = self.total_time * self.environment.max_gain - self.total_reward
                 self.logger.info("regret: {}, {:.2f}".format(self.total_time, curr_regret))
+                threshold_span += regret_time_step
+
 
             curr_state = self.environment.state
             curr_act_idx, curr_act = self.sample_action(curr_state)  # sample action from the policy
@@ -303,13 +327,16 @@ class QLearningUCB(QLearning):
             r = self.environment.reward
 
             # update Q value
-            #self.lr_alpha = (self.span_constraint + 1) / (self.span_constraint + np.sqrt(self.nb_observations[curr_state, curr_act_idx] + 1))
-            self.lr_alpha = self.lr_alpha_init / (np.sqrt(self.nb_observations[curr_state, curr_act_idx]+1))
+            # self.lr_alpha = (self.span_constraint + 1) / (self.span_constraint + np.sqrt(self.nb_observations[curr_state, curr_act_idx] + 1))
+            self.lr_alpha = (self.span_constraint + 1) / (self.span_constraint + self.nb_observations[curr_state, curr_act_idx] + 1)
+            # self.lr_alpha = self.lr_alpha_init / (np.sqrt(self.nb_observations[curr_state, curr_act_idx]+1))
 
             self.bonus = self.beta_r(curr_state, curr_act_idx) + self.lipschitz_const / np.sqrt(1 + self.nb_observations[curr_state, curr_act_idx])
             MM = min(self.span_constraint, np.max(self.q[next_state, :]))
+            # MM = np.max(self.q[next_state, :])
             self.q[curr_state, curr_act_idx] = (1 - self.lr_alpha) * self.q[
                 curr_state, curr_act_idx] + self.lr_alpha * (r + self.bonus + self.gamma * MM - self.q[self.sbar, self.abar])
+            # self.q[curr_state, curr_act_idx] = min(self.span_constraint, self.q[curr_state, curr_act_idx])
 
             self.nb_observations[curr_state, curr_act_idx] += 1
 
@@ -331,39 +358,62 @@ class QLearningUCB(QLearning):
 
 
     def save_information(self):
-        curr_regret = self.total_time * self.environment.max_gain - self.total_reward
-        self.regret.append(curr_regret)
-        self.regret_unit_time.append(self.total_time)
-        self.unit_duration.append(self.total_time / self.iteration)
-
         if self.viz is not None:
             if self.first_regret:
-                self.first_regret = False
-                self.viz_plots["regret"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([curr_regret]),
-                                                         env="main", opts=dict(
-                        title="{} - Regret".format(type(self).__name__),
-                        xlabel="Time",
-                        ylabel="Cumulative Regret"
-                    ))
                 self.viz_plots["bonus"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.bonus]),
                                                           env="main", opts=dict(
                         title="{} - Expl. bonus".format(type(self).__name__),
                         xlabel="Time",
                         ylabel="Exploration Bonus"
                     ))
-                self.viz_plots["alpha"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.lr_alpha]),
-                                                          env="main", opts=dict(
-                        title="{} - LR Alpha".format(type(self).__name__),
-                        xlabel="Time",
-                        ylabel="LR Alpha"
-                    ))
             else:
-                self.viz.line(X=np.array([self.total_time]), Y=np.array([curr_regret]),
-                              env="main", win=self.viz_plots["regret"],
-                              update='append')
                 self.viz.line(X=np.array([self.total_time]), Y=np.array([self.bonus]),
                               env="main", win=self.viz_plots["bonus"],
                               update='append')
-                self.viz.line(X=np.array([self.total_time]), Y=np.array([self.lr_alpha]),
-                              env="main", win=self.viz_plots["alpha"],
-                              update='append')
+        super(QLearningUCB, self).save_information()
+                
+        # curr_regret = self.total_time * self.environment.max_gain - self.total_reward
+        # self.regret.append(curr_regret)
+        # self.regret_unit_time.append(self.total_time)
+        # self.unit_duration.append(self.total_time / self.iteration)
+        #
+        # if self.viz is not None:
+        #     if self.first_regret:
+        #         self.first_regret = False
+        #         self.viz_plots["regret"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([curr_regret]),
+        #                                                  env="main", opts=dict(
+        #                 title="{} - Regret".format(type(self).__name__),
+        #                 xlabel="Time",
+        #                 ylabel="Cumulative Regret"
+        #             ))
+        #         self.viz_plots["bonus"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.bonus]),
+        #                                                   env="main", opts=dict(
+        #                 title="{} - Expl. bonus".format(type(self).__name__),
+        #                 xlabel="Time",
+        #                 ylabel="Exploration Bonus"
+        #             ))
+        #         self.viz_plots["alpha"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.lr_alpha]),
+        #                                                   env="main", opts=dict(
+        #                 title="{} - LR Alpha".format(type(self).__name__),
+        #                 xlabel="Time",
+        #                 ylabel="LR Alpha"
+        #             ))
+        #         self.viz_plots["reward"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.environment.reward]),
+        #                                                   env="main", opts=dict(
+        #                 title="{} - Reward".format(type(self).__name__),
+        #                 xlabel="Time",
+        #                 ylabel="Immediate reward"
+        #             ))
+        #     else:
+        #         self.viz.line(X=np.array([self.total_time]), Y=np.array([curr_regret]),
+        #                       env="main", win=self.viz_plots["regret"],
+        #                       update='append')
+        #         self.viz.line(X=np.array([self.total_time]), Y=np.array([self.bonus]),
+        #                       env="main", win=self.viz_plots["bonus"],
+        #                       update='append')
+        #         self.viz.line(X=np.array([self.total_time]), Y=np.array([self.lr_alpha]),
+        #                       env="main", win=self.viz_plots["alpha"],
+        #                       update='append')
+        #         self.viz.line(X=np.array([self.total_time]), Y=np.array([self.environment.reward]),
+        #                       env="main", win=self.viz_plots["reward"],
+        #                       update='append')
