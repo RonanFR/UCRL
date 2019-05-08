@@ -36,7 +36,7 @@ from collections import namedtuple
 fields = ("nb_sim_offset", "nb_simulations", "id", "path", "algorithm", "domain", "seed_0", "alpha_r",
           "alpha_p", "posterior", "use_true_reward", "duration", "regret_time_steps", "span_episode_steps",
           "quiet", "bound_type", "span_constraint", "augmented_reward", "communicating_version",
-          "exp_epsilon_init", "exp_power")
+          "exp_epsilon_init", "exp_power", "initq")
 Options = namedtuple("Options", fields)
 dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range",
            "garnet_ns", "garnet_na", "garnet_gamma", "chain_length", "chain_proba",
@@ -56,22 +56,23 @@ in_options = Options(
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
     algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS", "QLEARNING", "QLEARNINGUCB"]
-    domain="ContRiverSwim",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR", "ContRiverSwim"]
-    seed_0=1307784, #1393728,
+    domain="MountainCar",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR", "ContRiverSwim"]
+    seed_0=452263, # 1307784, #1393728,
     alpha_r=0.5,
     alpha_p=0.5,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
-    duration=4000000,
+    duration=10000000,
     regret_time_steps=1000,
     span_episode_steps=2,
     quiet=False,
     bound_type="hoeffding",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
-    span_constraint=30,
+    span_constraint=15,
     augmented_reward=True,
     communicating_version=True,
-    exp_epsilon_init=10.,
-    exp_power=0.5
+    exp_epsilon_init=20.,
+    exp_power=0.33333,
+    initq=15
 )
 
 domain_options = DomainOptions(
@@ -84,7 +85,7 @@ domain_options = DomainOptions(
     garnet_na=3,
     chain_length=2,
     chain_proba=0.4,
-    N_bins=50,
+    N_bins=16,
     dx=0.1
 )
 
@@ -310,7 +311,7 @@ for rep in range(start_sim, end_sim):
             r_max=r_max, random_state=seed,
             lr_alpha_init=1.0, exp_epsilon_init=in_options.exp_epsilon_init,
             exp_power=in_options.exp_power,
-            gamma=1.0, initq=0.0,
+            gamma=1.0, initq=in_options.initq,
             verbose=VERBOSITY,
             logger=expalg_log,
             known_reward=False

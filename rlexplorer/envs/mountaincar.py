@@ -16,9 +16,9 @@ class MountainCar(MountainCarEnv):
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
         position, velocity = self.state
-        velocity += (action - 1) * 0.001 + math.cos(3 * position) * (-0.0025) + 0.001 * self.np_random.randn()
+        velocity += (action - 1) * 0.001 * 0.7 + math.cos(3 * position) * (-0.0025) + 0.0005 * np.random.randn()
         velocity = np.clip(velocity, -self.max_speed, self.max_speed)
-        position += velocity + 0.001 * self.np_random.randn()
+        position += velocity
         position = np.clip(position, self.min_position, self.max_position)
         # if position == self.min_position and velocity < 0:
         #     velocity = 0

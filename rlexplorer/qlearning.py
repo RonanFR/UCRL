@@ -132,6 +132,7 @@ class QLearning():
 
             if self.verbose > 0 and self.total_time >= threshold_span:
                 curr_regret = self.total_time * self.environment.max_gain - self.total_reward
+                self.logger.info("{}/{} = {:3.2f}%".format(self.total_time, duration, self.total_time / duration * 100))
                 self.logger.info("regret: {}, {:.2f}".format(self.total_time, curr_regret))
                 threshold_span += regret_time_step
 
@@ -145,7 +146,7 @@ class QLearning():
 
             # update Q value
             self.lr_alpha = self.lr_alpha_init / np.sqrt(self.nb_observations[curr_state, curr_act_idx] + 1)
-            MIN_EXP = 0  # 200000
+            MIN_EXP = -1  # 200000
             # N0 = 0
             if self.total_time < MIN_EXP:
                 self.exp_epsilon = 1.0
@@ -314,6 +315,7 @@ class QLearningUCB(QLearning):
 
             if self.verbose > 0 and self.total_time >= threshold_span:
                 curr_regret = self.total_time * self.environment.max_gain - self.total_reward
+                self.logger.info("{}/{} = {:3.2f}%".format(self.total_time, duration, self.total_time / duration * 100))
                 self.logger.info("regret: {}, {:.2f}".format(self.total_time, curr_regret))
                 threshold_span += regret_time_step
 
