@@ -7,6 +7,7 @@ from gym.envs.toy_text.taxi import TaxiEnv
 from gym.envs.classic_control import MountainCarEnv, CartPoleEnv
 from .mountaincar import MountainCar
 from .toys.riverswim import ContinuousRiverSwim
+from .puddleworld import PuddleWorld
 
 
 class GymDiscreteEnvWrapper(Environment):
@@ -340,6 +341,34 @@ class GymMountainCarWr(GymContinuousWrapper):
         # self.gym_env.state = next_state
         self.state = np.asscalar(self.grid.dpos(next_state))
 
+
+class PuddleWorldWr(GymContinuousWrapper):
+
+    def __init__(self, Nbins, seed=None):
+        self.Nbins = Nbins
+        env = PuddleWorld()
+        env.seed(seed=seed)
+        LM = env.observation_space.low
+        HM = env.observation_space.high
+        D = len(HM)
+
+        bins = []
+        for i in range(D):
+            V = np.linspace(LM[i], HM[i], Nbins)
+            bins.append(V[1:-1])
+        grid = Discretizer(bins=bins)
+        super(PuddleWorldWr, self).__init__(
+            gym_env=env, grid=grid,
+            min_reward=env.reward_range[0], max_reward=env.reward_range[1],
+            reward_done=1,
+            max_gain=0,
+            bias_span=0.,
+            diameter=None
+        )
+
+    def reset(self):
+        next_state = self.gym_env.reset()
+        self.state = np.asscalar(self.grid.dpos(next_state))
 
 class GymCartPoleWr(GymContinuousWrapper):
 
