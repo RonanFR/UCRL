@@ -148,7 +148,7 @@ class ContinuousRiverSwim(gym.Env):
 
     def step(self, action):
 
-        DX = self.dx + np.random.randn()*0.001
+        DX = self.dx + np.random.randn() * self.dx / 2.
 
         reward = 0.
         if action == 0:

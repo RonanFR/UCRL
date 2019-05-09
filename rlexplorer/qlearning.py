@@ -259,8 +259,10 @@ class QLearningUCB(QLearning):
         beta_p = np.sqrt(LOG_TERM / N)  # + 1.0 / (self.nb_observations + 1.0)
 
         L_term = self.holder_L * math.pow(1.0 / S, self.holder_alpha)
-        P_term = self.alpha_p * self.span_constraint * np.minimum(beta_p + L_term, 2.)
-        R_term = self.alpha_r * self.r_max * np.minimum(beta_r + L_term, 1 if not self.known_reward else 0)
+        # P_term = self.alpha_p * self.span_constraint * np.minimum(beta_p + L_term, 2.)
+        # R_term = self.alpha_r * self.r_max * np.minimum(beta_r + L_term, 1 if not self.known_reward else 0)
+        P_term = self.alpha_p * self.span_constraint * (beta_p + L_term)
+        R_term = (self.alpha_r * self.r_max * (beta_r + L_term)) if not self.known_reward else 0
 
         final_bonus = R_term + P_term
         # print(final_bonus)
@@ -330,16 +332,21 @@ class QLearningUCB(QLearning):
             r = self.environment.reward
 
             # update Q value
-            # self.lr_alpha = (self.span_constraint + 1) / (self.span_constraint + np.sqrt(self.nb_observations[curr_state, curr_act_idx] + 1))
-            self.lr_alpha = (self.span_constraint + 1) / (self.span_constraint + self.nb_observations[curr_state, curr_act_idx] + 1)
+            self.lr_alpha = (self.span_constraint + 1) / (self.span_constraint + np.sqrt(self.nb_observations[curr_state, curr_act_idx] + 1))
+            # self.lr_alpha = (self.span_constraint + 1) / (self.span_constraint + self.nb_observations[curr_state, curr_act_idx] + 1)
             # self.lr_alpha = self.lr_alpha_init / (np.sqrt(self.nb_observations[curr_state, curr_act_idx]+1))
 
             self.bonus = self.beta_r(curr_state, curr_act_idx)
-            MM = min(self.span_constraint, np.max(self.q[next_state, :]))
-            # MM = np.max(self.q[next_state, :])
+            # MM = min((self.span_constraint + self.r_max)*3, np.max(self.q[next_state, :]))
+            # # MM = np.max(self.q[next_state, :])
+            # self.q[curr_state, curr_act_idx] = (1 - self.lr_alpha) * self.q[
+            #     curr_state, curr_act_idx] + self.lr_alpha * (r + self.bonus + self.gamma * MM - self.q[self.sbar, self.abar])
+            # # self.q[curr_state, curr_act_idx] = min(self.span_constraint, self.q[curr_state, curr_act_idx])
+
+
             self.q[curr_state, curr_act_idx] = (1 - self.lr_alpha) * self.q[
-                curr_state, curr_act_idx] + self.lr_alpha * (r + self.bonus + self.gamma * MM - self.q[self.sbar, self.abar])
-            # self.q[curr_state, curr_act_idx] = min(self.span_constraint, self.q[curr_state, curr_act_idx])
+                curr_state, curr_act_idx] + self.lr_alpha * (r + self.bonus + self.gamma * np.max(self.q[next_state, :]) - self.q[self.sbar, self.abar])
+            self.q[curr_state, curr_act_idx] = np.clip(self.q[curr_state, curr_act_idx], 0, self.span_constraint)
 
             self.nb_observations[curr_state, curr_act_idx] += 1
 
