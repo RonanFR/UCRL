@@ -121,7 +121,7 @@ class PuddleWorld(gym.Env):
 
         base_reward = np.clip(base_reward, self.reward_range[0], self.reward_range[1])
 
-        if self.isAtGoal(self.pos, multiplier=0.5):
+        if self.isAtGoal(self.pos, multiplier=1.):
             self._absorbing = True
         else:
             self._absorbing = False

@@ -2,6 +2,7 @@ import numpy as np
 from .rllogging import default_logger
 from . import __version__ as ucrl_version
 from visdom import Visdom
+import math
 
 
 class QLearning():
@@ -232,7 +233,7 @@ class QLearningUCB(QLearning):
     def __init__(self, environment, r_max, random_state,
                  span_constraint, alpha_r=None, alpha_p=None,
                  lr_alpha_init=1.0, exp_epsilon_init=1.0, gamma=1.0, exp_power=0.5,
-                 lipschitz_const=0.0,
+                 holder_L=0.0, holder_alpha=1.,
                  verbose=0,
                  logger=default_logger,
                  known_reward=False):
@@ -244,7 +245,8 @@ class QLearningUCB(QLearning):
         self.span_constraint = span_constraint
         self.alpha_r = alpha_r
         self.alpha_p = alpha_p
-        self.lipschitz_const = lipschitz_const
+        self.holder_L = holder_L
+        self.holder_alpha = holder_alpha
 
     def beta_r(self, state, action):
         S = self.environment.nb_states
@@ -256,10 +258,9 @@ class QLearningUCB(QLearning):
         beta_r = np.sqrt(LOG_TERM / N)
         beta_p = np.sqrt(LOG_TERM / N)  # + 1.0 / (self.nb_observations + 1.0)
 
-        P_term = self.alpha_p * self.span_constraint * np.minimum(beta_p, 2.)
-        R_term = self.alpha_r * self.r_max * np.minimum(beta_r, 1 if not self.known_reward else 0)
-        # P_term = self.alpha_p * self.span_constraint * beta_p
-        # R_term = self.alpha_r * self.r_max * beta_r if not self.known_reward else 0
+        L_term = self.holder_L * math.pow(1.0 / S, self.holder_alpha)
+        P_term = self.alpha_p * self.span_constraint * np.minimum(beta_p + L_term, 2.)
+        R_term = self.alpha_r * self.r_max * np.minimum(beta_r + L_term, 1 if not self.known_reward else 0)
 
         final_bonus = R_term + P_term
         # print(final_bonus)
@@ -333,7 +334,7 @@ class QLearningUCB(QLearning):
             self.lr_alpha = (self.span_constraint + 1) / (self.span_constraint + self.nb_observations[curr_state, curr_act_idx] + 1)
             # self.lr_alpha = self.lr_alpha_init / (np.sqrt(self.nb_observations[curr_state, curr_act_idx]+1))
 
-            self.bonus = self.beta_r(curr_state, curr_act_idx) + self.lipschitz_const / np.sqrt(1 + self.nb_observations[curr_state, curr_act_idx])
+            self.bonus = self.beta_r(curr_state, curr_act_idx)
             MM = min(self.span_constraint, np.max(self.q[next_state, :]))
             # MM = np.max(self.q[next_state, :])
             self.q[curr_state, curr_act_idx] = (1 - self.lr_alpha) * self.q[

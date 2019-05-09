@@ -56,7 +56,7 @@ in_options = Options(
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
     algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS", "QLEARNING", "QLEARNINGUCB"]
-    domain="PuddleWorld",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR", "ContRiverSwim", "PuddleWorld"]
+    domain="ContRiverSwim",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR", "ContRiverSwim", "PuddleWorld"]
     seed_0=452263, # 1307784, #1393728,
     alpha_r=0.5,
     alpha_p=0.5,
@@ -67,12 +67,12 @@ in_options = Options(
     span_episode_steps=2,
     quiet=False,
     bound_type="hoeffding",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
-    span_constraint=10,
+    span_constraint=30,
     augmented_reward=True,
     communicating_version=True,
     exp_epsilon_init=20.,
     exp_power=0.33333,
-    initq=15
+    initq=30
 )
 
 domain_options = DomainOptions(
