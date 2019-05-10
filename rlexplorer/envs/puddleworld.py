@@ -66,7 +66,7 @@ class PuddleWorld(gym.Env):
     def reset(self, state=None):
         self._absorbing = False
         if state is None:
-            self.pos = np.array([0., 0.])
+            self.pos = np.array([np.random.uniform(low=0, high=2), np.random.uniform(low=0, high=10)])
         else:
             self.pos = np.array(state)
         return self.get_state()
