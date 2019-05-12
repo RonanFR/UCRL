@@ -308,13 +308,13 @@ class UcrlMdp(AbstractUCRL):
                 self.first_regret = False
                 self.viz_plots["regret"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([curr_regret]),
                                                          env="main", opts=dict(
-                        title="{} - Regret".format(type(self).__name__),
+                        title="{}: {} - Regret".format(type(self).__name__, type(self.environment).__name__),
                         xlabel="Time",
                         ylabel="Cumulative Regret"
                     ))
                 self.viz_plots["reward"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.environment.reward]),
                                                          env="main", opts=dict(
-                        title="{} - Reward".format(type(self).__name__),
+                        title="{}: {} - Reward".format(type(self).__name__, type(self.environment).__name__),
                         xlabel="Time",
                         ylabel="Immediate Reward"
                     ))

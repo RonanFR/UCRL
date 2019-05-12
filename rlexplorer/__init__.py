@@ -92,4 +92,6 @@
 #   - big refactoring to match thesis
 # 0.46.dev0 (Apr 22, 2019)
 #   - added Continuous SCAL (SCCAL-PLUS)
-__version__ = '0.46.dev0'
+# 0.55.dev0 (Apr 22, 2019)
+#   - Modified MDPs (PuddleWorld ShipSteering and MountainCar)
+__version__ = '0.55.dev0'

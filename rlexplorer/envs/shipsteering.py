@@ -7,6 +7,12 @@ from gym.utils import seeding
 RAD2DEG = 57.29577951308232
 DEG2RAD = 0.01745329251
 
+"""
+Barto and Rosenstein
+Supervised actor-critic reinforcement learning
+Handbook of learning and approximate dynamic programming 2 (2004): 359
+"""
+
 
 class ShipSteering(gym.Env):
     metadata = {

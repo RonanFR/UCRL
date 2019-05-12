@@ -191,25 +191,25 @@ class QLearning():
                 self.first_regret = False
                 self.viz_plots["regret"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([curr_regret]),
                                                          env="main", opts=dict(
-                        title="{} - Regret".format(type(self).__name__),
+                        title="{}: {} - Regret".format(type(self).__name__, type(self.environment).__name__),
                         xlabel="Time",
                         ylabel="Cumulative Regret"
                     ))
                 self.viz_plots["epsilon"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.exp_epsilon]),
                                                           env="main", opts=dict(
-                        title="{} - Expl. Epsilon".format(type(self).__name__),
+                        title="{}: {} - Expl. Epsilon".format(type(self).__name__, type(self.environment).__name__),
                         xlabel="Time",
                         ylabel="Exploration Epsilon"
                     ))
                 self.viz_plots["alpha"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.lr_alpha]),
                                                           env="main", opts=dict(
-                        title="{} - LR Alpha".format(type(self).__name__),
+                        title="{}: {} - LR Alpha".format(type(self).__name__, type(self.environment).__name__),
                         xlabel="Time",
                         ylabel="LR Alpha"
                     ))
                 self.viz_plots["reward"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.environment.reward]),
                                                           env="main", opts=dict(
-                        title="{} - Reward".format(type(self).__name__),
+                        title="{}: {} - Reward".format(type(self).__name__, type(self.environment).__name__),
                         xlabel="Time",
                         ylabel="Immediate reward"
                     ))
@@ -372,7 +372,7 @@ class QLearningUCB(QLearning):
             if self.first_regret:
                 self.viz_plots["bonus"] = self.viz.line(X=np.array([self.total_time]), Y=np.array([self.bonus]),
                                                           env="main", opts=dict(
-                        title="{} - Expl. bonus".format(type(self).__name__),
+                        title="{}: {} - Expl. bonus".format(type(self).__name__, type(self.environment).__name__),
                         xlabel="Time",
                         ylabel="Exploration Bonus"
                     ))
