@@ -52,27 +52,27 @@ if len(sys.argv) > 1:
 
 in_options = Options(
     nb_sim_offset=0,
-    nb_simulations=10,
+    nb_simulations=1,
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
     algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS", "QLEARNING", "QLEARNINGUCB"]
-    domain="ContRiverSwim",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR", "ContRiverSwim", "PuddleWorld"]
+    domain="ShipSteering",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR", "ContRiverSwim", "PuddleWorld", "ShipSteering"]
     seed_0=452263, # 1307784, #1393728,
     alpha_r=0.5,
     alpha_p=0.5,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
-    duration=10000000,
+    duration=20000000,
     regret_time_steps=1000,
     span_episode_steps=2,
     quiet=False,
     bound_type="hoeffding",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
-    span_constraint=30,
+    span_constraint=3,
     augmented_reward=True,
     communicating_version=True,
     exp_epsilon_init=20.,
     exp_power=0.33333,
-    initq=30
+    initq=5
 )
 
 domain_options = DomainOptions(
@@ -85,7 +85,7 @@ domain_options = DomainOptions(
     garnet_na=3,
     chain_length=2,
     chain_proba=0.4,
-    N_bins=16,
+    N_bins=8,
     dx=0.1
 )
 
@@ -168,7 +168,13 @@ elif in_options.domain.upper() == "PUDDLEWORLD":
     Ha = 1
     env = gymwrap.PuddleWorldWr(Nbins=domain_options.N_bins)
     r_max = 1.
-
+elif in_options.domain.upper() == "SHIPSTEERING":
+    Hl = 1
+    Ha = 1
+    env = gymwrap.ShipSteeringWr(Nbins=domain_options.N_bins)
+    r_max = 1.
+else:
+    raise ValueError("Unknown domain")
 
 if in_options.path is None:
     folder_results = os.path.abspath('{}_{}_{}'.format(in_options.algorithm, type(env).__name__,

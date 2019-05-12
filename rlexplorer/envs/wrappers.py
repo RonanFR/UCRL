@@ -6,6 +6,7 @@ from ..utils.discretization import Discretizer
 from gym.envs.toy_text.taxi import TaxiEnv
 from gym.envs.classic_control import MountainCarEnv, CartPoleEnv
 from .mountaincar import MountainCar
+from .shipsteering import ShipSteering
 from .toys.riverswim import ContinuousRiverSwim
 from .puddleworld import PuddleWorld
 
@@ -337,8 +338,35 @@ class GymMountainCarWr(GymContinuousWrapper):
 
     def reset(self):
         next_state = self.gym_env.reset()
-        # next_state = np.array([self.gym_env.np_random.uniform(low=-1.2, high=0.45), self.gym_env.np_random.uniform(low=-0.06, high=0.06)])
-        # self.gym_env.state = next_state
+        self.state = np.asscalar(self.grid.dpos(next_state))
+
+
+class ShipSteeringWr(GymContinuousWrapper):
+
+    def __init__(self, Nbins, seed=None):
+        self.Nbins = Nbins
+        env = ShipSteering()
+        env.seed(seed=seed)
+        LM = env.observation_space.low
+        HM = env.observation_space.high
+        D = len(HM)
+
+        bins = []
+        for i in range(D):
+            V = np.linspace(LM[i], HM[i], Nbins)
+            bins.append(V[1:-1])
+        grid = Discretizer(bins=bins)
+        super(ShipSteeringWr, self).__init__(
+            gym_env=env, grid=grid,
+            min_reward=env.reward_range[0], max_reward=env.reward_range[1],
+            reward_done=1,
+            max_gain=0,
+            bias_span=0,
+            diameter=None
+        )
+
+    def reset(self):
+        next_state = self.gym_env.reset()
         self.state = np.asscalar(self.grid.dpos(next_state))
 
 
@@ -369,6 +397,7 @@ class PuddleWorldWr(GymContinuousWrapper):
     def reset(self):
         next_state = self.gym_env.reset()
         self.state = np.asscalar(self.grid.dpos(next_state))
+
 
 class GymCartPoleWr(GymContinuousWrapper):
 
@@ -414,72 +443,7 @@ class ContRiverSwimWr(GymContinuousWrapper):
             gym_env=env, grid=grid,
             min_reward=0, max_reward=1,
             reward_done=0,
-            max_gain=0., #0.3377335,
+            max_gain=0.,  # 0.3377335,
             bias_span=0.,
             diameter=None
         )
-
-# class GymMCWrapper2:
-#     def __init__(self, N):
-#         self.Nbins = N
-#         self.gym_env = MountainCarEnv()
-#
-#         minx, minv = self.gym_env.observation_space.low.tolist()
-#         maxx, maxv = self.gym_env.observation_space.high.tolist()
-#         x_bins = np.linspace(minx, maxx, N)
-#         y_bins = np.linspace(minv, maxv, N)
-#
-#         self.grid = Discretizer(bins=[x_bins[1:-1], y_bins[1:-1]])
-#
-#         nS = self.grid.n_bins()
-#         nA = self.gym_env.action_space.n
-#         self.state_actions = [list(range(nA)) for _ in range(nS)]
-#         self.holding_time = 1
-#         self.nb_states = nS
-#         self.max_nb_actions_per_state = max(map(len, self.state_actions))
-#         self.state = None
-#         self.reward = None
-#         self.max_gain = 0
-#         self.reset()
-#         self.minr = -1
-#         self.maxr = 0
-#
-#     def reset(self):
-#         next_state = np.array([np.random.uniform(low=-1, high=0.4), 0])
-#         self.gym_env.state = next_state.copy()
-#         next_state = self.gym_env.reset()
-#         self.state = np.asscalar(self.grid.dpos(next_state))
-#
-#     def execute(self, action):
-#         done = False
-#         next_state, reward, done, _ = self.gym_env.step(action)
-#         # bound reward between [0,1]
-#         self.reward = (reward - self.minr) / (self.maxr - self.minr)
-#         if done:
-#             self.reset()
-#             self.reward = 1
-#         else:
-#             self.state = np.asscalar(self.grid.dpos(next_state))
-#
-#     def compute_max_gain(self):
-#         self.max_gain = 0.009054722111333291
-#         self.bias_span = 1.0597499799932173
-#         return self.max_gain
-#
-#     def get_state_actions(self):
-#         return self.state_actions
-#
-#     def description(self):
-#         desc = {
-#             'name': type(self.gym_env).__name__
-#         }
-#         return desc
-#
-#     def properties(self):
-#         self.compute_max_gain()
-#         props = {
-#             'gain': self.max_gain,
-#             'diameter': "!!!",
-#             'bias_span': self.bias_span
-#         }
-#         return props
