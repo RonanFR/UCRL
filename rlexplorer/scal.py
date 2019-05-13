@@ -137,5 +137,5 @@ class SCALPLUS(SCAL):
         for (s, a) in self.visited_sa:
             Nsa = self.nb_observations[s, a]
             self.P[s, a] = self.P_counter[s, a] / (Nsa + 1.0)
-            self.P[s, a, 0] += 1.0 / (Nsa + 1.0)
+            self.P[s, a, self.sbar] += 1.0 / (Nsa + 1.0)
             assert np.isclose(1., np.sum(self.P[s, a]))

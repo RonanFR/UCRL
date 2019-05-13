@@ -22,10 +22,11 @@ class ShipSteering(gym.Env):
 
     dt = 25
     C = 0.01
+    # AVAIL_ANGLEDX = [-20 * DEG2RAD, -10 * DEG2RAD, -5 * DEG2RAD, 0, 5 * DEG2RAD, 10 * DEG2RAD, 20 * DEG2RAD]
     AVAIL_ANGLEDX = [-10 * DEG2RAD, 0, 10 * DEG2RAD]
     torque_noise_max = 2 * DEG2RAD
     torque_noise_min = -2 * DEG2RAD
-    goal_radii = 0.15
+    goal_radii = 0.2
     goal = np.array([0., 0.])
 
     def __init__(self):
@@ -33,7 +34,7 @@ class ShipSteering(gym.Env):
         high = np.array([6., 2., np.pi])
         low = np.array([0, -2., -np.pi])
         self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
-        self.action_space = spaces.Discrete(3)
+        self.action_space = spaces.Discrete(len(self.AVAIL_ANGLEDX))
         self.state = None
         self.seed()
         self.reward_range = np.array([-1, 0], dtype=np.float)

@@ -172,6 +172,7 @@ class UcrlMdp(AbstractUCRL):
         self.speed = None
         self.solver_times = []
         self.simulation_times = []
+        self.sbar = None
 
     def _stopping_rule(self, curr_state, curr_act_idx, next_state):
         return self.nu_k[curr_state][curr_act_idx] < max(1, self.nb_observations[curr_state][curr_act_idx])
@@ -208,6 +209,8 @@ class UcrlMdp(AbstractUCRL):
 
         # get initial state
         curr_state = self.environment.state
+        if self.total_time == 0:
+            self.sbar = curr_state
 
         t_star_all = time.perf_counter()
         while self.total_time < duration:
@@ -472,15 +475,19 @@ class UcrlMdp(AbstractUCRL):
         beta_p = self.beta_p()  # confidence bounds on transition probabilities
 
         t0 = time.perf_counter()
-        span_value = self.opt_solver.run(
-            self.policy_indices, self.policy,
-            self.P,
-            self.estimated_rewards if not self.known_reward else self.true_reward,
-            self.estimated_holding_times,
-            beta_r, beta_p, beta_tau, self.tau_max,
-            self.r_max_vi, self.tau, self.tau_min,
-            self.r_max / m.sqrt(self.iteration + 1)
-        )
+        inputs = {"policy_indices": self.policy_indices,
+                  "policy": self.policy,
+                  "estimated_probabilities": self.P,
+                  "estimated_rewards": self.estimated_rewards if not self.known_reward else self.true_reward,
+                  "estimated_holding_times": self.estimated_holding_times,
+                  "beta_p": beta_p,
+                  "beta_r": beta_r,
+                  "beta_tau": beta_tau,
+                  "tau_max": self.tau_max, "tau_min": self.tau_min, "tau": self.tau,
+                  "r_max": self.r_max_vi,
+                  "epsilon": self.r_max / m.sqrt(self.iteration + 1)}
+        self.inputs = inputs
+        span_value = self.opt_solver.run(**inputs)
         t1 = time.perf_counter()
         tn = t1 - t0
         self.solver_times.append(tn)
