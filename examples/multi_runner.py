@@ -40,7 +40,7 @@ fields = ("nb_sim_offset", "nb_simulations", "id", "path", "algorithm", "domain"
 Options = namedtuple("Options", fields)
 dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range",
            "garnet_ns", "garnet_na", "garnet_gamma", "chain_length", "chain_proba",
-           "N_bins", "dx")
+           "N_bins", "dx", "Hl", "Ha")
 DomainOptions = namedtuple("DomainOptions", dfields)
 
 id_v = None
@@ -55,9 +55,11 @@ in_options = Options(
     nb_simulations=1,
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
-    algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS", "QLEARNING", "QLEARNINGUCB"]
-    domain="MountainCar",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR", "ContRiverSwim", "PuddleWorld", "ShipSteering"]
-    seed_0=4552263, # 1307784, #1393728,
+    algorithm=alg_name,
+    # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS", "QLEARNING", "QLEARNINGUCB"]
+    domain="MountainCar",
+    # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR", "ContRiverSwim", "PuddleWorld", "ShipSteering"]
+    seed_0=4552263,  # 1307784, #1393728,
     alpha_r=0.5,
     alpha_p=0.5,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
@@ -87,7 +89,9 @@ domain_options = DomainOptions(
     chain_length=2,
     chain_proba=0.4,
     N_bins=30,
-    dx=0.1
+    dx=0.1,
+    Hl=10,
+    Ha=1
 )
 
 #####################################################################
@@ -105,7 +109,6 @@ random.seed(in_options.seed_0)
 # Relevant code
 # ------------------------------------------------------------------------------
 env = None
-Hl = Ha = 0
 if in_options.domain.upper() == "RIVERSWIM":
     env = RiverSwim()
     r_max = max(1, np.asscalar(np.max(env.R_mat)))
@@ -140,38 +143,24 @@ elif in_options.domain.upper() == "TAXI":
         env = gymwrap.GymDiscreteEnvWrapper(gym_env)
     r_max = 1
 elif in_options.domain.upper() == "MOUNTAINCAR":
-    Hl = 10
-    Ha = 1
     # N = SCCALPlus.nb_discrete_state(in_options.duration, 2, 3, Hl, Ha)
     env = gymwrap.GymMountainCarWr(domain_options.N_bins)
     r_max = 1
 elif in_options.domain.upper() == "CARTPOLE":
-    Hl = 0.5
-    Ha = 1
     # N = SCCALPlus.nb_discrete_state(in_options.duration, 3, Hl, Ha)
     # N = 6
     env = gymwrap.GymCartPoleWr(domain_options.N_bins)
     r_max = 1
 elif in_options.domain.upper() == "DLQR":
-    Hl = 1
-    Ha = 1
-    N = 20
-    Na = 11
     env = DiscreteLQR(Ns=N, Na=Na, sigma_noise=0.1)
     r_max = 1.
 elif in_options.domain.upper() == "CONTRIVERSWIM":
-    Hl = 1
-    Ha = 1
     env = gymwrap.ContRiverSwimWr(Nbins=domain_options.N_bins, dx=domain_options.dx)
     r_max = 1.
 elif in_options.domain.upper() == "PUDDLEWORLD":
-    Hl = 1
-    Ha = 1
     env = gymwrap.PuddleWorldWr(Nbins=domain_options.N_bins)
     r_max = 1.
 elif in_options.domain.upper() == "SHIPSTEERING":
-    Hl = 10
-    Ha = 1
     env = gymwrap.ShipSteeringWr(Nbins=domain_options.N_bins)
     r_max = 1.
 else:
@@ -306,8 +295,8 @@ for rep in range(start_sim, end_sim):
         ofualg = SCCALPlus(
             discretized_env=env,
             r_max=r_max,
-            holder_L=Hl,
-            holder_alpha=Ha,
+            holder_L=domain_options.Hl,
+            holder_alpha=domain_options.Ha,
             span_constraint=in_options.span_constraint,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
@@ -338,8 +327,8 @@ for rep in range(start_sim, end_sim):
             lr_alpha_init=1.0, exp_epsilon_init=in_options.exp_epsilon_init,
             exp_power=in_options.exp_power,
             gamma=1.0,
-            holder_L=Hl,
-            holder_alpha=Ha,
+            holder_L=domain_options.Hl,
+            holder_alpha=domain_options.Ha,
             verbose=VERBOSITY,
             logger=expalg_log,
             known_reward=False
@@ -355,8 +344,8 @@ for rep in range(start_sim, end_sim):
     pickle_name = 'run_{}.pickle'.format(rep)
     try:
         h = ofualg.learn(duration=in_options.duration,
-                     regret_time_step=in_options.regret_time_steps,
-                     span_episode_step=in_options.span_episode_steps)  # learn task
+                         regret_time_step=in_options.regret_time_steps,
+                         span_episode_step=in_options.span_episode_steps)  # learn task
     except Ucrl.EVIException as valerr:
         expalg_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))
         pickle_name = 'exception_model_{}.pickle'.format(rep)
