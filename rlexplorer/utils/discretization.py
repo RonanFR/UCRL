@@ -88,7 +88,25 @@ class Discretizer:
         D = len(self.edges)
         sample = np.reshape(sample, (-1, D))
 
-        return get_position2(sample=sample, edges=self.edges, nbin=self.nbin)
+        return np.asscalar(get_position2(sample=sample, edges=self.edges, nbin=self.nbin))
 
     def n_bins(self):
         return np.prod(self.nbin)
+
+
+class UniformDiscWOB(Discretizer):
+    def __init__(self, bins, binstoremove, range=None):
+        super(UniformDiscWOB, self).__init__(bins=bins, range=range)
+        self.binstoremove = np.array(binstoremove)
+
+    def dpos(self, sample):
+        position = super(UniformDiscWOB, self).dpos(sample=sample)
+        shift = np.sum(self.binstoremove <= position)
+        return max(0, np.asscalar(position - shift))
+
+    def n_bins(self):
+        return np.prod(self.nbin) - len(self.binstoremove)
+
+    def available(self, sample):
+        position = super(UniformDiscWOB, self).dpos(sample=sample)
+        return position not in self.binstoremove

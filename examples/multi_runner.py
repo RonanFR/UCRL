@@ -36,7 +36,7 @@ from collections import namedtuple
 fields = ("nb_sim_offset", "nb_simulations", "id", "path", "algorithm", "domain", "seed_0", "alpha_r",
           "alpha_p", "posterior", "use_true_reward", "duration", "regret_time_steps", "span_episode_steps",
           "quiet", "bound_type", "span_constraint", "augmented_reward", "communicating_version",
-          "exp_epsilon_init", "exp_power", "initq")
+          "exp_epsilon_init", "exp_power", "initq", "scaling_terminal_cond")
 Options = namedtuple("Options", fields)
 dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range",
            "garnet_ns", "garnet_na", "garnet_gamma", "chain_length", "chain_proba",
@@ -44,7 +44,7 @@ dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range",
 DomainOptions = namedtuple("DomainOptions", dfields)
 
 id_v = None
-alg_name = "QLEARNINGUCB"
+alg_name = "SCAL"
 # alg_name = "SCALPLUS"
 
 if len(sys.argv) > 1:
@@ -56,23 +56,24 @@ in_options = Options(
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
     algorithm=alg_name,  # ["UCRL", "TUCRL", "TSDE", "DSPSRL", "BKIA", "SCAL", "SCALPLUS", "SCCALPLUS", "QLEARNING", "QLEARNINGUCB"]
-    domain="ShipSteering",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR", "ContRiverSwim", "PuddleWorld", "ShipSteering"]
-    seed_0=452263, # 1307784, #1393728,
+    domain="MountainCar",  # ["RiverSwim", "T3D1", "T3D2", "Taxi", "MountainCar", "CartPole", "Garnet", "DLQR", "ContRiverSwim", "PuddleWorld", "ShipSteering"]
+    seed_0=4552263, # 1307784, #1393728,
     alpha_r=0.5,
     alpha_p=0.5,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
-    duration=20000000,
+    duration=10000000,
     regret_time_steps=1000,
     span_episode_steps=2,
     quiet=False,
     bound_type="hoeffding",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
-    span_constraint=3,
+    span_constraint=10,
     augmented_reward=True,
     communicating_version=True,
     exp_epsilon_init=20.,
     exp_power=0.33333,
-    initq=5
+    initq=5,
+    scaling_terminal_cond=0
 )
 
 domain_options = DomainOptions(
@@ -85,7 +86,7 @@ domain_options = DomainOptions(
     garnet_na=3,
     chain_length=2,
     chain_proba=0.4,
-    N_bins=8,
+    N_bins=30,
     dx=0.1
 )
 
@@ -139,7 +140,7 @@ elif in_options.domain.upper() == "TAXI":
         env = gymwrap.GymDiscreteEnvWrapper(gym_env)
     r_max = 1
 elif in_options.domain.upper() == "MOUNTAINCAR":
-    Hl = 1
+    Hl = 10
     Ha = 1
     # N = SCCALPlus.nb_discrete_state(in_options.duration, 2, 3, Hl, Ha)
     env = gymwrap.GymMountainCarWr(domain_options.N_bins)
@@ -169,7 +170,7 @@ elif in_options.domain.upper() == "PUDDLEWORLD":
     env = gymwrap.PuddleWorldWr(Nbins=domain_options.N_bins)
     r_max = 1.
 elif in_options.domain.upper() == "SHIPSTEERING":
-    Hl = 1
+    Hl = 10
     Ha = 1
     env = gymwrap.ShipSteeringWr(Nbins=domain_options.N_bins)
     r_max = 1.

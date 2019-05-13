@@ -18,7 +18,8 @@ class MountainCar(MountainCarEnv):
         position, velocity = self.state
         # dvel = (action - 1) * 0.001 * 0.7 + math.cos(3 * position) * (-0.0025)
         # velocity += dvel + 0.5 * dvel * np.random.randn()
-        velocity += (action - 1) * 0.001 * 0.7 + math.cos(3 * position) * (-0.0025) + 0.0005 * np.random.randn()
+        M = 1.
+        velocity += (action - 1) * 0.001 * M + math.cos(3 * position) * (-0.0025) + 0.0005 * np.random.randn()
         velocity = np.clip(velocity, -self.max_speed, self.max_speed)
         position += velocity
         position = np.clip(position, self.min_position, self.max_position)

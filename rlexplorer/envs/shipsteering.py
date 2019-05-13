@@ -22,8 +22,8 @@ class ShipSteering(gym.Env):
 
     dt = 25
     C = 0.01
-    # AVAIL_ANGLEDX = [-20 * DEG2RAD, -10 * DEG2RAD, -5 * DEG2RAD, 0, 5 * DEG2RAD, 10 * DEG2RAD, 20 * DEG2RAD]
-    AVAIL_ANGLEDX = [-10 * DEG2RAD, 0, 10 * DEG2RAD]
+    AVAIL_ANGLEDX = [-20 * DEG2RAD, -10 * DEG2RAD, -5 * DEG2RAD, 0, 5 * DEG2RAD, 10 * DEG2RAD, 20 * DEG2RAD]
+    # AVAIL_ANGLEDX = [-10 * DEG2RAD, 0, 10 * DEG2RAD]
     torque_noise_max = 2 * DEG2RAD
     torque_noise_min = -2 * DEG2RAD
     goal_radii = 0.2
@@ -57,7 +57,7 @@ class ShipSteering(gym.Env):
 
         # Add noise to the force action
         if self.torque_noise_max > 0:
-            torque += self.np_random.uniform(-self.torque_noise_max, self.torque_noise_max)
+            torque += self.np_random.uniform(self.torque_noise_min, self.torque_noise_max)
 
         # Now, augment the state with our force action so it can be passed to
         # _dsdt
@@ -90,7 +90,7 @@ class ShipSteering(gym.Env):
 
     def _dsdt(self, s, t):
         x, y = s
-        dx = self.C * np.cos(self.heading - y)
+        dx = self.C * (np.cos(self.heading) - y)
         dy = self.C * np.sin(self.heading)
         return (dx, dy)
 

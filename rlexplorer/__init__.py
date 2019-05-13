@@ -94,4 +94,4 @@
 #   - added Continuous SCAL (SCCAL-PLUS)
 # 0.55.dev0 (Apr 22, 2019)
 #   - Modified MDPs (PuddleWorld ShipSteering and MountainCar)
-__version__ = '0.56.dev0'
+__version__ = '0.57.dev0'

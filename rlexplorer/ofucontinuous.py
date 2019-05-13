@@ -56,3 +56,6 @@ class SCCALPlus(SCALPLUS):
     #         Nsa = self.nb_observations[s, a]
     #         self.P[s, a] = self.P_counter[s, a] / Nsa
     #         assert np.isclose(1., np.sum(self.P[s, a]))
+
+    # def _stopping_rule(self, curr_state, curr_act_idx, next_state):
+    #     return self.nu_k[curr_state][curr_act_idx] < 0.1 * max(1, self.nb_observations[curr_state][curr_act_idx])
