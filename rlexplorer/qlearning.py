@@ -232,12 +232,14 @@ class QLearningUCB(QLearning):
 
     def __init__(self, environment, r_max, random_state,
                  span_constraint, alpha_r=None, alpha_p=None,
+                 truncation_level=None,
                  lr_alpha_init=1.0, exp_epsilon_init=1.0, gamma=1.0, exp_power=0.5,
                  holder_L=0.0, holder_alpha=1.,
                  verbose=0,
                  logger=default_logger,
                  known_reward=False):
-        initq = 2*span_constraint
+        self.truncation_level = span_constraint if truncation_level is None else truncation_level
+        initq = span_constraint
         super(QLearningUCB, self).__init__(environment=environment, r_max=r_max, random_state=random_state,
                                            lr_alpha_init=lr_alpha_init, exp_epsilon_init=exp_epsilon_init,
                                            gamma=gamma, initq=initq, exp_power=exp_power,
@@ -346,7 +348,7 @@ class QLearningUCB(QLearning):
 
             self.q[curr_state, curr_act_idx] = (1 - self.lr_alpha) * self.q[
                 curr_state, curr_act_idx] + self.lr_alpha * (r + self.bonus + self.gamma * np.max(self.q[next_state, :]) - self.q[self.sbar, self.abar])
-            self.q[curr_state, curr_act_idx] = np.clip(self.q[curr_state, curr_act_idx], 0, self.span_constraint)
+            self.q[curr_state, curr_act_idx] = np.clip(self.q[curr_state, curr_act_idx], 0, self.truncation_level)
 
             self.nb_observations[curr_state, curr_act_idx] += 1
 

@@ -7,13 +7,8 @@ import datetime
 import shutil
 import json
 import numpy as np
-from gym.envs.toy_text.taxi import TaxiEnv
-from UCRL.envs.wrappers import GymDiscreteEnvWrapper
-import UCRL.Ucrl as Ucrl
-from UCRL.tucrl import TUCRL
-import UCRL.span_algorithms as spalg
-import UCRL.logging as ucrl_logger
-from optparse import OptionParser, OptionGroup
+import rlexplorer.Ucrl as Ucrl
+import rlexplorer.rllogging as ucrl_logger
 
 import matplotlib
 # 'DISPLAY' will be something like this ':0'
@@ -23,8 +18,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 rep = 0
-path = '/home/matteo/Projects/UCRL/examples/TUCRL_GymDiscreteEnvWrapper_20180502_154827'
-name = 'ucrl_{}.pickle'.format(rep)
+path = 'folder'
+name = 'run_{}.pickle'.format(rep)
 with open(os.path.join(path, name), 'rb') as f:
     alg = pickle.load(f)
 
@@ -37,7 +32,7 @@ alg.reset_after_pickle(logger=ucrl_log)
 
 pickle_name = 'restart_ucrl_{}.pickle'.format(rep)
 try:
-    h = alg.learn(duration=20e8, regret_time_step=1000)  # learn task
+    h = alg.learn(duration=20000000, regret_time_step=1000)  # learn task
 except Ucrl.EVIException as valerr:
     ucrl_log.info("EVI-EXCEPTION -> error_code: {}".format(valerr.error_value))
     pickle_name = 'exception_model_{}.pickle'.format(rep)

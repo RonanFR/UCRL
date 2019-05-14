@@ -326,6 +326,7 @@ for rep in range(start_sim, end_sim):
             environment=env,
             r_max=r_max, random_state=seed,
             span_constraint=in_options.span_constraint,
+            truncation_level=in_options.truncation_level,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
             lr_alpha_init=1.0, exp_epsilon_init=in_options.exp_epsilon_init,
