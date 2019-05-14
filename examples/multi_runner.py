@@ -36,7 +36,7 @@ from collections import namedtuple
 fields = ("nb_sim_offset", "nb_simulations", "id", "path", "algorithm", "domain", "seed_0", "alpha_r",
           "alpha_p", "posterior", "use_true_reward", "duration", "regret_time_steps", "span_episode_steps",
           "quiet", "bound_type", "span_constraint", "augmented_reward", "communicating_version",
-          "exp_epsilon_init", "exp_power", "initq", "scaling_terminal_cond")
+          "exp_epsilon_init", "exp_power", "initq", "scaling_terminal_cond", "truncation_level")
 Options = namedtuple("Options", fields)
 dfields = ("mdp_delta", "stochastic_reward", "uniform_reward", "unifrew_range",
            "garnet_ns", "garnet_na", "garnet_gamma", "chain_length", "chain_proba",
@@ -64,16 +64,17 @@ in_options = Options(
     alpha_p=0.5,
     posterior="Bernoulli",  # ["Bernoulli", "Normal", None]
     use_true_reward=False,
-    duration=10000000,
+    duration=20000000,
     regret_time_steps=1000,
     span_episode_steps=2,
     quiet=False,
     bound_type="hoeffding",  # ["hoeffding", "bernstein", "KL"] this works only for UCRL and BKIA
-    span_constraint=10,
+    span_constraint=1,
+    truncation_level=100,
     augmented_reward=True,
     communicating_version=True,
     exp_epsilon_init=20.,
-    exp_power=0.33333,
+    exp_power=0.5,
     initq=5,
     scaling_terminal_cond=0
 )
@@ -266,6 +267,7 @@ for rep in range(start_sim, end_sim):
             environment=env,
             r_max=r_max,
             span_constraint=in_options.span_constraint,
+            truncation_level=in_options.truncation_level,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
             verbose=VERBOSITY,
@@ -281,6 +283,7 @@ for rep in range(start_sim, end_sim):
             environment=env,
             r_max=r_max,
             span_constraint=in_options.span_constraint,
+            truncation_level=in_options.truncation_level,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
             verbose=VERBOSITY,
@@ -298,6 +301,7 @@ for rep in range(start_sim, end_sim):
             holder_L=domain_options.Hl,
             holder_alpha=domain_options.Ha,
             span_constraint=in_options.span_constraint,
+            truncation_level=in_options.truncation_level,
             alpha_r=in_options.alpha_r,
             alpha_p=in_options.alpha_p,
             verbose=VERBOSITY,
