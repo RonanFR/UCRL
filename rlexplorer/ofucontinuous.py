@@ -12,10 +12,12 @@ class SCCALPlus(SCALPLUS):
     def __init__(self, discretized_env, r_max, span_constraint,
                  holder_L, holder_alpha,
                  alpha_r=None, alpha_p=None,
+                 truncation_level=None,
                  verbose=0, augment_reward=True,
                  logger=default_logger, random_state=None, relative_vi=True,
                  known_reward=False):
         super(SCCALPlus, self).__init__(environment=discretized_env, r_max=r_max, span_constraint=span_constraint,
+                                        truncation_level=truncation_level,
                                         alpha_r=alpha_r, alpha_p=alpha_p,
                                         verbose=verbose, augment_reward=augment_reward,
                                         logger=logger, random_state=random_state, relative_vi=relative_vi,
@@ -26,13 +28,12 @@ class SCCALPlus(SCALPLUS):
         # self.r_max_vi = float(np.iinfo(np.int32).max)
 
     def beta_r(self):
-
         S = self.environment.nb_states
         A = self.environment.max_nb_actions_per_state
         N = np.maximum(1, self.nb_observations)
         LOG_TERM = np.log(S * A / self.delta)
         beta_r = np.sqrt(LOG_TERM / N)
-        beta_p = np.sqrt(LOG_TERM / N) # + 1.0 / (self.nb_observations + 1.0)
+        beta_p = np.sqrt(LOG_TERM / N)  # + 1.0 / (self.nb_observations + 1.0)
 
         L_term = self.holder_L * m.pow(1.0 / S, self.holder_alpha)
         # P_term = self.alpha_p * self.span_constraint * np.minimum(beta_p + L_term, 2.)
@@ -42,12 +43,6 @@ class SCCALPlus(SCALPLUS):
 
         final_bonus = R_term + P_term
         return final_bonus
-
-    @staticmethod
-    def nb_discrete_state(T, d, nA, holder_L, holder_alpha):
-        exp_val = 1./(2.*d+2*holder_alpha)
-        N = m.pow(holder_alpha * holder_L * m.sqrt(T/nA), exp_val)
-        return max(10, int(m.ceil(N)))
 
     # def update_at_episode_end(self):
     #     self.nb_observations += self.nu_k
