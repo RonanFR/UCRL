@@ -10,17 +10,19 @@ class SCAL(UcrlMdp):
     """
 
     def __init__(self, environment, r_max, span_constraint, alpha_r=None, alpha_p=None,
+                 truncation_level=None,
                  bound_type_p="bernstein", bound_type_rew="bernstein",
                  verbose=0, augment_reward=True,
                  logger=default_logger, random_state=None, relative_vi=True,
                  known_reward=False):
+        self.truncation_level = span_constraint if truncation_level is None else truncation_level
         solver = SCOPT(nb_states=environment.nb_states,
                        actions_per_state=environment.state_actions,
                        bound_type=bound_type_p,
                        random_state=random_state,
                        augmented_reward=1 if augment_reward else 0,
                        gamma=1.,
-                       span_constraint=span_constraint,
+                       span_constraint=self.truncation_level,
                        relative_vi=1 if relative_vi else 0)
         super(SCAL, self).__init__(
             environment=environment, r_max=r_max,
@@ -62,7 +64,7 @@ class SCAL(UcrlMdp):
                                     random_state=self.random_state,
                                     augmented_reward=1 if self.augment_reward else 0,
                                     gamma=1.,
-                                    span_constraint=self.span_constraint,
+                                    span_constraint=self.truncation_level,
                                     relative_vi=1 if self.relative_vi else 0)
         else:
             self.opt_solver = solver
@@ -75,11 +77,13 @@ class SCALPLUS(SCAL):
     """
 
     def __init__(self, environment, r_max, span_constraint, alpha_r=None, alpha_p=None,
+                 truncation_level=None,
                  bound_type_p="hoeffding", bound_type_rew="hoeffding",
                  verbose=0, augment_reward=True,
                  logger=default_logger, random_state=None, relative_vi=True,
                  known_reward=False):
         super(SCALPLUS, self).__init__(environment=environment, r_max=r_max, span_constraint=span_constraint,
+                                       truncation_level=truncation_level,
                                        alpha_r=alpha_r, alpha_p=alpha_p,
                                        bound_type_p=bound_type_p, bound_type_rew=bound_type_rew,
                                        verbose=verbose, augment_reward=augment_reward,
