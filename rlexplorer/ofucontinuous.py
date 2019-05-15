@@ -25,7 +25,7 @@ class SCCALPlus(SCALPLUS):
         self.holder_alpha = holder_alpha
         self.holder_L = holder_L
         self.r_max_vi = (self.span_constraint + self.r_max) * 3
-        # self.r_max_vi = float(np.iinfo(np.int32).max)
+        self.r_max_vi = float(np.iinfo(np.int32).max)
 
     def beta_r(self):
         S = self.environment.nb_states

@@ -277,7 +277,7 @@ class GymContinuousWrapper:
 
     def reset(self):
         next_state = self.gym_env.reset()
-        self.state = np.asscalar(self.grid.dpos(next_state))
+        self.state = self.grid.dpos(next_state)
 
     def execute(self, action):
         next_state, reward, done, _ = self.gym_env.step(action)
