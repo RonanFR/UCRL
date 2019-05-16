@@ -2,6 +2,7 @@ import gym
 import numpy as np
 from gym import spaces
 import math
+from gym.utils import seeding
 
 """
 The Puddleworld environment
@@ -29,9 +30,13 @@ class PuddleWorld(gym.Env):
         'video.frames_per_second': 15
     }
 
-    def __init__(self, goal_x=10, goal_y=10, puddle_means=[(1.0, 10.0), (1.0, 8.0), (6.0, 6.0), (6.0, 4.0)],
-                 puddle_var=[(.8, 1.e-5, 1.e-5, .8), (.8, 1.e-5, 1.e-5, .8), (.8, 1.e-5, 1.e-5, .8),
-                             (.8, 1.e-5, 1.e-5, .8)],
+    # def __init__(self, goal_x=10, goal_y=10, puddle_means=[(1.0, 10.0), (1.0, 8.0), (6.0, 6.0), (6.0, 4.0)],
+    #              puddle_var=[(.8, 1.e-5, 1.e-5, .8), (.8, 1.e-5, 1.e-5, .8), (.8, 1.e-5, 1.e-5, .8),
+    #                          (.8, 1.e-5, 1.e-5, .8)],
+    #              puddle_slow=True):
+    def __init__(self, goal_x=5, goal_y=5, puddle_means=[(3.0, .0), (0.8, 2.), (3.0, 3.0), (3., 1.5)],
+                 puddle_var=[(.1, 1.e-5, 1.e-5, .2), (.1, 1.e-5, 1.e-5, .1), (.1, 1.e-5, 1.e-5, .1),
+                             (.2, 0.1, 0.1, .4)],
                  puddle_slow=True):
 
         self.horizon = 50
@@ -39,21 +44,23 @@ class PuddleWorld(gym.Env):
         self.state_dim = 2
         self.action_dim = 1
 
-        self.size = np.array([10, 10])
+        # self.size = np.array([10, 10])
+        self.size = np.array([5, 5])
         self.goal = np.array([goal_x, goal_y])
-        self.goal_reward = 10.
-        self.noise = 0.2
-        self.reward_noise = 0.1
-        self.fudge = 1.41
-        self.puddle_slow = 5 if puddle_slow else 0
-
+        self.goal_reward = 100.
+        self.per_step_reward = -5.
         self.puddle_penalty = -100.0
+        self.noise = 0.3
+        self.reward_noise = 1
+        self.fudge = 1.41
+        self.puddle_slow = 10 if puddle_slow else 0
+
         self.puddle_means = list(map(np.array, puddle_means))
 
         self.puddle_var = list(map(lambda cov: np.linalg.inv(np.array(cov).reshape((2, 2))), puddle_var))
         self.puddles = list(zip(self.puddle_means, self.puddle_var))
 
-        self.observation_space = spaces.Box(low=np.array([0, 0]), high=np.array([10, 10]))
+        self.observation_space = spaces.Box(low=np.array([0, 0]), high=self.size, dtype=np.float)
 
         self.action_space = spaces.Discrete(4)
         self.hasrange = False
@@ -63,10 +70,15 @@ class PuddleWorld(gym.Env):
         self.reset()
         self.viewer = None
 
+    def seed(self, seed=None):
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
+
     def reset(self, state=None):
         self._absorbing = False
         if state is None:
-            self.pos = np.array([np.random.uniform(low=0, high=2), np.random.uniform(low=0, high=10)])
+            # self.pos = np.array([np.random.uniform(low=0, high=2), np.random.uniform(low=0, high=10)])
+            self.pos = np.array([0., 0.])
         else:
             self.pos = np.array(state)
         return self.get_state()
@@ -98,7 +110,7 @@ class PuddleWorld(gym.Env):
 
         puddle_weight = self._get_puddle_weight(self.pos)
 
-        alpha = 1 / (1 + (self.puddle_slow * puddle_weight))
+        alpha = 0.8 / (1 + (self.puddle_slow * puddle_weight))
 
         if int(a) == 0:
             self.pos[0] += alpha
@@ -113,7 +125,7 @@ class PuddleWorld(gym.Env):
             self.pos += np.random.normal(scale=self.noise, size=(2,))
         self.pos = self.pos.clip([0, 0], self.size)
 
-        base_reward = self.goal_reward if self.isAtGoal(s) else -1.0
+        base_reward = self.goal_reward if self.isAtGoal(self.pos) else self.per_step_reward
         base_reward += puddle_weight * self.puddle_penalty
 
         if self.reward_noise > 0:
@@ -134,7 +146,7 @@ class PuddleWorld(gym.Env):
     def get_reward_mean(self, s, a):
 
         puddle_weight = self._get_puddle_weight(s)
-        reward = 0.0 if self.isAtGoal(s) else -1.0
+        reward = self.goal_reward if self.isAtGoal(s) else self.per_step_reward
         reward += puddle_weight * self.puddle_penalty
         return reward
 
@@ -150,7 +162,7 @@ class PuddleWorld(gym.Env):
                     r = self.get_reward_mean(np.array([x[i], y[j]]), 0)
                     rmin = min(rmin, r)
                     rmax = max(rmax, r)
-            rmax = max(rmax, self.goal_reward)
+            #rmax = max(rmax, self.goal_reward)
             self.reward_range = (rmin, rmax)
             self.hasrange = True
             print(self.reward_range)
@@ -177,8 +189,8 @@ class PuddleWorld(gym.Env):
         screen_width = 600
         screen_height = 600
 
-        world_width = 10.
-        world_height = 10.
+        world_width = self.size[0]
+        world_height = self.size[1]
         scale_w = screen_width / world_width
         scale_h = screen_height / world_height
 
@@ -216,17 +228,18 @@ class PuddleWorld(gym.Env):
                 print(pd)
                 mean = pd[0]
                 sigma_inv = pd[1]
-                eig = np.diag(np.linalg.eig(sigma_inv)[0])
 
                 point = rendering.make_circle(1.)
                 trans = rendering.Transform()
                 point.add_attr(trans)
                 trans.set_translation(mean[0] * scale_w, mean[1] * scale_h)
                 self.viewer.add_geom(point)
-                from scipy.stats import chi2
-                for c in [1, 0.8, 0.6, 0.4, 0.2]:
-                    vv = np.sqrt(chi2.ppf(c, df=2, loc=0, scale=1))
-                    L = mean[:, np.newaxis] + vv * np.dot(eig, circle)
+                for p in [0.99, 0.75, 0.5, 0.1]:
+                    # https://www.xarg.org/2018/04/how-to-plot-a-covariance-error-ellipse/
+                    s = -2 * np.log(1. - p)
+                    w, vr = np.linalg.eig(s * np.linalg.inv(sigma_inv))
+                    D = np.sqrt(np.diag(w))
+                    L = mean[:, np.newaxis] + np.dot(vr, np.dot(D, circle))
                     xs = L[0, :]
                     ys = L[1, :]
                     xys = list(zip((xs - 0.0) * scale_w, (ys - 0.0) * scale_h))

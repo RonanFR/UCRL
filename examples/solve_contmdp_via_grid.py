@@ -1,5 +1,6 @@
 import numpy as np
 from gym.envs.classic_control import MountainCarEnv, CartPoleEnv, AcrobotEnv
+from rlexplorer.envs.puddleworld import PuddleWorld
 from rlexplorer.utils.discretization import Discretizer
 from rlexplorer.evi.pyvi import value_iteration
 # from rlexplorer.evi.vi import value_iteration
@@ -20,7 +21,7 @@ if len(sys.argv) == 1:
     path = None
 else:
     env_name = None
-    if sys.argv[1] in ["MC", "POLE", "ACROBOT"]:
+    if sys.argv[1] in ["MC", "POLE", "ACROBOT", "PUDDLE"]:
         env_name = sys.argv[1]
     else:
         path = sys.argv[1]
@@ -55,6 +56,8 @@ if env_name is None:
         env = CartPoleEnv()
     elif env_name == "ACROBOT":
         env = AcrobotEnv()
+    elif env_name == "PUDDLE":
+        env = PuddleWorld()
 
     bins = data['bins']
     grid = Discretizer(bins=bins)
@@ -168,6 +171,32 @@ else:
         grid = Discretizer(bins=bins)
         S, A = grid.n_bins(), env.action_space.n
 
+
+    elif env_name == "PUDDLE":
+        env = PuddleWorld()
+
+        Nbins = 20
+        Nsamples = 4
+
+        LM = env.observation_space.low
+        HM = env.observation_space.high
+        D = len(HM)
+
+        bins = []
+        points = []
+        for i in range(D):
+            V = np.linspace(LM[i], HM[i], Nbins)
+            bins.append(V[1:-1])
+
+            V = np.linspace(LM[i], HM[i], 7 * Nbins)
+            points.append(V)
+
+        samples = np.meshgrid(*points)
+        samples = np.concatenate([M.reshape(-1, 1) for M in samples], axis=1)
+
+        grid = Discretizer(bins=bins)
+        S, A = grid.n_bins(), env.action_space.n
+
     # --------------
     # sparse P and R
     # --------------
@@ -196,10 +225,15 @@ else:
                 env.state = point.copy()
                 nextstate, reward, done, _ = env.step(a)
 
+                if env_name in ["PUDDLE"]:
+                    reward = (reward - env.reward_range[0]) / (env.reward_range[1] - env.reward_range[0])
+
                 if done:
                     nextstate = env.reset()
                     if env_name in ["MC", "POLE"]:
                         reward = 0
+                    if env_name in ["PUDDLE"]:
+                        reward = 1
                 nsd = np.asscalar(grid.dpos(nextstate))
 
                 if nsd not in reach_graph[sd]:
