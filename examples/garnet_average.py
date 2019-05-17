@@ -51,7 +51,7 @@ if len(sys.argv) > 1:
 in_options = Options(
     nb_outer_rep=40,
     nb_sim_offset=0,
-    nb_simulations=10,
+    nb_simulations=5,
     id='{:%Y%m%d_%H%M%S}'.format(datetime.datetime.now()) if id_v is None else id_v,
     path=None,
     algorithm=alg_name,
@@ -94,6 +94,10 @@ domain_config = domain_options._asdict()
 np.random.seed(in_options.seed_0)
 random.seed(in_options.seed_0)
 
+outer_folder = os.path.abspath('GarnetAVG_{}_{}'.format(in_options.algorithm, in_options.id))
+if os.path.exists(outer_folder):
+    shutil.rmtree(outer_folder)
+os.makedirs(outer_folder)
 
 for kk in range(in_options.nb_outer_rep):
     # ------------------------------------------------------------------------------
@@ -109,8 +113,7 @@ for kk in range(in_options.nb_outer_rep):
         raise ValueError("Unknown domain")
 
     if in_options.path is None:
-        folder_results = os.path.abspath('{}_{}_{}_{}'.format(in_options.algorithm, kk, type(env).__name__,
-                                                           in_options.id))
+        folder_results = os.path.join(outer_folder, '{}'.format(kk) )
         if os.path.exists(folder_results):
             shutil.rmtree(folder_results)
         os.makedirs(folder_results)
@@ -323,11 +326,11 @@ for kk in range(in_options.nb_outer_rep):
             plt.savefig(os.path.join(folder_results, "bad_statessss_{}.png".format(rep)))
         plt.close('all')
 
-        print('policy indices: ')
-        print(ofualg.policy_indices)
-
-        print('policy: ')
-        print(ofualg.policy)
+        # print('policy indices: ')
+        # print(ofualg.policy_indices)
+        #
+        # print('policy: ')
+        # print(ofualg.policy)
 
         if rep == start_sim:
             sum_regret = np.copy(ofualg.regret)
